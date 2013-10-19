@@ -2,7 +2,7 @@ Multiple [GHC](http://haskell.org/ghc) Versions for [Travis-CI](https://travis-c
 ============================================================
 
 The purpose of this document is to describe how to set up the [`.travis.yml` script](http://about.travis-ci.org/docs/user/build-configuration/) in order to build and test your [cabalized](http://www.haskell.org/cabal) Haskell package with multiple [GHC](http://haskell.org/ghc) configurations. 
-At time of writing [Travis-CI](https://travis-ci.org/) has [support for building Haskell packages](http://about.travis-ci.org/docs/user/languages/haskell/) but only for a single GHC configuration (i.e. *Haskell Platform 2012.2.0.0 with GHC 7.4.1*). By following this guide, you can set up [Travis-CI](https://travis-ci.org/) jobs which have access to the following GHC versions (all compiled for *Ubuntu Linux 12.04 LTS 64-bit*) are provided:
+At time of writing [Travis-CI](https://travis-ci.org/) has [support for building Haskell packages](http://about.travis-ci.org/docs/user/languages/haskell/) but only for a single GHC configuration (i.e. *Haskell Platform 2012.2.0.0 with GHC 7.4.1*). By following this guide, you can set up [Travis-CI](https://travis-ci.org/) jobs which have access to the following GHC versions (all compiled for *Ubuntu Linux 12.04 LTS 64-bit*):
 
  - GHC 6.12.3,
  - GHC 7.0.1, GHC 7.0.2, GHC 7.0.3, GHC 7.0.4,
@@ -59,6 +59,8 @@ script:
  - cabal-1.18 sdist   # tests that a source-distribution can be generated
 ```
 
+For more information about the `.travis.yml` script please consult the
+[official documentation](http://about.travis-ci.org/docs/user/build-configuration/).
 
 ### Haskell Platform Configurations
 
@@ -68,8 +70,8 @@ Basic idea: Generate a `cabal.config` file during the build job (before installi
 constraints: async==2.0.1.4,attoparsec==0.10.4.0,case-insensitive==1.0.0.1,cgi==3001.1.7.5,fgl==5.4.2.4,GLUT==2.4.0.0,GLURaw==1.3.0.0,haskell-src==1.0.1.5,hashable==1.1.2.5,html==1.0.1.2,HTTP==4000.2.8,HUnit==1.2.5.2,mtl==2.1.2,network==2.4.1.2,OpenGL==2.8.0.0,OpenGLRaw==1.3.0.0,parallel==3.2.0.3,parsec==3.1.3,QuickCheck==2.6,random==1.0.1.1,regex-base==0.93.2,regex-compat==0.95.1,regex-posix==0.95.2,split==0.2.2,stm==2.4.2,syb==0.4.0,text==0.11.3.1,transformers==0.3.0.0,unordered-containers==0.2.3.0,vector==0.10.0.1,xhtml==3000.2.1,zlib==0.5.4.1
 ```
 
-TODO: write `.travis.yml` example with multiple HP configurations
-
+Use [this `.travis.yml` script](.travis.yml) as a template if you want
+to test against Haskell Platform configurations.
 
 Real-world Examples
 -------------------
