@@ -73,6 +73,13 @@ constraints: async==2.0.1.4,attoparsec==0.10.4.0,case-insensitive==1.0.0.1,cgi==
 Use [this `.travis.yml` script](.travis.yml) as a template if you want
 to test against Haskell Platform configurations.
 
+Random Remarks
+--------------
+
+ - If you want to know which core library version each GHC used (e.g. for deciding on what upper/lower bounds to declare for `build-depends`), see [GHC Boot Library Version History](http://ghc.haskell.org/trac/ghc/wiki/Commentary/Libraries/VersionHistory)
+ - GHC 7.0.1 was the first version to support `default-language: Haskell2010`
+ - Declaring `cabal-version >= 1.10` makes it more difficult to compile with GHC 6.12.3's default `cabal-install`
+
 Real-world Examples
 -------------------
 
