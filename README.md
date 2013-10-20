@@ -8,7 +8,8 @@ At time of writing [Travis-CI](https://travis-ci.org/) has [support for building
  - GHC 7.0.1, GHC 7.0.2, GHC 7.0.3, GHC 7.0.4,
  - GHC 7.2.1, GHC 7.2.2,
  - GHC 7.4.1, GHC 7.4.2,
- - GHC 7.6.1, GHC 7.6.2, GHC 7.6.3.
+ - GHC 7.6.1, GHC 7.6.2, GHC 7.6.3,
+ - GHC HEAD.
 
 Each GHC version is provided in a separate `ghc-<version>` `.deb` package installing into `/opt/ghc/<version>` (thus allowing to be installed at the same time if needed) published in a [PPA](https://launchpad.net/~hvr/+archive/ghc). The easiest way to "activate" a particular GHC version is to prepend its `bin`-folder to the `$PATH` environment variable (see example in next section).
 
@@ -38,6 +39,7 @@ env:
  - GHCVER=7.6.1
  - GHCVER=7.6.2
  - GHCVER=7.6.3
+# - GHCVER=head  # see section about GHC HEAD snapshots
 
 # Note: the distinction between `before_install` and `install` is not important.
 before_install:
@@ -73,17 +75,31 @@ constraints: async==2.0.1.4,attoparsec==0.10.4.0,case-insensitive==1.0.0.1,cgi==
 Use [this `.travis.yml` script](.travis.yml) as a template if you want
 to test against Haskell Platform configurations.
 
+GHC HEAD Snapshots
+------------------
+
+ - Snapshots of current GHC development snapshots from the `master` branch (aka *GHC HEAD*) are uploaded at irregular intervals to the PPA
+ - You can select *GHC HEAD* at your own risk by setting `GHCVER=head`
+ - As GHC HEAD is experimental and likely to cause build failures, you might want to [tolerate failures](http://about.travis-ci.org/docs/user/build-configuration/#Rows-That-are-Allowed-To-Fail) by adding the following snipped to your `.travis.yml`:
+
+    ```yaml
+    matrix:
+      allow_failures:
+       - env: GHCVER=head
+    ```
+
 Random Remarks
 --------------
 
  - If you want to know which core library version each GHC used (e.g. for deciding on what upper/lower bounds to declare for `build-depends`), see [GHC Boot Library Version History](http://ghc.haskell.org/trac/ghc/wiki/Commentary/Libraries/VersionHistory)
- - GHC 7.0.1 was the first version to support `default-language: Haskell2010`
- - Declaring `cabal-version >= 1.10` makes it more difficult to compile with GHC 6.12.3's default `cabal-install`
+ - Supporting GHC versions prior to 7.0.1 requires more effort:
+    - GHC 7.0.1 was the first version to support `default-language: Haskell2010`
+    - Declaring `cabal-version >= 1.10` makes it more difficult to compile with GHC 6.12.3's default `cabal-install`
+    - `cabal-install` [falls back to top-down solver for GHC < 7](http://stackoverflow.com/questions/16021645/what-does-cabals-warning-falling-back-to-topdown-solver-for-ghc-7-mean) which may require additional tweaks to the build script to compensate for (e.g. installing `QuickCheck` via `cabal install --only-dep` is known to fail)
+
 
 Real-world Examples
 -------------------
 
  - [deepseq-generics](https://github.com/hvr/deepseq-generics) [![Build Status](https://travis-ci.org/hvr/deepseq-generics.png?branch=master)](https://travis-ci.org/hvr/deepseq-generics)
  - [filepath](https://github.com/ghc/packages-filepath)  [![Build Status](https://travis-ci.org/ghc/packages-filepath.png)](https://travis-ci.org/ghc/packages-filepath)
-  
- 
