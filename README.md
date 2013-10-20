@@ -75,8 +75,8 @@ constraints: async==2.0.1.4,attoparsec==0.10.4.0,case-insensitive==1.0.0.1,cgi==
 Use [this `.travis.yml` script](.travis.yml) as a template if you want
 to test against Haskell Platform configurations.
 
-GHC HEAD Snapshots
-------------------
+### GHC HEAD Snapshots
+
 
  - Snapshots of current GHC development snapshots from the `master` branch (aka *GHC HEAD*) are uploaded at irregular intervals to the PPA
  - You can select *GHC HEAD* at your own risk by setting `GHCVER=head`
