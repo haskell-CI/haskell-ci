@@ -15,7 +15,7 @@ Each GHC version is provided in a separate `ghc-<version>` `.deb` package instal
 
 Moreover, a `cabal-install-1.18` `.deb` package providing the `/usr/bin/cabal-1.18` executable for the current stable `1.18` series is also available for convenience.
 
-Note: For actually enabling continuous integration for a GitHub hosted project, see section [Getting Started](http://about.travis-ci.org/docs/user/getting-started/) in [https://travis-ci.org/](Travis-CI)'s online documentation.
+Note: For actually enabling continuous integration for a GitHub hosted project, see section [Getting Started](http://about.travis-ci.org/docs/user/getting-started/) in [Travis-CI](https://travis-ci.org/)'s online documentation.
 
 `.travis.yml` Template
 ----------------------
@@ -80,7 +80,7 @@ to test against Haskell Platform configurations.
 
  - Snapshots of current GHC development snapshots from the `master` branch (aka *GHC HEAD*) are uploaded at irregular intervals to the PPA
  - You can select *GHC HEAD* at your own risk by setting `GHCVER=head`
- - As GHC HEAD is experimental and likely to cause build failures, you might want to [tolerate failures](http://about.travis-ci.org/docs/user/build-configuration/#Rows-That-are-Allowed-To-Fail) by adding the following snipped to your `.travis.yml`:
+ - As GHC HEAD is experimental and likely to cause build failures, you might want to [tolerate failures](http://about.travis-ci.org/docs/user/build-configuration/#Rows-That-are-Allowed-To-Fail) by adding the following snippet to your `.travis.yml`:
 
     ```yaml
     matrix:
