@@ -45,7 +45,7 @@ env:
 before_install:
  - sudo add-apt-repository -y ppa:hvr/ghc
  - sudo apt-get update
- - sudo apt-get install cabal-install-1.18 ghc-$GHCVER
+ - sudo apt-get install cabal-install-1.18 ghc-$GHCVER happy
  - export PATH=/opt/ghc/$GHCVER/bin:$PATH
 
 install:
