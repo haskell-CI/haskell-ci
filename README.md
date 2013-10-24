@@ -59,6 +59,17 @@ script:
  - cabal-1.18 test
  - cabal-1.18 check
  - cabal-1.18 sdist   # tests that a source-distribution can be generated
+
+# The following scriptlet checks that the resulting source distribution can be built & installed
+ - export SRC_TGZ=$(cabal-1.18 info . | awk '{print $2 ".tar.gz";exit}') ;
+   cd dist/;
+   if [ -f "$SRC_TGZ" ]; then
+      cabal-1.18 install "$SRC_TGZ";
+   else
+      echo "expected '$SRC_TGZ' not found";
+      exit 1;
+   fi
+
 ```
 
 For more information about the `.travis.yml` script please consult the
