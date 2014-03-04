@@ -40,7 +40,7 @@ env:
  - GHCVER=7.6.1
  - GHCVER=7.6.2
  - GHCVER=7.6.3
- - GHCVER=7.8.1
+ - GHCVER=7.8.1 # see note about Alex/Happy
 # - GHCVER=head  # see section about GHC HEAD snapshots
 
 # Note: the distinction between `before_install` and `install` is not important.
@@ -88,6 +88,18 @@ constraints: async==2.0.1.4,attoparsec==0.10.4.0,case-insensitive==1.0.0.1,cgi==
 Use [this `.travis.yml` script](.travis.yml) as a template if you want
 to test against Haskell Platform configurations.
 
+### Alex & Happy with GHC ≥ 7.8
+
+If your package (or one of its dependencies) contain Alex/Happy generated parsers, GHC 7.8.1 and later require a more recent `alex`/`happy` executable installed due to [PrimBool](https://ghc.haskell.org/trac/ghc/wiki/PrimBool). The following snipped (stolen from `lens`'s [`.travis.yaml`](https://github.com/ekmett/lens/blob/master/.travis.yml)) illustrates how to this can be accomplished:
+
+```yaml
+ - |
+   if [ $GHCVER = "head" ] || [ $GHCVER = "7.8.1" ]; then
+     $CABAL install happy alex
+     export PATH=$HOME/.cabal/bin:$PATH
+   fi
+```
+
 ### GHC HEAD Snapshots
 
 
@@ -114,6 +126,8 @@ Random Remarks
 Real-world Examples
 -------------------
 
+ - [lens](https://github.com/ekmett/lens) [![Build Status](https://travis-ci.org/ekmett/lens.png?branch=master)](https://travis-ci.org/ekmett/lens)
+ - [Cabal](https://github.com/haskell/cabal) [![Build Status](https://travis-ci.org/haskell/cabal.png?branch=master)](https://travis-ci.org/haskell/cabal)
  - [deepseq-generics](https://github.com/hvr/deepseq-generics) [![Build Status](https://travis-ci.org/hvr/deepseq-generics.png?branch=master)](https://travis-ci.org/hvr/deepseq-generics)
  - [filepath](https://github.com/ghc/packages-filepath)  [![Build Status](https://travis-ci.org/ghc/packages-filepath.png)](https://travis-ci.org/ghc/packages-filepath)
  - [arbtt](https://github.com/nomeata/darcs-mirror-arbtt)  [![Build Status](https://travis-ci.org/nomeata/darcs-mirror-arbtt.png)](https://travis-ci.org/nomeata/darcs-mirror-arbtt)
