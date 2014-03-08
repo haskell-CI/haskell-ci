@@ -90,7 +90,7 @@ to test against Haskell Platform configurations.
 
 ### Alex & Happy with GHC ≥ 7.8
 
-If your package (or one of its dependencies) contain Alex/Happy generated parsers, GHC 7.8.1 and later require a more recent `alex`/`happy` executable installed due to [PrimBool](https://ghc.haskell.org/trac/ghc/wiki/PrimBool). The following snipped (stolen from `lens`'s [`.travis.yaml`](https://github.com/ekmett/lens/blob/master/.travis.yml)) illustrates how to this can be accomplished:
+If your package (or one of its dependencies) contain Alex/Happy generated parsers, GHC 7.8.1 and later require a more recent `alex`/`happy` executable installed (see [Happy, Alex, and GHC 7.8](http://ro-che.info/articles/2014-03-08-happy-alex-ghc-7.8.html) for the gory details). The following snipped (stolen from `lens`'s [`.travis.yaml`](https://github.com/ekmett/lens/blob/master/.travis.yml)) illustrates how to this can be accomplished:
 
 ```yaml
  - |
