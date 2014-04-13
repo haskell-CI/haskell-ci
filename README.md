@@ -25,8 +25,8 @@ They install into a respective `/opt/<name>/<version>/bin` folder which can be p
 | `.deb` Package Name  | Executable 
 | -------------------- | ----------
 | `cabal-install-1.18` | `/opt/cabal/1.18/bin/cabal`
-| `alex-3.1.3`         | `/opt/alex/1.18/bin/alex`
-| `happy-1.19.3`       | `/opt/happy/1.18/bin/happy`
+| `alex-3.1.3`         | `/opt/alex/3.1.3/bin/alex`
+| `happy-1.19.3`       | `/opt/happy/1.19.3/bin/happy`
 
 See examples below for how to use those.
 
