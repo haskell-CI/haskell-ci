@@ -14,9 +14,21 @@ At time of writing [Travis-CI](https://travis-ci.org/) has [support for building
 
 Each GHC version is provided in a separate `ghc-<version>` `.deb` package installing into `/opt/ghc/<version>` (thus allowing to be installed at the same time if needed) published in a [PPA](https://launchpad.net/~hvr/+archive/ghc). The easiest way to "activate" a particular GHC version is to prepend its `bin`-folder to the `$PATH` environment variable (see example in next section).
 
-Moreover, a `cabal-install-1.18` `.deb` package providing the `/usr/bin/cabal-1.18` executable for the current stable `1.18` series is also available for convenience.
-
 Note: For actually enabling continuous integration for a GitHub hosted project, see section [Getting Started](http://about.travis-ci.org/docs/user/getting-started/) in [Travis-CI](https://travis-ci.org/)'s online documentation.
+
+### Add-on Packages
+
+For convenience, a few add-on packages are available to provide more recent versions of `cabal`, `alex` and `happy` than are available in Ubuntu 12.04.
+
+They install into a respective `/opt/<name>/<version>/bin` folder which can be put into the search `$PATH`.
+
+| `.deb` Package Name  | Executable 
+| -------------------- | ----------
+| `cabal-install-1.18` | `/opt/cabal/1.18/bin/cabal`
+| `alex-3.1.3`         | `/opt/alex/1.18/bin/alex`
+| `happy-1.19.3`       | `/opt/happy/1.18/bin/happy`
+
+See examples below for how to use those.
 
 `.travis.yml` Template
 ----------------------
@@ -48,26 +60,26 @@ env:
 before_install:
  - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
  - travis_retry sudo apt-get update
- - travis_retry sudo apt-get install cabal-install-1.18 ghc-$GHCVER happy
- - export PATH=/opt/ghc/$GHCVER/bin:$PATH
+ - travis_retry sudo apt-get install cabal-install-1.18 ghc-$GHCVER # see note about happy/alex
+ - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/1.18/bin:$PATH
 
 install:
- - cabal-1.18 update
- - cabal-1.18 install --only-dependencies --enable-tests --enable-benchmarks
+ - cabal update
+ - cabal install --only-dependencies --enable-tests --enable-benchmarks
 
 # Here starts the actual work to be performed for the package under test; any command which exits with a non-zero exit code causes the build to fail.
 script:
- - cabal-1.18 configure --enable-tests --enable-benchmarks -v2  # -v2 provides useful information for debugging
- - cabal-1.18 build   # this builds all libraries and executables (including tests/benchmarks)
- - cabal-1.18 test
- - cabal-1.18 check
- - cabal-1.18 sdist   # tests that a source-distribution can be generated
+ - cabal configure --enable-tests --enable-benchmarks -v2  # -v2 provides useful information for debugging
+ - cabal build   # this builds all libraries and executables (including tests/benchmarks)
+ - cabal test
+ - cabal check
+ - cabal sdist   # tests that a source-distribution can be generated
 
 # The following scriptlet checks that the resulting source distribution can be built & installed
  - export SRC_TGZ=$(cabal-1.18 info . | awk '{print $2 ".tar.gz";exit}') ;
    cd dist/;
    if [ -f "$SRC_TGZ" ]; then
-      cabal-1.18 install "$SRC_TGZ";
+      cabal install "$SRC_TGZ";
    else
       echo "expected '$SRC_TGZ' not found";
       exit 1;
@@ -95,9 +107,11 @@ If your package (or one of its dependencies) contain Alex/Happy generated parser
 
 ```yaml
  - |
-   if [ $GHCVER = "head" ] || [ $GHCVER = "7.8.1" ]; then
-     $CABAL install happy alex
-     export PATH=$HOME/.cabal/bin:$PATH
+   if [ $GHCVER = "head" ] || [ ${GHCVER%.*} = "7.8" ]; then
+     travis_retry sudo apt-get install happy-1.19.3 alex-3.1.3
+     export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:$PATH
+   else
+     travis_retry sudo apt-get install happy alex
    fi
 ```
 
