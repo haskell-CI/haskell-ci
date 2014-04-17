@@ -24,7 +24,9 @@ They install into a respective `/opt/<name>/<version>/bin` folder which can be p
 
 | `.deb` Package Name  | Executable 
 | -------------------- | ----------
+| `cabal-install-1.16` | `/opt/cabal/1.16/bin/cabal`
 | `cabal-install-1.18` | `/opt/cabal/1.18/bin/cabal`
+| `cabal-install-1.20` | `/opt/cabal/1.20/bin/cabal`
 | `alex-3.1.3`         | `/opt/alex/3.1.3/bin/alex`
 | `happy-1.19.3`       | `/opt/happy/1.19.3/bin/happy`
 
