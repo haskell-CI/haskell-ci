@@ -130,6 +130,13 @@ If your package (or one of its dependencies) contain Alex/Happy generated parser
        - env: GHCVER=head
     ```
 
+Ideas for Additional Checks
+---------------------------
+
+ - Check for code-smell via [`hlint`](http://hackage.haskell.org/package/hlint)
+ - Check for `build-depends` excluding latest package versions with [`packdeps`](http://hackage.haskell.org/package/packdeps)
+ - Check for unusued `build-depends` with [`packunused`](http://hackage.haskell.org/package/packunused)
+
 Random Remarks
 --------------
 
@@ -138,7 +145,6 @@ Random Remarks
     - GHC 7.0.1 was the first version to support `default-language: Haskell2010`
     - Declaring `cabal-version >= 1.10` makes it more difficult to compile with GHC 6.12.3's default `cabal-install`
     - `cabal-install` [falls back to top-down solver for GHC < 7](http://stackoverflow.com/questions/16021645/what-does-cabals-warning-falling-back-to-topdown-solver-for-ghc-7-mean) which may require additional tweaks to the build script to compensate for (e.g. installing `QuickCheck` via `cabal install --only-dep` is known to fail)
-
 
 Real-world Examples
 -------------------
