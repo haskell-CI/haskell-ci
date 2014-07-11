@@ -9,7 +9,7 @@ At time of writing [Travis-CI](https://travis-ci.org/) has [support for building
  - GHC 7.2.1, GHC 7.2.2,
  - GHC 7.4.1, GHC 7.4.2,
  - GHC 7.6.1, GHC 7.6.2, GHC 7.6.3,
- - GHC 7.8.1, GHC 7.8.2,
+ - GHC 7.8.1, GHC 7.8.2, GHC 7.8.3,
  - GHC HEAD.
 
 Each GHC version is provided in a separate `ghc-<version>` `.deb` package installing into `/opt/ghc/<version>` (thus allowing to be installed at the same time if needed) published in a [PPA](https://launchpad.net/~hvr/+archive/ghc). The easiest way to "activate" a particular GHC version is to prepend its `bin`-folder to the `$PATH` environment variable (see example in next section).
@@ -29,6 +29,7 @@ They install into a respective `/opt/<name>/<version>/bin` folder which can be p
 | `cabal-install-1.20` | `/opt/cabal/1.20/bin/cabal`
 | `alex-3.1.3`         | `/opt/alex/3.1.3/bin/alex`
 | `happy-1.19.3`       | `/opt/happy/1.19.3/bin/happy`
+| `happy-1.19.4`       | `/opt/happy/1.19.4/bin/happy`
 
 See examples below for how to use those.
 
@@ -56,6 +57,7 @@ env:
  - GHCVER=7.6.3
  - GHCVER=7.8.1 # see note about Alex/Happy
  - GHCVER=7.8.2 # see note about Alex/Happy
+ - GHCVER=7.8.3 # see note about Alex/Happy
 # - GHCVER=head  # see section about GHC HEAD snapshots
 
 # Note: the distinction between `before_install` and `install` is not important.
@@ -110,8 +112,8 @@ If your package (or one of its dependencies) contain Alex/Happy generated parser
 ```yaml
  - |
    if [ $GHCVER = "head" ] || [ ${GHCVER%.*} = "7.8" ]; then
-     travis_retry sudo apt-get install happy-1.19.3 alex-3.1.3
-     export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.3/bin:$PATH
+     travis_retry sudo apt-get install happy-1.19.4 alex-3.1.3
+     export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.4/bin:$PATH
    else
      travis_retry sudo apt-get install happy alex
    fi
