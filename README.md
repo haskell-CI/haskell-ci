@@ -27,6 +27,7 @@ They install into a respective `/opt/<name>/<version>/bin` folder which can be p
 | `cabal-install-1.16` | `/opt/cabal/1.16/bin/cabal`
 | `cabal-install-1.18` | `/opt/cabal/1.18/bin/cabal`
 | `cabal-install-1.20` | `/opt/cabal/1.20/bin/cabal`
+| `cabal-install-head` | `/opt/cabal/head/bin/cabal`
 | `alex-3.1.3`         | `/opt/alex/3.1.3/bin/alex`
 | `happy-1.19.3`       | `/opt/happy/1.19.3/bin/happy`
 | `happy-1.19.4`       | `/opt/happy/1.19.4/bin/happy`
