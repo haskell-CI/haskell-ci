@@ -10,6 +10,7 @@ At time of writing [Travis-CI](https://travis-ci.org/) has [support for building
  - GHC 7.4.1, GHC 7.4.2,
  - GHC 7.6.1, GHC 7.6.2, GHC 7.6.3,
  - GHC 7.8.1, GHC 7.8.2, GHC 7.8.3,
+ - GHC 7.10.1 *(snapshots)*
  - GHC HEAD.
 
 Each GHC version is provided in a separate `ghc-<version>` `.deb` package installing into `/opt/ghc/<version>` (thus allowing to be installed at the same time if needed) published in a [PPA](https://launchpad.net/~hvr/+archive/ghc). The easiest way to "activate" a particular GHC version is to prepend its `bin`-folder to the `$PATH` environment variable (see example in next section).
@@ -27,6 +28,7 @@ They install into a respective `/opt/<name>/<version>/bin` folder which can be p
 | `cabal-install-1.16` | `/opt/cabal/1.16/bin/cabal`
 | `cabal-install-1.18` | `/opt/cabal/1.18/bin/cabal`
 | `cabal-install-1.20` | `/opt/cabal/1.20/bin/cabal`
+| `cabal-install-1.22` | `/opt/cabal/1.22/bin/cabal`
 | `cabal-install-head` | `/opt/cabal/head/bin/cabal`
 | `alex-3.1.3`         | `/opt/alex/3.1.3/bin/alex`
 | `happy-1.19.3`       | `/opt/happy/1.19.3/bin/happy`
@@ -44,36 +46,40 @@ Below is a commented `.travis.yml` example that can be used as a template:
 
 # The following enables several GHC versions to be tested; often it's enough to test only against the last release in a major GHC version. Feel free to omit lines listings versions you don't need/want testing for.
 env:
- - GHCVER=6.12.3
- - GHCVER=7.0.1
- - GHCVER=7.0.2
- - GHCVER=7.0.3
- - GHCVER=7.0.4
- - GHCVER=7.2.1
- - GHCVER=7.2.2
- - GHCVER=7.4.1
- - GHCVER=7.4.2
- - GHCVER=7.6.1
- - GHCVER=7.6.2
- - GHCVER=7.6.3
- - GHCVER=7.8.1 # see note about Alex/Happy
- - GHCVER=7.8.2 # see note about Alex/Happy
- - GHCVER=7.8.3 # see note about Alex/Happy
-# - GHCVER=head  # see section about GHC HEAD snapshots
+ - CABALVER=1.16 GHCVER=6.12.3
+ - CABALVER=1.16 GHCVER=7.0.1
+ - CABALVER=1.16 GHCVER=7.0.2
+ - CABALVER=1.16 GHCVER=7.0.3
+ - CABALVER=1.16 GHCVER=7.0.4
+ - CABALVER=1.16 GHCVER=7.2.1
+ - CABALVER=1.16 GHCVER=7.2.2
+ - CABALVER=1.16 GHCVER=7.4.1
+ - CABALVER=1.16 GHCVER=7.4.2
+ - CABALVER=1.16 GHCVER=7.6.1
+ - CABALVER=1.16 GHCVER=7.6.2
+ - CABALVER=1.18 GHCVER=7.6.3
+ - CABALVER=1.18 GHCVER=7.8.1  # see note about Alex/Happy for GHC >= 7.8
+ - CABALVER=1.18 GHCVER=7.8.2
+ - CABALVER=1.18 GHCVER=7.8.3
+ - CABALVER=1.22 GHCVER=7.10.1
+ - CABALVER=head GHCVER=head   # see section about GHC HEAD snapshots
 
 # Note: the distinction between `before_install` and `install` is not important.
 before_install:
  - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
  - travis_retry sudo apt-get update
- - travis_retry sudo apt-get install cabal-install-1.18 ghc-$GHCVER # see note about happy/alex
- - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/1.18/bin:$PATH
+ - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER # see note about happy/alex
+ - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 
 install:
- - cabal update
+ - cabal --version
+ - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
+ - travis_retry cabal update
  - cabal install --only-dependencies --enable-tests --enable-benchmarks
 
 # Here starts the actual work to be performed for the package under test; any command which exits with a non-zero exit code causes the build to fail.
 script:
+ - if [ -f configure.ac ]; then autoreconf -i; fi
  - cabal configure --enable-tests --enable-benchmarks -v2  # -v2 provides useful information for debugging
  - cabal build   # this builds all libraries and executables (including tests/benchmarks)
  - cabal test
@@ -81,10 +87,10 @@ script:
  - cabal sdist   # tests that a source-distribution can be generated
 
 # The following scriptlet checks that the resulting source distribution can be built & installed
- - export SRC_TGZ=$(cabal-1.18 info . | awk '{print $2 ".tar.gz";exit}') ;
+ - export SRC_TGZ=$(cabal info . | awk '{print $2 ".tar.gz";exit}') ;
    cd dist/;
    if [ -f "$SRC_TGZ" ]; then
-      cabal install "$SRC_TGZ";
+      cabal install --force-reinstalls "$SRC_TGZ";
    else
       echo "expected '$SRC_TGZ' not found";
       exit 1;
@@ -112,7 +118,7 @@ If your package (or one of its dependencies) contain Alex/Happy generated parser
 
 ```yaml
  - |
-   if [ $GHCVER = "head" ] || [ ${GHCVER%.*} = "7.8" ]; then
+   if [ $GHCVER = "head" ] || [ ${GHCVER%.*} = "7.8"  || [ ${GHCVER%.*} = "7.10" ]; then
      travis_retry sudo apt-get install happy-1.19.4 alex-3.1.3
      export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.4/bin:$PATH
    else
@@ -122,7 +128,6 @@ If your package (or one of its dependencies) contain Alex/Happy generated parser
 
 ### GHC HEAD Snapshots
 
-
  - Snapshots of current GHC development snapshots from the `master` branch (aka *GHC HEAD*) are uploaded at irregular intervals to the PPA
  - You can select *GHC HEAD* at your own risk by setting `GHCVER=head`
  - As GHC HEAD is experimental and likely to cause build failures, you might want to [tolerate failures](http://about.travis-ci.org/docs/user/build-configuration/#Rows-That-are-Allowed-To-Fail) by adding the following snippet to your `.travis.yml`:
@@ -130,8 +135,11 @@ If your package (or one of its dependencies) contain Alex/Happy generated parser
     ```yaml
     matrix:
       allow_failures:
-       - env: GHCVER=head
+       - env: CABALVER=head GHCVER=head
     ```
+
+ - NB: the line in `matrix.allow_failures.env` must match exactly
+   (including any whitespace) the line specified in `env`
 
 Ideas for Additional Checks
 ---------------------------
