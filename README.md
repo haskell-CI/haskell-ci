@@ -118,7 +118,7 @@ If your package (or one of its dependencies) contain Alex/Happy generated parser
 
 ```yaml
  - |
-   if [ $GHCVER = "head" ] || [ ${GHCVER%.*} = "7.8"  || [ ${GHCVER%.*} = "7.10" ]; then
+   if [ $GHCVER = "head" ] || [ ${GHCVER%.*} = "7.8" ]  || [ ${GHCVER%.*} = "7.10" ]; then
      travis_retry sudo apt-get install happy-1.19.4 alex-3.1.3
      export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.4/bin:$PATH
    else
