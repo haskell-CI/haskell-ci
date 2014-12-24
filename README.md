@@ -9,7 +9,7 @@ At time of writing [Travis-CI](https://travis-ci.org/) has [support for building
  - GHC 7.2.1, GHC 7.2.2,
  - GHC 7.4.1, GHC 7.4.2,
  - GHC 7.6.1, GHC 7.6.2, GHC 7.6.3,
- - GHC 7.8.1, GHC 7.8.2, GHC 7.8.3,
+ - GHC 7.8.1, GHC 7.8.2, GHC 7.8.3, GHC 7.8.4
  - GHC 7.10.1 *(snapshots)*
  - GHC HEAD.
 
