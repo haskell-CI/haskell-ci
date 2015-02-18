@@ -96,6 +96,12 @@ script:
       exit 1;
    fi
 
+# The following scriptlet checks if the project can use the latest versions of its dependencies
+  - cabal --version | grep --quiet 'cabal-install version 1.22';
+    if [ $? -eq 0 ]; then
+      cabal install packdeps;
+      find . -name '*.cabal' | xargs cabal exec packdeps;
+    fi
 ```
 
 For more information about the `.travis.yml` script please consult the
@@ -145,7 +151,6 @@ Ideas for Additional Checks
 ---------------------------
 
  - Check for code-smell via [`hlint`](http://hackage.haskell.org/package/hlint)
- - Check for `build-depends` excluding latest package versions with [`packdeps`](http://hackage.haskell.org/package/packdeps)
  - Check for unusued `build-depends` with [`packunused`](http://hackage.haskell.org/package/packunused)
  - Check for 100% Haddock coverage
  - Check for trailing whitespaces and/or tabs in source files
