@@ -1,4 +1,5 @@
 # NB: don't set `language: haskell` here
+language: c
 
 # See also https://github.com/hvr/multi-ghc-travis for more information
 
