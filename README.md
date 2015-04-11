@@ -89,14 +89,8 @@ script:
  - cabal sdist   # tests that a source-distribution can be generated
 
 # The following scriptlet checks that the resulting source distribution can be built & installed
- - export SRC_TGZ=$(cabal info . | awk '{print $2 ".tar.gz";exit}') ;
-   cd dist/;
-   if [ -f "$SRC_TGZ" ]; then
-      cabal install --force-reinstalls "$SRC_TGZ";
-   else
-      echo "expected '$SRC_TGZ' not found";
-      exit 1;
-   fi
+ - SRC_TGZ=$(cabal info . | awk '{print $2;exit}').tar.gz &&
+   cd dist && cabal install --force-reinstalls "$SRC_TGZ"
 
 ```
 
