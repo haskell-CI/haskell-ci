@@ -1,7 +1,7 @@
 Multiple [GHC](http://haskell.org/ghc) Versions for [Travis-CI](https://travis-ci.org)
 ============================================================
 
-The purpose of this document is to describe how to set up the [`.travis.yml` script](http://about.travis-ci.org/docs/user/build-configuration/) in order to build and test your [cabalized](http://www.haskell.org/cabal) Haskell package with multiple [GHC](http://haskell.org/ghc) configurations. 
+The purpose of this document is to describe how to set up the [`.travis.yml` script](http://about.travis-ci.org/docs/user/build-configuration/) in order to build and test your [cabalized](http://www.haskell.org/cabal) Haskell package with multiple [GHC](http://haskell.org/ghc) configurations.
 At time of writing [Travis-CI](https://travis-ci.org/) has [support for building Haskell packages](http://about.travis-ci.org/docs/user/languages/haskell/) but only for a single GHC configuration (i.e. *Haskell Platform 2012.2.0.0 with GHC 7.4.1*). By following this guide, you can set up [Travis-CI](https://travis-ci.org/) jobs which have access to the following GHC versions (all compiled for *Ubuntu Linux 12.04 LTS 64-bit*):
 
  - GHC 6.12.3,
@@ -23,7 +23,7 @@ For convenience, a few add-on packages are available to provide more recent vers
 
 They install into a respective `/opt/<name>/<version>/bin` folder which can be put into the search `$PATH`.
 
-| `.deb` Package Name  | Executable 
+| `.deb` Package Name  | Executable
 | -------------------- | ----------
 | `cabal-install-1.16` | `/opt/cabal/1.16/bin/cabal`
 | `cabal-install-1.18` | `/opt/cabal/1.18/bin/cabal`
