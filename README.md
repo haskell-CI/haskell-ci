@@ -63,6 +63,7 @@ env:
  - CABALVER=1.18 GHCVER=7.8.1  # see note about Alex/Happy for GHC >= 7.8
  - CABALVER=1.18 GHCVER=7.8.2
  - CABALVER=1.18 GHCVER=7.8.3
+ - CABALVER=1.18 GHCVER=7.8.4
  - CABALVER=1.22 GHCVER=7.10.1
  - CABALVER=head GHCVER=head   # see section about GHC HEAD snapshots
 
