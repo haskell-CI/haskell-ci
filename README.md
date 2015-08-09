@@ -38,13 +38,51 @@ They install into a respective `/opt/<name>/<version>/bin` folder which can be p
 
 See examples below for how to use those.
 
-`.travis.yml` Template
-----------------------
+`.travis.yml` (for container-based infrastructure)
+--------------------------------------------------
+
+Since 2015, Travis-CI is migrating build-jobs towards a [contained-based infrastructure](http://docs.travis-ci.com/user/workers/container-based-infrastructure/) which requires a different way to setup the build-matrix in the first half of the `.travis.yml`.
+
+The following `.travis.yml` snippet shows the different `matrix` and
+`before_install` sections (relative to the non-container
+`.travis.yml`):
+
+```yaml
+language: c
+
+# explicitly request container-based infrastructure
+sudo: false
+
+matrix:
+  include:
+    - env: CABALVER=1.16 GHCVER=7.6.3
+      addons: {apt: {packages: [cabal-install-1.16,ghc-7.6.3], sources: [hvr-ghc]}}
+    - env: CABALVER=1.18 GHCVER=7.8.4
+      addons: {apt: {packages: [cabal-install-1.18,ghc-7.8.4], sources: [hvr-ghc]}}
+    - env: CABALVER=1.22 GHCVER=7.10.1
+      addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.1],sources: [hvr-ghc]}}
+    - env: CABALVER=head GHCVER=head
+      addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
+
+  allow_failures:
+   - env: CABALVER=head GHCVER=head
+
+before_install:
+ - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
+```
+
+There's also [a `runghc` script](./make_travis_yml.hs) provided in this repository to automate the generation of such a `.travis.yml` script based on the `tested-with:` property of your `.cabal` file.
+
+`.travis.yml` Template (for non-container-based infrastructure)
+---------------------------------------------------------------
 
 Below is a commented `.travis.yml` example that can be used as a template:
 
 ```yaml
 # NB: don't set `language: haskell` here
+
+# explicitly request legacy non-sudo based build environment
+sudo: required
 
 # The following enables several GHC versions to be tested; often it's enough to test only against the last release in a major GHC version. Feel free to omit lines listings versions you don't need/want testing for.
 env:
