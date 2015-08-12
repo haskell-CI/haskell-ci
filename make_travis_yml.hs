@@ -64,7 +64,7 @@ genTravisFromCabalFile fn xpkgs = do
     when (null testedGhcVersions) $ do
         putStrLnErr "no known GHC version is allowed by the 'tested-width' specification"
 
-    putStrLnInfo $ "Generating Travis-CI config for testing for GHC versions: " ++ (unwords $ map display $ testedGhcVersions)
+    putStrLnInfo $ "Generating Travis-CI config for testing for GHC versions: " ++ (unwords $ map disp' $ testedGhcVersions)
 
     ----------------------------------------------------------------------------
     -- travis.yml generation starts here
@@ -109,6 +109,7 @@ genTravisFromCabalFile fn xpkgs = do
         , " - cabal --version"
         , " - echo \"$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]\""
         , " - travis_retry cabal update"
+        , " - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
         , " - cabal install --enable-tests --enable-benchmarks --dry -v"
         , " - cabal install --only-dependencies --enable-tests --enable-benchmarks"
         , " "
