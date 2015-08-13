@@ -69,7 +69,7 @@ genTravisFromCabalFile fn xpkgs = do
     ----------------------------------------------------------------------------
     -- travis.yml generation starts here
 
-    putStrLn "# This file has been generated -- see https://github.com/hvr/multi-ghc-ppa"
+    putStrLn "# This file has been generated -- see https://github.com/hvr/multi-ghc-travis"
     putStrLn "language: c"
     putStrLn "sudo: false"
     putStrLn ""
