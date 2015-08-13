@@ -69,9 +69,18 @@ genTravisFromCabalFile fn xpkgs = do
     ----------------------------------------------------------------------------
     -- travis.yml generation starts here
 
-    putStrLn "# This file has been generated"
+    putStrLn "# This file has been generated -- see https://github.com/hvr/multi-ghc-ppa"
     putStrLn "language: c"
     putStrLn "sudo: false"
+    putStrLn ""
+    putStrLn "cache:"
+    putStrLn "  directories:"
+    putStrLn "    - $HOME/.cabsnap"
+    putStrLn "    - $HOME/.cabal/packages"
+    putStrLn ""
+    putStrLn "before_cache:"
+    putStrLn "  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/build-reports.log"
+    putStrLn "  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/00-index.tar.gz"
     putStrLn ""
     putStrLn "matrix:"
     putStrLn "  include:"
@@ -83,6 +92,7 @@ genTravisFromCabalFile fn xpkgs = do
             xpkgs' = concatMap (',':) xpkgs
 
         putStrLn $ concat [ "    - env: CABALVER=", cvs, " GHCVER=", gvs ]
+        putStrLn $ concat [ "      compiler: \": #GHC ", gvs, "\"" ]
         putStrLn $ concat [ "      addons: {apt: {packages: [cabal-install-", cvs, ",ghc-", gvs, xpkgs'
                           , "], sources: [hvr-ghc]}}" ]
         return ()
@@ -100,6 +110,7 @@ genTravisFromCabalFile fn xpkgs = do
 
     putStrLn ""
     putStrLn "before_install:"
+    putStrLn " - unset CC"
     putStrLn " - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH"
 
     putStrLn ""
@@ -108,11 +119,39 @@ genTravisFromCabalFile fn xpkgs = do
         [ "install:"
         , " - cabal --version"
         , " - echo \"$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]\""
-        , " - travis_retry cabal update"
+        , " - if [ -f $HOME/.cabal/packages/hackage.haskell.org/00-index.tar.gz ];"
+        , "   then"
+        , "     zcat $HOME/.cabal/packages/hackage.haskell.org/00-index.tar.gz >"
+        , "          $HOME/.cabal/packages/hackage.haskell.org/00-index.tar;"
+        , "   fi"
+        , " - travis_retry cabal update -v"
         , " - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
-        , " - cabal install --enable-tests --enable-benchmarks --dry -v"
-        , " - cabal install --only-dependencies --enable-tests --enable-benchmarks"
+        , " - cabal install --only-dependencies --enable-tests --enable-benchmarks --dry -v > installplan.txt"
+        , " - sed -i -e '1,/^Resolving /d' installplan.txt; cat installplan.txt"
+        , ""
+        , "# check whether current requested install-plan matches cached package-db snapshot"
+        , " - if diff -u installplan.txt $HOME/.cabsnap/installplan.txt;"
+        , "   then"
+        , "     echo \"cabal build-cache HIT\";"
+        , "     rm -rfv .ghc;"
+        , "     cp -av $HOME/.cabsnap/ghc $HOME/.ghc;"
+        , "     cp -av $HOME/.cabsnap/lib $HOME/.cabsnap/share $HOME/.cabsnap/bin $HOME/.cabal/;"
+        , "   else"
+        , "     echo \"cabal build-cache MISS\";"
+        , "     rm -rf $HOME/.cabsnap;"
+        , "     mkdir -p $HOME/.ghc $HOME/.cabal/lib $HOME/.cabal/share $HOME/.cabal/bin;"
+        , "     cabal install --only-dependencies --enable-tests --enable-benchmarks;"
+        , "   fi"
         , " "
+        , "# snapshot package-db on cache miss"
+        , " - if [ ! -d $HOME/.cabsnap ];"
+        , "   then"
+        , "      echo \"snapshotting package-db to build-cache\";"
+        , "      mkdir $HOME/.cabsnap;"
+        , "      cp -av $HOME/.ghc $HOME/.cabsnap/ghc;"
+        , "      cp -av $HOME/.cabal/lib $HOME/.cabal/share $HOME/.cabal/bin installplan.txt $HOME/.cabsnap/;"
+        , "   fi"
+        , ""
         , "# Here starts the actual work to be performed for the package under test;"
         , "# any command which exits with a non-zero exit code causes the build to fail."
         , "script:"
