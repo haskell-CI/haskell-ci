@@ -80,7 +80,7 @@ genTravisFromCabalFile fn xpkgs = do
     putStrLn ""
     putStrLn "before_cache:"
     putStrLn "  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/build-reports.log"
-    putStrLn "  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/00-index.tar.gz"
+    putStrLn "  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/00-index.tar"
     putStrLn ""
     putStrLn "matrix:"
     putStrLn "  include:"
