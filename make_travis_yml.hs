@@ -45,24 +45,24 @@ genTravisFromCabalFile fn xpkgs = do
         ghcVerConstrs' = simplifyVersionRange $ foldr unionVersionRanges noVersion ghcVerConstrs
 
     when (null compilers) $ do
-        putStrLnErr "empty or missing 'tested-width:' definition in .cabal file"
+        putStrLnErr "empty or missing 'tested-with:' definition in .cabal file"
 
     unless (null unknownComps) $ do
-        putStrLnWarn $ "ignoring unsupported compilers mentioned in tested-width: " ++ show unknownComps
+        putStrLnWarn $ "ignoring unsupported compilers mentioned in tested-with: " ++ show unknownComps
 
     when (null ghcVerConstrs) $ do
-        putStrLnErr "'tested-width:' doesn't mention any 'GHC' version"
+        putStrLnErr "'tested-with:' doesn't mention any 'GHC' version"
 
     when (isNoVersion ghcVerConstrs') $ do
-        putStrLnErr "'tested-width:' describes an empty version range for 'GHC'"
+        putStrLnErr "'tested-with:' describes an empty version range for 'GHC'"
 
     when (isAnyVersion ghcVerConstrs') $ do
-        putStrLnErr "'tested-width:' allows /any/ 'GHC' version"
+        putStrLnErr "'tested-with:' allows /any/ 'GHC' version"
 
     let testedGhcVersions = filter (`withinRange` ghcVerConstrs') knownGhcVersions
 
     when (null testedGhcVersions) $ do
-        putStrLnErr "no known GHC version is allowed by the 'tested-width' specification"
+        putStrLnErr "no known GHC version is allowed by the 'tested-with' specification"
 
     putStrLnInfo $ "Generating Travis-CI config for testing for GHC versions: " ++ (unwords $ map disp' $ testedGhcVersions)
 
