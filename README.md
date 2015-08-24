@@ -75,8 +75,6 @@ There's also [a `runghc` script](./make_travis_yml.hs) provided in this reposito
 
 ### Known Issues
 
-- GHC 7.10.2 package whitelisting still pending (see [this PR](https://github.com/travis-ci/apt-package-whitelist/pull/686) and [this issue](https://github.com/travis-ci/travis-ci/issues/4478)).
-
 - The container environment reports 16 cores, causing `cabal`'s default configuration (`jobs: $ncpus`) to run into the [GHC #9221](https://ghc.haskell.org/trac/ghc/ticket/9221) bug which can result in longer build-times. This can be workarounded by commenting out the `jobs: $ncpus` right after `cabal update` creates that file:
 
     ```yaml
