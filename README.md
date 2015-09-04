@@ -71,7 +71,21 @@ before_install:
  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
 ```
 
-There's also [a `runghc` script](./make_travis_yml.hs) provided in this repository to automate the generation of such a `.travis.yml` script based on the `tested-with:` property of your `.cabal` file.
+#### Caching dependencies & `.travis.yml` script generator
+
+There's also [a `runghc` script](./make_travis_yml.hs) provided in this repository to automate the generation of such a `.travis.yml` script based on the `tested-with:` property of your `.cabal` file. Moreover, the generated script contains a simple caching logic which allows to cache build-dependencies between builds (as long as the install-plan doesn't change by e.g. new packages being available from Hackage).
+
+The top-level `tested-with:` field has a similiar syntax to the `build-depends:` field but with compilers instead of packages. The script contains a list of known GHC versions and emits entries for all matching versions. Here are a few examples:
+
+```
+tested-with: GHC >= 7.4 && < 7.8
+-- selects GHC 7.4.1, 7.4.2, 7.6.1, 7.6.2, and 7.6.3
+
+tested-with: GHC == 7.4.2, GHC == 7.6.3, GHC == 7.8.4, GHC == 7.11.*
+-- selects GHC 7.4.2, 7.6.3, 7.8.4, and GHC HEAD
+```
+
+If you need additional Ubuntu packages installed (e.g. `alex-3.1.5` or `libxml-dev`), you can pass the Ubuntu package names as additional commandline arguments after the `.cabal` filename argument.
 
 ### Known Issues
 
