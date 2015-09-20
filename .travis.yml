@@ -96,6 +96,9 @@ script:
  - cabal test
  - cabal check
 
+ # tests that documentation can be generated
+ - cabal haddock
+
  # tests that a source-distribution can be generated
  - cabal sdist
 
