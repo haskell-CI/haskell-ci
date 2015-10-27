@@ -142,7 +142,7 @@ genTravisFromCabalFile fn xpkgs = do
         , "     mkdir -p $HOME/.ghc $HOME/.cabal/lib $HOME/.cabal/share $HOME/.cabal/bin;"
         , "     cabal install --only-dependencies --enable-tests --enable-benchmarks;"
         , "   fi"
-        , " "
+        , ""
         , "# snapshot package-db on cache miss"
         , " - if [ ! -d $HOME/.cabsnap ];"
         , "   then"
