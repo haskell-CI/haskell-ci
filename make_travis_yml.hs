@@ -3,7 +3,9 @@
 -- NB: This code deliberately avoids relying on non-standard packages
 
 import Control.Monad
+import Data.Maybe (mapMaybe)
 import Data.List
+import Data.Version (showVersion)
 import System.Environment
 import System.Exit
 import System.IO
@@ -34,6 +36,12 @@ main = do
                                     , "Example: make_travis_yml.hs someProject.cabal alex-3.1.4 liblzma-dev > .travis.yml"
                                     ])
 
+isTwoDigitGhcVersion :: VersionRange -> Maybe Version
+isTwoDigitGhcVersion vr = isSpecificVersion vr >>= t
+  where
+    t v@(Version { versionBranch = [_,_] }) = Just v
+    t v                                     = Nothing
+
 genTravisFromCabalFile :: FilePath -> [String] -> IO ()
 genTravisFromCabalFile fn xpkgs = do
     gpd <- readPackageDescription maxBound fn
@@ -43,6 +51,11 @@ genTravisFromCabalFile fn xpkgs = do
     let unknownComps = nub [ c | (c,_) <- compilers, c /= GHC ]
         ghcVerConstrs = [ vc | (GHC,vc) <- compilers ]
         ghcVerConstrs' = simplifyVersionRange $ foldr unionVersionRanges noVersion ghcVerConstrs
+        twoDigitGhcVerConstrs = mapMaybe isTwoDigitGhcVersion ghcVerConstrs
+
+    when (not . null $ twoDigitGhcVerConstrs) $ do
+        putStrLnWarn $ "'tested-with:' uses two digit GHC versions: " ++ (intercalate ", " $ map showVersion twoDigitGhcVerConstrs)
+        putStrLnInfo $ "Use wild-card format, for example 'tested-with: GHC ==7.10.*'"
 
     when (null compilers) $ do
         putStrLnErr "empty or missing 'tested-with:' definition in .cabal file"
