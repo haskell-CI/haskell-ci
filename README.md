@@ -34,9 +34,11 @@ They install into a respective `/opt/<name>/<version>/bin` folder which can be p
 | `cabal-install-head` | `/opt/cabal/head/bin/cabal`
 | `alex-3.1.3`         | `/opt/alex/3.1.3/bin/alex`
 | `alex-3.1.4`         | `/opt/alex/3.1.4/bin/alex`
+| `alex-3.1.7`         | `/opt/alex/3.1.7/bin/alex`
 | `happy-1.19.3`       | `/opt/happy/1.19.3/bin/happy`
 | `happy-1.19.4`       | `/opt/happy/1.19.4/bin/happy`
 | `happy-1.19.5`       | `/opt/happy/1.19.5/bin/happy`
+
 
 See examples below for how to use those.
 
