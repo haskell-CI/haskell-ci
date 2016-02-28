@@ -130,7 +130,7 @@ genTravisFromCabalFile fn xpkgs = do
         , " - sed -i -e '1,/^Resolving /d' installplan.txt; cat installplan.txt"
         , ""
         , "# check whether current requested install-plan matches cached package-db snapshot"
-        , " - if diff -u installplan.txt $HOME/.cabsnap/installplan.txt;"
+        , " - if diff -u $HOME/.cabsnap/installplan.txt installplan.txt;"
         , "   then"
         , "     echo \"cabal build-cache HIT\";"
         , "     rm -rfv .ghc;"
