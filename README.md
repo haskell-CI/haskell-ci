@@ -18,6 +18,90 @@ Each GHC version is provided in a separate `ghc-<version>` `.deb` package instal
 
 Note: For actually enabling continuous integration for a GitHub hosted project, see section [Getting Started](http://about.travis-ci.org/docs/user/getting-started/) in [Travis-CI](https://travis-ci.org/)'s online documentation.
 
+### Quick-start instructions
+
+* Step 1: Clone this project in any directory
+
+    ```bash
+    $ git clone https://github.com/hvr/multi-ghc-travis.git
+    ```
+    
+* Step 2: Change directories to your project:
+
+    ```bash
+    $ cd path/to/your-project
+    ```
+
+* Step 3: Edit your project's `*.cabal` file to add a `Tested-With` line, such as this one:
+
+    ```bash
+    $ cat your-project.cabal
+    ...
+    Tested-With: GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.2
+    ...
+    ```
+    
+    Add as many or as few GHC versions to test as you want.
+
+* Step 4: Generate a Travis file for your project:
+
+    ```bash
+    $ # You run the following command from your project's directory, even
+    $ # though it references the script from the `multi-ghc-travis` project
+    $ path/to/multi-ghc-travis/make_travis_yml.hs > .travis.yml
+    ```
+    
+    The `make_travis_yml.hs` script looks at the `Tested-With` line in your
+    `*.cabal` file and generates a Travis build that tests each compiler
+    version you listed in parallel.
+
+* Step 5: Create a branch with your new Travis file and push your branch:
+
+    ```bash
+    $ git checkout master            # Check out `master`
+    $ git pull --ff-only             # Get the latest version of `master`
+    $ git checkout -b new_travis     # Create a `new_travis` branch
+    $ git add .travis.yml
+    $ git commit -m "New Travis script"
+    $ git push -u origin new_travis  # Push your branch upstream
+    ```
+    
+    If you have Travis enabled for your repository this will test your branch
+    using your newly created Travis file.  This lets you test the Travis script
+    before merging the new script into `master`.
+    
+* Step 6: Fix the build
+
+    If you're lucky, your repository will build for every compiler version
+    you listed.  If that's the case, then just merge your changes into `master`:
+    
+    ```bash
+    $ git checkout master
+    $ git merge new_travis  # Update `master` with your new Travis script
+    $ git push
+    ```
+    
+    You can also merge your branch into `master` from Github's pull request view.
+    
+    If you're not lucky, then your new Travis branch will fail for one or more
+    versions of GHC, which is okay!  Look at the build and fix any build failures
+    you find and commit the fixes to your branch:
+    
+    ```bash
+    $ # Fix any build failures you find and commit your changes
+    $ ...
+    $ git push  # Push your branch updates upstream
+    ```
+    
+    Sometimes you may need to change the generated Travis script (for example, to
+    remove the `cabal check` step if you know for sure that you need build your
+    project with the `-O2` flag).
+    
+    Each time you push an update to your branch Travis will run again to see if
+    any build failures still remain.  Repeat this process until your project
+    builds against each GHC version you listed.  Once your project builds against
+    each target version of GHC you can merge your Travis script into `master`
+
 ### Add-on Packages
 
 For convenience, a few add-on packages are available to provide more recent versions of `cabal`, `alex` and `happy` than are available in Ubuntu 12.04.
