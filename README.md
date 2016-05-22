@@ -48,7 +48,7 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
     ```bash
     $ # You run the following command from your project's directory, even
     $ # though it references the script from the `multi-ghc-travis` project
-    $ path/to/multi-ghc-travis/make_travis_yml.hs > .travis.yml
+    $ path/to/multi-ghc-travis/make_travis_yml.hs your-project.cabal > .travis.yml
     ```
     
     The `make_travis_yml.hs` script looks at the `Tested-With` line in your
