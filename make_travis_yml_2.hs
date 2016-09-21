@@ -182,14 +182,14 @@ genTravisFromCabalFile fn xpkgs = do
     lookupCabVer (Version (x:y:_) _) = maybe (error "internal error") id $ lookup (x,y) cabalVerMap
       where
         cabalVerMap = fmap (fmap (`Version` []))
-                      [ ((7, 0),  [1,24])
-                      , ((7, 2),  [1,24])
-                      , ((7, 4),  [1,24])
-                      , ((7, 6),  [1,24])
-                      , ((7, 8),  [1,24])
-                      , ((7,10),  [1,24])
-                      , ((8, 0),  [1,24])
-                      , ((8, 1),  [1,25]) -- HEAD
+                      [ ((7, 0),  [1,25]) -- Use HEAD for everything.
+                      , ((7, 2),  [1,25])
+                      , ((7, 4),  [1,25])
+                      , ((7, 6),  [1,25])
+                      , ((7, 8),  [1,25])
+                      , ((7,10),  [1,25])
+                      , ((8, 0),  [1,25])
+                      , ((8, 1),  [1,25])
                       ]
 
     isHead (Version (_:y:_) _) = odd (y :: Int)
