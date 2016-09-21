@@ -10,6 +10,7 @@
 
 import Control.Monad
 import Data.List
+import Data.Function
 import System.Environment
 import System.Exit
 import System.IO
@@ -37,7 +38,7 @@ main = do
         _ -> putStrLnErr (unlines $ [ "expected .cabal file as command-line argument"
                                     , "Usage: make_travis_yml_2.hs <cabal-file> <extra-apt-packages...>"
                                     , ""
-                                    , "Example: make_travis_yml_2.hs someProject.cabal alex-3.1.7 liblzma-dev > .travis.yml"
+                                    , "Example: make_travis_yml_2.hs someProject.cabal liblzma-dev > .travis.yml"
                                     ])
 
 genTravisFromCabalFile :: FilePath -> [String] -> IO ()
@@ -51,7 +52,11 @@ genTravisFromCabalFile fn xpkgs = do
         ghcVerConstrs' = simplifyVersionRange $ foldr unionVersionRanges noVersion ghcVerConstrs
 
     when (null compilers) $ do
-        putStrLnErr "empty or missing 'tested-with:' definition in .cabal file"
+        putStrLnErr (unlines $
+                     [ "empty or missing top-level 'tested-with:' definition in .cabal file; example definition:"
+                     , ""
+                     , "tested-with: " ++ intercalate ", " [ "GHC==" ++ display v | v <- lastStableGhcVers ]
+                     ])
 
     unless (null unknownComps) $ do
         putStrLnWarn $ "ignoring unsupported compilers mentioned in tested-with: " ++ show unknownComps
@@ -176,6 +181,13 @@ genTravisFromCabalFile fn xpkgs = do
                        , [8,0,1]
                        , [8,1]  -- HEAD
                        ]
+
+    lastStableGhcVers :: [Version]
+    lastStableGhcVers = nubBy ((==) `on` majVer) $ filter (not . isHead) $ reverse $ sort $ knownGhcVersions
+
+    majVer :: Version -> (Int,Int)
+    majVer (Version (x:y:_) []) = (x,y)
+    majVer (Version _ _) = undefined
 
     lookupCabVer :: Version -> Version
     lookupCabVer (Version (x:y:_) _) = maybe (error "internal error") id $ lookup (x,y) cabalVerMap
