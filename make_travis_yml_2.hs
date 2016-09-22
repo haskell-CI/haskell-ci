@@ -143,14 +143,14 @@ genTravisFromCabalFile fn xpkgs = do
         , " - echo \"$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]\""
         , " - travis_retry cabal update -v"
         , " - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
-        , " - cabal new-build ${TEST} ${BENCH} --dep"
+        , " - cabal new-build ${TEST} ${BENCH} --dep -j2"
         , ""
         , "# Here starts the actual work to be performed for the package under test;"
         , "# any command which exits with a non-zero exit code causes the build to fail."
         , "script:"
         , " - if [ -f configure.ac ]; then autoreconf -i; fi"
         , " # this builds all libraries and executables (including tests/benchmarks)"
-        , " - cabal new-build ${TEST} ${BENCH} -v2  # -v2 provides useful information for debugging"
+        , " - cabal new-build ${TEST} ${BENCH}"
         , ""
         , " # there's no 'cabal new-test' yet, so let's emulate for now"
         , " - SRC_BASENAME=$(cabal info . | awk '{print $2;exit}')"
@@ -163,7 +163,7 @@ genTravisFromCabalFile fn xpkgs = do
         , ""
         , " # Check that the resulting source distribution can be built w/o and w tests"
         , " - tar -C dist/ -xf dist/$SRC_BASENAME.tar.gz"
-        , " - \"echo 'packages: *.cabal' > dist/$SRC_BASENAME/cabal.project\""
+        , " - \"echo 'packages: .' > dist/$SRC_BASENAME/cabal.project\""
         , " - cd dist/$SRC_BASENAME/"
         , " - cabal new-build --disable-tests --disable-benchmarks"
         , " - rm -rf ./dist-newstyle"
@@ -182,7 +182,7 @@ genTravisFromCabalFile fn xpkgs = do
                        , [7,6,1],  [7,6,2], [7,6,3]
                        , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
                        , [7,10,1], [7,10,2], [7,10,3]
-                       , [8,0,1]
+                       , [8,0,1], [8,0,2]
                        , [8,1]  -- HEAD
                        ]
 
