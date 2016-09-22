@@ -150,14 +150,15 @@ genTravisFromCabalFile fn xpkgs = do
         , " - cabal new-build ${TEST} ${BENCH} -v2  # -v2 provides useful information for debugging"
         , ""
         , " # there's no 'cabal new-test' yet, so let's emulate for now"
+        , " - SRC_BASENAME=$(cabal info . | awk '{print $2;exit}')"
         , " - TESTS=( $(awk 'tolower($0) ~ /^test-suite / { print $2 }' *.cabal) );"
+        , "   shopt -s globstar;"
         , "   RC=true; for T in ${TESTS[@]}; do echo \"== $T ==\";"
-        , "   if dist-newstyle/build/*/build/$T/$T; then echo \"= $T OK =\";"
+        , "   if dist-newstyle/build/**/$SRC_BASENAME/**/build/$T/$T; then echo \"= $T OK =\";"
         , "   else echo \"= $T FAILED =\"; RC=false; fi; done; $RC"
         , " - cabal sdist # test that a source-distribution can be generated"
         , ""
         , " # Check that the resulting source distribution can be built w/o and w tests"
-        , " - SRC_BASENAME=$(cabal info . | awk '{print $2;exit}')"
         , " - tar -C dist/ -xf dist/$SRC_BASENAME.tar.gz"
         , " - \"echo 'packages: *.cabal' > dist/$SRC_BASENAME/cabal.project\""
         , " - cd dist/$SRC_BASENAME/"
@@ -193,14 +194,14 @@ genTravisFromCabalFile fn xpkgs = do
     lookupCabVer (Version (x:y:_) _) = maybe (error "internal error") id $ lookup (x,y) cabalVerMap
       where
         cabalVerMap = fmap (fmap (`Version` []))
-                      [ ((7, 0),  [1,24])
-                      , ((7, 2),  [1,24])
-                      , ((7, 4),  [1,24])
-                      , ((7, 6),  [1,24])
-                      , ((7, 8),  [1,24])
-                      , ((7,10),  [1,24])
-                      , ((8, 0),  [1,24])
-                      , ((8, 1),  [1,25]) -- HEAD
+                      [ ((7, 0),  [1,25]) -- Use HEAD for everything.
+                      , ((7, 2),  [1,25])
+                      , ((7, 4),  [1,25])
+                      , ((7, 6),  [1,25])
+                      , ((7, 8),  [1,25])
+                      , ((7,10),  [1,25])
+                      , ((8, 0),  [1,25])
+                      , ((8, 1),  [1,25])
                       ]
 
     isHead (Version (_:y:_) _) = odd (y :: Int)
