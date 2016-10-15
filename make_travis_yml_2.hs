@@ -14,6 +14,7 @@ import Data.Function
 import System.Environment
 import System.Exit
 import System.IO
+import Data.Monoid
 
 import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.PackageDescription (packageDescription, testedWith)
@@ -111,8 +112,8 @@ genTravisFromCabalFile fn xpkgs = do
 
             xpkgs' = concatMap (',':) xpkgs
 
-        putStrLn $ concat [ "    - env: CABALVER=", cvs, " GHCVER=", gvs ]
-        putStrLn $ concat [ "      compiler: \": #GHC ", gvs, "\"" ]
+        putStrLn $ concat [ "    - compiler: \"ghc-", gvs, "\"" ]
+        putStrLn $ concat [ "    # env: CABALVER=", cvs, " TEST=--disable-tests BENCH=--disable-benchmarks" ]
         putStrLn $ concat [ "      addons: {apt: {packages: [cabal-install-", cvs, ",ghc-", gvs, xpkgs'
                           , "], sources: [hvr-ghc]}}" ]
         return ()
@@ -126,13 +127,15 @@ genTravisFromCabalFile fn xpkgs = do
     forM_ headGhcVers $ \gv -> do
         let cvs = disp' (lookupCabVer gv)
             gvs = disp' gv
-        putStrLn $ concat [ "    - env: CABALVER=", cvs, " GHCVER=", gvs ]
+        putStrLn $ concat [ "    - compiler: \"ghc-", gvs, "\"" ]
 
     putStrLn ""
     putStrLn "before_install:"
+    putStrLn " - HC=${CC}"
     putStrLn " - unset CC"
-    putStrLn " - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH"
-
+    putStrLn " - CABALVER=${CABALVER-head}"
+    putStrLn " - export PATH=/opt/ghc/bin:/opt/cabal/$CABALVER/bin:$PATH"
+    putStrLn " - PATH2=/opt/ghc/${HC/#ghc-}/bin:$PATH"
     putStrLn ""
 
     putStr $ unlines
@@ -140,22 +143,23 @@ genTravisFromCabalFile fn xpkgs = do
         , " - cabal --version"
         , " - BENCH=${BENCH---enable-benchmarks}"
         , " - TEST=${TEST---enable-tests}"
-        , " - echo \"$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]\""
+        , " - echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
         , " - travis_retry cabal update -v"
         , " - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
-        , " - cabal new-build ${TEST} ${BENCH} --dep -j2"
+        , " - cabal new-build -w ${HC} ${TEST} ${BENCH} --dep -j2"
         , ""
         , "# Here starts the actual work to be performed for the package under test;"
         , "# any command which exits with a non-zero exit code causes the build to fail."
         , "script:"
         , " - if [ -f configure.ac ]; then autoreconf -i; fi"
+        , " - SRC_BASENAME=$(PATH=${PATH2} cabal info . | awk '{print $2;exit}')"
         , " # this builds all libraries and executables (including tests/benchmarks)"
-        , " - cabal new-build ${TEST} ${BENCH}"
+        , " - cabal new-build -w ${HC} ${TEST} ${BENCH}"
         , ""
         , " # there's no 'cabal new-test' yet, so let's emulate for now"
-        , " - SRC_BASENAME=$(cabal info . | awk '{print $2;exit}')"
-        , " - TESTS=( $(awk 'tolower($0) ~ /^test-suite / { print $2 }' *.cabal) );"
-        , "   shopt -s globstar;"
+        , " - TESTS=( $(awk 'tolower($0) ~ /^test-suite / { print $2 }' *.cabal) )"
+        , " - if [ \"$TEST\" != \"--enable-tests\" ]; then TESTS=(); fi"
+        , " - shopt -s globstar;"
         , "   RC=true; for T in ${TESTS[@]}; do echo \"== $T ==\";"
         , "   if dist-newstyle/build/**/$SRC_BASENAME/**/build/$T/$T; then echo \"= $T OK =\";"
         , "   else echo \"= $T FAILED =\"; RC=false; fi; done; $RC"
@@ -165,9 +169,9 @@ genTravisFromCabalFile fn xpkgs = do
         , " - tar -C dist/ -xf dist/$SRC_BASENAME.tar.gz"
         , " - \"echo 'packages: .' > dist/$SRC_BASENAME/cabal.project\""
         , " - cd dist/$SRC_BASENAME/"
-        , " - cabal new-build --disable-tests --disable-benchmarks"
+        , " - cabal new-build -w ${HC} --disable-tests --disable-benchmarks"
         , " - rm -rf ./dist-newstyle"
-        , " - cabal new-build ${TEST} ${BENCH}"
+        , " - cabal new-build -w ${HC} ${TEST} ${BENCH}"
         , ""
         , "# EOF"
         ]
