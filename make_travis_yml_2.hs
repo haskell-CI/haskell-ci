@@ -14,7 +14,7 @@ module Main where
 import Control.Monad
 import Data.Function
 import Data.List
--- import Data.Monoid
+import Data.Maybe
 import System.Console.GetOpt
 import System.Environment
 import System.Exit
@@ -80,6 +80,11 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
     let unknownComps = nub [ c | (c,_) <- compilers, c /= GHC ]
         ghcVerConstrs = [ vc | (GHC,vc) <- compilers ]
         ghcVerConstrs' = simplifyVersionRange $ foldr unionVersionRanges noVersion ghcVerConstrs
+        twoDigitGhcVerConstrs = mapMaybe isTwoDigitGhcVersion ghcVerConstrs :: [Version]
+
+    when (not . null $ twoDigitGhcVerConstrs) $ do
+        putStrLnWarn $ "'tested-with:' uses two digit GHC versions (which don't match any existing GHC version): " ++ (intercalate ", " $ map display twoDigitGhcVerConstrs)
+        putStrLnInfo $ "Either use wild-card format, for example 'tested-with: GHC ==7.10.*' or a specific existing version 'tested-with: GHC ==7.10.3'"
 
     when (null compilers) $ do
         putStrLnErr (unlines $
@@ -252,3 +257,10 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
 
     disp' v | isHead v = "head"
             | otherwise = display v
+
+
+    isTwoDigitGhcVersion :: VersionRange -> Maybe Version
+    isTwoDigitGhcVersion vr = isSpecificVersion vr >>= t
+      where
+        t v@(Version { versionBranch = [_,_] }) = Just v
+        t v                                     = Nothing
