@@ -25,6 +25,7 @@ putStrLnInfo m = hPutStrLn stderr ("*INFO* " ++ m)
 
 main :: IO ()
 main = do
+    putStrLnInfo "Please consider using the experimental `cabal new-build`-powered generator `make_travis_yml_2.hs`"
     args <- getArgs
     case args of
         (cabfn:xpkgs) -> do genTravisFromCabalFile cabfn xpkgs
