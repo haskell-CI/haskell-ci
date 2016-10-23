@@ -91,6 +91,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         ghcVerConstrs = [ vc | (GHC,vc) <- compilers ]
         ghcVerConstrs' = simplifyVersionRange $ foldr unionVersionRanges noVersion ghcVerConstrs
         twoDigitGhcVerConstrs = mapMaybe isTwoDigitGhcVersion ghcVerConstrs :: [Version]
+        specificGhcVers = nub $ mapMaybe isSpecificVersion ghcVerConstrs
 
     when (not . null $ twoDigitGhcVerConstrs) $ do
         putStrLnWarn $ "'tested-with:' uses two digit GHC versions (which don't match any existing GHC version): " ++ (intercalate ", " $ map display twoDigitGhcVerConstrs)
@@ -114,6 +115,13 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
 
     when (isAnyVersion ghcVerConstrs') $ do
         putStrLnErr "'tested-with:' allows /any/ 'GHC' version"
+
+    let unknownGhcVers = sort $ specificGhcVers \\ knownGhcVersions
+
+    unless (null unknownGhcVers) $ do
+        putStrLnErr ("'tested-with:' specifically refers to unknown 'GHC' versions: "
+                     ++ intercalate ", " (map display unknownGhcVers) ++ "\n"
+                     ++ "Known GHC versions: " ++ intercalate ", " (map display knownGhcVersions))
 
     let testedGhcVersions = filter (`withinRange` ghcVerConstrs') knownGhcVersions
 
