@@ -304,7 +304,8 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
                        , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
                        , [7,10,1], [7,10,2], [7,10,3]
                        , [8,0,1], [8,0,2]
-                       , [8,1]  -- HEAD
+                       , [8,2,1]
+                       , [8,3]  -- HEAD
                        ]
 
     lastStableGhcVers :: [Version]
@@ -318,14 +319,15 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
     lookupCabVer (Version (x:y:_) _) = maybe (error "internal error") id $ lookup (x,y) cabalVerMap
       where
         cabalVerMap = fmap (fmap (`Version` []))
-                      [ ((7, 0),  [1,25]) -- Use HEAD for everything.
-                      , ((7, 2),  [1,25])
-                      , ((7, 4),  [1,25])
-                      , ((7, 6),  [1,25])
-                      , ((7, 8),  [1,25])
-                      , ((7,10),  [1,25])
-                      , ((8, 0),  [1,25])
-                      , ((8, 1),  [1,25])
+                      [ ((7, 0),  [2,0])
+                      , ((7, 2),  [2,0])
+                      , ((7, 4),  [2,0])
+                      , ((7, 6),  [2,0])
+                      , ((7, 8),  [2,0])
+                      , ((7,10),  [2,0])
+                      , ((8, 0),  [2,0])
+                      , ((8, 2),  [2,0])
+                      , ((8, 3),  [2,1]) -- Use HEAD for ghc-head only.
                       ]
     lookupCabVer v = error ("lookupCabVer: unexpected version: " ++ display v)
 
