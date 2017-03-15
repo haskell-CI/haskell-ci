@@ -11,7 +11,8 @@ At time of writing [Travis-CI](https://travis-ci.org/) has [support for building
  - GHC 7.6.1, GHC 7.6.2, GHC 7.6.3,
  - GHC 7.8.1, GHC 7.8.2, GHC 7.8.3, GHC 7.8.4
  - GHC 7.10.1, GHC 7.10.2, GHC 7.10.3
- - GHC 8.0.1, GHC 8.0.2 *(prerelease snapshot)*
+ - GHC 8.0.1, GHC 8.0.2
+ - GHC 8.2.1 *(prerelease snapshot)*
  - GHC HEAD.
 
 Each GHC version is provided in a separate `ghc-<version>` `.deb` package installing into `/opt/ghc/<version>` (thus allowing to be installed at the same time if needed) published in a [PPA](https://launchpad.net/~hvr/+archive/ghc). The easiest way to "activate" a particular GHC version is to prepend its `bin`-folder to the `$PATH` environment variable (see example in next section).
@@ -106,7 +107,14 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
 
 For convenience, a few add-on packages are available to provide more recent versions of `cabal`, `alex` and `happy` than are available in Ubuntu 12.04.
 
-They install into a respective `/opt/<name>/<version>/bin` folder which can be put into the search `$PATH`.
+They install into a respective `/opt/<name>/<version>/bin` folder (see table below) which can be put into the search `$PATH`. 
+
+There's also a `/opt/ghc/bin` (& `/opt/cabal/bin`) folder which contains version-suffixed symlinks to installed GHC versions for convenient use with `cabal` (e.g. "`cabal new-build -w ghc-7.8.4`"), as well as symlinks managed by [`update-alternatives(1)`](https://manpages.debian.org/unstable/dpkg/update-alternatives.1.en.html) which can be configured via
+
+    sudo update-alternatives --config opt-ghc
+    sudo update-alternatives --config opt-cabal
+
+Note that `/opt/ghc/bin` also contains a default symlink for `cabal`, so it's enough to include `/opt/ghc/bin` in your PATH to get access to both `cabal` and `ghc`.
 
 | `.deb` Package Name  | Executable
 | -------------------- | ----------
@@ -115,6 +123,7 @@ They install into a respective `/opt/<name>/<version>/bin` folder which can be p
 | `cabal-install-1.20` | `/opt/cabal/1.20/bin/cabal`
 | `cabal-install-1.22` | `/opt/cabal/1.22/bin/cabal`
 | `cabal-install-1.24` | `/opt/cabal/1.24/bin/cabal`
+| `cabal-install-2.0`  | `/opt/cabal/2.0/bin/cabal`
 | `cabal-install-head` | `/opt/cabal/head/bin/cabal`
 | `alex-3.1.3`         | `/opt/alex/3.1.3/bin/alex`
 | `alex-3.1.4`         | `/opt/alex/3.1.4/bin/alex`
