@@ -266,20 +266,15 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , " - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
         , " # this builds all libraries and executables (including tests/benchmarks)"
         , " # - rm -rf ./dist-newstyle"
-        , " - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
         , ""
-        , " # there's no 'cabal new-test' yet, so let's emulate for now"
-        , " - TESTS=( $(awk 'tolower($0) ~ /^test-suite / { print $2 }' *.cabal) )"
-        , " - if [ \"$TEST\" != \"--enable-tests\" ]; then TESTS=(); fi"
-        , " - shopt -s globstar;"
-        , "   RC=true; for T in ${TESTS[@]}; do echo \"== $T ==\";"
-        , "   if dist-newstyle/build/**/$SRC_BASENAME/**/build/$T/$T; then echo \"= $T OK =\";"
-        , "   else echo \"= $T FAILED =\"; RC=false; fi; done; $RC"
+        , " # build & run tests"
+        , " - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
+        , " - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} all; fi"
         , ""
         ]
 
     unless (null colls) $ putStrLns
-        [ " # try building for package collections"
+        [ " # try building & testing for package collections"
         , " - for COLL in \"${COLLS[@]}\"; do"
         , "     echo \"== collection $COLL ==\";"
         , "     ghc-travis collection ${COLL} > /dev/null || break;"
@@ -287,6 +282,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , "     grep ' collection-id' cabal.project.freeze;"
         , "     rm -rf dist-newstyle/;"
         , "     cabal new-build -w ${HC} ${TEST} ${BENCH} all || break;"
+        , "     if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} all || break; fi;"
         , "   done"
         , ""
         ]
