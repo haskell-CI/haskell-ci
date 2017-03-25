@@ -38,11 +38,13 @@ putStrLns = putStr . unlines
 data Options = Options
     { optNoCache :: !Bool
     , optCollections :: [String]
+    , optIrcChannels :: [String]
     } deriving Show
 
 defOptions :: Options
 defOptions = Options
     { optNoCache = False
+    , optIrcChannels = []
     , optCollections = []
     }
 
@@ -54,6 +56,9 @@ options =
     , Option ['c'] ["collection"]
       (ReqArg (\arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
+    , Option [] ["irc-channel"]
+      (ReqArg (\arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
+      "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
     ]
 
 main :: IO ()
@@ -153,6 +158,18 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , ""
         , "git:"
         , "  submodules: false  # whether to recursively clone submodules"
+        , ""
+        ]
+
+    unless (null $ optIrcChannels opts) $ putStrLns $
+        [ "notifications:"
+        , "  irc:"
+        , "    channels:"
+        ] ++
+        [ "      - \"" ++ chan ++ "\"" | chan <- optIrcChannels opts ] ++
+        [ "    skip_join: true"
+        , "    template:"
+        , "      - \"\\x0313" ++ pkgNameStr ++ "\\x03/\\x0306%{branch}\\x03 \\x0314%{commit}\\x03 %{build_url} %{message}\""
         , ""
         ]
 
