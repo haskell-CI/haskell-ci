@@ -286,7 +286,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , ""
         , " # build & run tests"
         , " - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
-        , " - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} all; fi"
+        , " - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
         , ""
         ]
 
@@ -299,7 +299,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , "     grep ' collection-id' cabal.project.freeze;"
         , "     rm -rf dist-newstyle/;"
         , "     cabal new-build -w ${HC} ${TEST} ${BENCH} all || break;"
-        , "     if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} all || break; fi;"
+        , "     if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all || break; fi;"
         , "   done"
         , ""
         ]
