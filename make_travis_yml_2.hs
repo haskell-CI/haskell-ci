@@ -1,6 +1,7 @@
 #!/usr/bin/env runghc
 
 {-# LANGUAGE Haskell2010 #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- | New-style @.travis.yml@ script generator using cabal 1.24's nix-style
 -- tech-preview facilities.
@@ -23,7 +24,7 @@ import System.IO
 import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.Package
 import Distribution.PackageDescription (packageDescription, testedWith, package)
-import Distribution.PackageDescription.Parse (readPackageDescription)
+import Distribution.PackageDescription.Parse (readGenericPackageDescription)
 import Distribution.Text
 import Distribution.Version
 
@@ -87,7 +88,7 @@ main = do
 
 genTravisFromCabalFile :: ([String],Options) -> FilePath -> [String] -> IO ()
 genTravisFromCabalFile (argv,opts) fn xpkgs = do
-    gpd <- readPackageDescription maxBound fn
+    gpd <- readGenericPackageDescription maxBound fn
 
     let compilers = testedWith $ packageDescription $ gpd
         pkgNameStr = display $ pkgName $ package $ packageDescription gpd
@@ -309,7 +310,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
     return ()
   where
     knownGhcVersions :: [Version]
-    knownGhcVersions = fmap (`Version` [])
+    knownGhcVersions = fmap mkVersion
                        [ [7,0,1],  [7,0,2], [7,0,3], [7,0,4]
                        , [7,2,1],  [7,2,2]
                        , [7,4,1],  [7,4,2]
@@ -324,13 +325,15 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
     lastStableGhcVers = nubBy ((==) `on` majVer) $ filter (not . isHead) $ reverse $ sort $ knownGhcVersions
 
     majVer :: Version -> (Int,Int)
-    majVer (Version (x:y:_) []) = (x,y)
-    majVer (Version _ _) = undefined
+    majVer v
+      | x:y:_ <- versionNumbers v = (x,y)
+      | otherwise = undefined
 
     lookupCabVer :: Version -> Version
-    lookupCabVer (Version (x:y:_) _) = maybe (error "internal error") id $ lookup (x,y) cabalVerMap
+    lookupCabVer v = maybe (error "internal error") id $ lookup (x,y) cabalVerMap
       where
-        cabalVerMap = fmap (fmap (`Version` []))
+        (x,y) = majVer v
+        cabalVerMap = fmap (fmap mkVersion)
                       [ ((7, 0),  [1,25]) -- Use HEAD for everything.
                       , ((7, 2),  [1,25])
                       , ((7, 4),  [1,25])
@@ -340,10 +343,10 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
                       , ((8, 0),  [1,25])
                       , ((8, 1),  [1,25])
                       ]
-    lookupCabVer v = error ("lookupCabVer: unexpected version: " ++ display v)
 
-    isHead (Version (_:y:_) _) = odd (y :: Int)
-    isHead (Version _ _) = False
+    isHead v
+      | (_,y) <- majVer v = odd y
+      | otherwise         = False
 
     disp' v | isHead v = "head"
             | otherwise = display v
@@ -351,22 +354,22 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
     isTwoDigitGhcVersion :: VersionRange -> Maybe Version
     isTwoDigitGhcVersion vr = isSpecificVersion vr >>= t
       where
-        t v@(Version { versionBranch = [_,_] }) = Just v
-        t v                                     = Nothing
+        t v | [_,_] <- versionNumbers v = Just v
+        t v                            = Nothing
 
 
 
 collToGhcVer :: String -> Version
 collToGhcVer cid = case simpleParse cid of
   Nothing -> error ("invalid collection-id syntax " ++ show cid)
-  Just (PackageIdentifier n (Version v _))
+  Just (PackageIdentifier n (versionNumbers -> v))
     | display n /= "lts" -> error ("unknown collection " ++ show cid)
-    | isPrefixOf [0] v -> Version [7,8,3] []
-    | isPrefixOf [1] v -> Version [7,8,4] []
-    | isPrefixOf [2] v -> Version [7,8,4] []
-    | isPrefixOf [3] v -> Version [7,10,2] []
-    | isPrefixOf [4] v -> Version [7,10,3] []
-    | isPrefixOf [5] v -> Version [7,10,3] []
-    | isPrefixOf [6] v -> Version [7,10,3] []
-    | isPrefixOf [7] v -> Version [8,0,1] []
+    | isPrefixOf [0] v -> mkVersion [7,8,3]
+    | isPrefixOf [1] v -> mkVersion [7,8,4]
+    | isPrefixOf [2] v -> mkVersion [7,8,4]
+    | isPrefixOf [3] v -> mkVersion [7,10,2]
+    | isPrefixOf [4] v -> mkVersion [7,10,3]
+    | isPrefixOf [5] v -> mkVersion [7,10,3]
+    | isPrefixOf [6] v -> mkVersion [7,10,3]
+    | isPrefixOf [7] v -> mkVersion [8,0,1]
     | otherwise -> error ("unknown collection " ++ show cid)
