@@ -317,7 +317,8 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
                        , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
                        , [7,10,1], [7,10,2], [7,10,3]
                        , [8,0,1], [8,0,2]
-                       , [8,1]  -- HEAD
+                       , [8,2,1]
+                       , [8,3] -- HEAD
                        ]
 
     lastStableGhcVers :: [Version]
@@ -338,7 +339,8 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
                       , ((7, 8),  [1,25])
                       , ((7,10),  [1,25])
                       , ((8, 0),  [1,25])
-                      , ((8, 1),  [1,25])
+                      , ((8, 2),  [1,25])
+                      , ((8, 3),  [1,25])
                       ]
     lookupCabVer v = error ("lookupCabVer: unexpected version: " ++ display v)
 
