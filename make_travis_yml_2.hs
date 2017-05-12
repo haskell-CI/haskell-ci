@@ -1,7 +1,17 @@
-#!/usr/bin/env runghc
+#! /usr/bin/env runghc
+-- NOTE: -XCPP + shebang require at least GHC 7.8.4; prior versions of
+-- GHC don't support this. For older GHCs, remove the line and pass
+-- this script manually to `runghc` (or compile it)
 
 {-# LANGUAGE Haskell2010 #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
+
+#if !defined(MIN_VERSION_Cabal)
+-- As a heuristic, if the macro isn't defined, be pessimistic and
+-- assume an "old" Cabal version
+# define MIN_VERSION_Cabal(x,y,z) 0
+#endif
 
 -- | New-style @.travis.yml@ script generator using cabal 1.24's nix-style
 -- tech-preview facilities.
@@ -24,9 +34,30 @@ import System.IO
 import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.Package
 import Distribution.PackageDescription (packageDescription, testedWith, package)
-import Distribution.PackageDescription.Parse (readGenericPackageDescription)
 import Distribution.Text
 import Distribution.Version
+#if MIN_VERSION_Cabal(2,0,0)
+import Distribution.PackageDescription.Parse (readGenericPackageDescription)
+#else
+import Distribution.PackageDescription (GenericPackageDescription)
+import Distribution.PackageDescription.Parse (readPackageDescription)
+import Distribution.Verbosity (Verbosity)
+#endif
+
+
+#if !(MIN_VERSION_Cabal(2,0,0))
+-- compat helpers for pre-2.0
+
+readGenericPackageDescription :: Verbosity -> FilePath -> IO GenericPackageDescription
+readGenericPackageDescription = readPackageDescription
+
+mkVersion :: [Int] -> Version
+mkVersion vn = Version vn []
+
+versionNumbers :: Version -> [Int]
+versionNumbers (Version vn _) = vn
+
+#endif
 
 putStrLnErr, putStrLnWarn, putStrLnInfo :: String -> IO ()
 putStrLnErr  m = hPutStrLn stderr ("*ERROR* " ++ m) >> exitFailure
@@ -357,9 +388,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
     isTwoDigitGhcVersion vr = isSpecificVersion vr >>= t
       where
         t v | [_,_] <- versionNumbers v = Just v
-        t v                            = Nothing
-
-
+        t _                             = Nothing
 
 collToGhcVer :: String -> Version
 collToGhcVer cid = case simpleParse cid of
