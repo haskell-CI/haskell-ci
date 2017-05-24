@@ -300,7 +300,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , "# any command which exits with a non-zero exit code causes the build to fail."
         , "script:"
         , " - if [ -f configure.ac ]; then autoreconf -i; fi"
-        , " - rm -rf dist/"
+        , " - rm -rf .ghc.environment.* dist/"
         , " - cabal sdist # test that a source-distribution can be generated"
         , " - cd dist/"
         , " - SRCTAR=(${PKGNAME}-*.tar.gz)"
