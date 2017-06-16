@@ -71,6 +71,7 @@ data Options = Options
     { optNoCache :: !Bool
     , optCollections :: [String]
     , optIrcChannels :: [String]
+    , optOnlyBranches :: [String]
     } deriving Show
 
 defOptions :: Options
@@ -78,6 +79,7 @@ defOptions = Options
     { optNoCache = False
     , optIrcChannels = []
     , optCollections = []
+    , optOnlyBranches = []
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -91,6 +93,9 @@ options =
     , Option [] ["irc-channel"]
       (ReqArg (\arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
       "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
+    , Option [] ["branch"]
+      (ReqArg (\arg opts -> opts { optOnlyBranches = arg : optOnlyBranches opts }) "BRANCH")
+      "enable builds only for specific brances, use multiple times for multiple branches"
     ]
 
 main :: IO ()
@@ -203,6 +208,16 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , "    template:"
         , "      - \"\\x0313" ++ pkgNameStr ++ "\\x03/\\x0306%{branch}\\x03 \\x0314%{commit}\\x03 %{build_url} %{message}\""
         , ""
+        ]
+
+    unless (null $ optOnlyBranches opts) $ putStrLns $
+        [ "branches:"
+        , "  only:"
+        ] ++
+        [ "    - " ++ branch
+        | branch <- optOnlyBranches opts
+        ] ++
+        [ ""
         ]
 
     unless (optNoCache opts) $ putStrLns
