@@ -33,7 +33,7 @@ import System.IO
 
 import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.Package
-import Distribution.PackageDescription (packageDescription, testedWith, package)
+import Distribution.PackageDescription (packageDescription, testedWith, package, condTestSuites)
 import Distribution.Text
 import Distribution.Version
 #if MIN_VERSION_Cabal(2,0,0)
@@ -331,10 +331,20 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , " # this builds all libraries and executables (including tests/benchmarks)"
         , " # - rm -rf ./dist-newstyle"
         , ""
-        , " # build & run tests"
+        ]
+
+    putStrLns
+        [ " # build & run tests"
         , " - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
-        , " - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
-        , ""
+        ]
+
+    -- cabal new-test fails if there are no test-suites.
+    unless (null $ condTestSuites gpd) $ putStrLns
+        [ " - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
+        ]
+
+    putStrLns
+        [ ""
         ]
 
     unless (null colls) $ putStrLns

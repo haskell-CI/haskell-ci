@@ -11,6 +11,11 @@ maintainer:          hvr@gnu.org
 category:            Development
 build-type:          Simple
 cabal-version:       >=1.10
+tested-with:
+  GHC == 7.8.4,
+  GHC == 7.10.3,
+  GHC == 8.0.2,
+  GHC == 8.2.1
 
 executable make-travis-yml
   main-is:             make_travis_yml_2.hs
