@@ -33,7 +33,7 @@ import System.IO
 
 import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.Package
-import Distribution.PackageDescription (packageDescription, testedWith, package, condTestSuites)
+import Distribution.PackageDescription (packageDescription, testedWith, package, condLibrary, condTestSuites)
 import Distribution.Text
 import Distribution.Version
 #if MIN_VERSION_Cabal(2,0,0)
@@ -289,6 +289,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , " - echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
         , " - BENCH=${BENCH---enable-benchmarks}"
         , " - TEST=${TEST---enable-tests}"
+        , " - HADDOCK=${HADDOCK-true}"
         , " - travis_retry cabal update -v"
         , " - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
         , " - rm -fv cabal.project.local"
@@ -334,7 +335,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         ]
 
     putStrLns
-        [ " # build & run tests"
+        [ " # build & run tests, build benchmarks"
         , " - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
         ]
 
@@ -345,6 +346,13 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
 
     putStrLns
         [ ""
+        ]
+
+    unless (isNothing $ condLibrary gpd) $ putStrLns
+        [ " # haddock"
+        , " - rm -rf ./dist-newstyle"
+        , " - if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
+        , ""
         ]
 
     unless (null colls) $ putStrLns

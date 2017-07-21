@@ -50,6 +50,7 @@ install:
  - echo "$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]"
  - BENCH=${BENCH---enable-benchmarks}
  - TEST=${TEST---enable-tests}
+ - HADDOCK=${HADDOCK-true}
  - travis_retry cabal update -v
  - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
  - rm -fv cabal.project.local
@@ -78,7 +79,7 @@ script:
  # this builds all libraries and executables (including tests/benchmarks)
  # - rm -rf ./dist-newstyle
 
- # build & run tests
+ # build & run tests, build benchmarks
  - cabal new-build -w ${HC} ${TEST} ${BENCH} all
 
 # EOF
