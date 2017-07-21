@@ -274,6 +274,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         [ ""
         , "before_install:"
         , " - HC=${CC}"
+        , " - HCPKG=${HC/ghc/ghc-pkg}"
         , " - unset CC"
         , " - PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH"
         , " - PKGNAME='" ++ pkgNameStr ++ "'"
@@ -338,7 +339,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
     putStrLns
         [ " # Build with installed constraints for packages in global-db"
         , " - if $INSTALLED; then"
-        , "     ghc-pkg list --global --simple-output --names-only | sed -r 's/([a-zA-Z0-9-]+*) */--constraint=\\1 installed;/g' | sed 's/;$/;all/' | xargs -d ';' cabal new-build -w ${HC} --disable-tests --disable-benchmarks;"
+        , "     ${HCPKG} list --global --simple-output --names-only | sed -r 's/([a-zA-Z0-9-]+*) */--constraint=\\1 installed;/g' | sed 's/;$/;all/' | xargs -d ';' cabal new-build -w ${HC} --disable-tests --disable-benchmarks;"
         , "   else echo \"Not building with installed constraints\"; fi"
         , ""
         ]
