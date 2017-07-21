@@ -290,6 +290,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , " - BENCH=${BENCH---enable-benchmarks}"
         , " - TEST=${TEST---enable-tests}"
         , " - HADDOCK=${HADDOCK-true}"
+        , " - INSTALLED=${INSTALLED-true}"
         , " - travis_retry cabal update -v"
         , " - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
         , " - rm -fv cabal.project.local"
@@ -331,6 +332,14 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = do
         , " - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
         , " # this builds all libraries and executables (including tests/benchmarks)"
         , " # - rm -rf ./dist-newstyle"
+        , ""
+        ]
+
+    putStrLns
+        [ " # Build with installed constraints for packages in global-db"
+        , " - if $INSTALLED; then"
+        , "     ghc-pkg list --global --simple-output --names-only | sed -r 's/([a-zA-Z0-9-]+*) */--constraint=\\1 installed;/g' | sed 's/;$/;all/' | xargs -d ';' cabal new-build -w ${HC} --disable-tests --disable-benchmarks;"
+        , "   else echo \"Not building with installed constraints\"; fi"
         , ""
         ]
 
