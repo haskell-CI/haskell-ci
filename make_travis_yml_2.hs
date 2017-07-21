@@ -22,6 +22,9 @@
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
 module Main where
 
+import Control.Applicative ((<|>))
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import Control.Monad
 import Data.Function
 import Data.List
@@ -32,6 +35,7 @@ import System.Exit
 import System.IO
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Writer
+import Text.Read (readMaybe)
 
 import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.Package
@@ -75,12 +79,28 @@ tellStrLn str = tell [str]
 tellStrLns :: Monad m => [String] -> WriterT [String] m ()
 tellStrLns = tell
 
+-- | Return the part after the first argument
+--
+-- >>> afterInfix "BAR" "FOOBAR XYZZY"
+-- Just " XYZZY"
+afterInfix :: Eq a => [a] -> [a] -> Maybe [a]
+afterInfix needle haystack = findMaybe (afterPrefix needle) (tails haystack)
+
+afterPrefix :: Eq a => [a] -> [a] -> Maybe [a]
+afterPrefix needle haystack
+    | needle `isPrefixOf` haystack = Just (drop (length needle) haystack)
+    | otherwise                    = Nothing
+
+findMaybe :: (a -> Maybe b) -> [a] -> Maybe b
+findMaybe f = foldr (\a b -> f a <|> b) Nothing
+
 data Options = Options
     { optNoCache :: !Bool
     , optCollections :: [String]
     , optIrcChannels :: [String]
     , optOnlyBranches :: [String]
     , optOutput :: Maybe FilePath
+    , optRegenerate :: Maybe FilePath
     } deriving Show
 
 defOptions :: Options
@@ -90,6 +110,7 @@ defOptions = Options
     , optCollections = []
     , optOnlyBranches = []
     , optOutput = Nothing
+    , optRegenerate = Nothing
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -109,18 +130,36 @@ options =
     , Option ['o'] ["output"]
       (ReqArg (\arg opts -> opts { optOutput = Just arg }) "OUTPUT")
       "output file (stdout if omitted)"
+    , Option ['r'] ["regerate"]
+      (ReqArg (\arg opts -> opts { optRegenerate = Just arg }) "INPUTOUTPUT")
+      "regenerate the file using the magic command in output file"
     ]
 
 main :: IO ()
 main = do
     argv <- getArgs
-    (opts,cabfn,xpkgs) <- case getOpt Permute options argv of
-      (opts,cabfn:xpkgs,[]) -> return (foldl (flip id) defOptions opts,cabfn,xpkgs)
-      (_,_,[]) -> dieCli ["expected .cabal fle as first non-option argument\n"]
-      (_,_,errs) -> dieCli errs
+    (opts,argv',cabfn,xpkgs) <- parseOpts True argv
+    genTravisFromCabalFile (argv',opts) cabfn xpkgs
 
-    genTravisFromCabalFile (argv,opts) cabfn xpkgs
+
+parseOpts :: Bool -> [String] -> IO (Options, [String], FilePath, [String])
+parseOpts regenerate argv = case getOpt Permute options argv of
+    (opts',_,[])
+      | regenerate, Just fp <- optRegenerate opts -> do
+        ls <- fmap lines (readFile fp >>= evaluate . force) -- strict IO
+        case findArgv ls of
+          Nothing    -> dieCli ["expected REGENDATA line in " ++ fp ++ "\n"]
+          Just argv' -> parseOpts False argv'
+      where opts = foldl (flip id) defOptions opts'
+    (opts,cabfn:xpkgs,[]) -> return (foldl (flip id) defOptions opts,argv,cabfn,xpkgs)
+    (_,_,[]) -> dieCli ["expected .cabal fle as first non-option argument\n"]
+    (_,_,errs) -> dieCli errs
   where
+    findArgv :: [String] -> Maybe [String]
+    findArgv ls = do
+        l <- findMaybe (afterInfix "REGENDATA") ls
+        readMaybe l
+
     dieCli errs = hPutStrLn stderr (usageMsg errs) >> exitFailure
     usageMsg errs = concat (map ("*ERROR* "++) errs) ++ usageInfo h options ++ ex
     h = concat
@@ -399,7 +438,10 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = runFileWriter (optOutput opts) $ d
         , ""
         ]
 
-    tellStrLn "# EOF"
+    tellStrLns
+        [ "# REGENDATA " ++ show argv
+        , "# EOF"
+        ]
 
     return ()
   where
