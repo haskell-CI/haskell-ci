@@ -89,4 +89,5 @@ script:
  # build & run tests, build benchmarks
  - cabal new-build -w ${HC} ${TEST} ${BENCH} all
 
+# REGENDATA ["-o",".travis.yml","make-travis-yml.cabal"]
 # EOF
