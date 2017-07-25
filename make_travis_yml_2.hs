@@ -352,7 +352,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = runFileWriter (optOutput opts) $ d
         , " - HADDOCK=${HADDOCK-true}"
         , " - INSTALLED=${INSTALLED-true}"
         , " - travis_retry cabal update -v"
-        , " - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
+        , " - sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
         , " - rm -fv cabal.project.local"
         , " - \"echo 'packages: .' > cabal.project\""
         ]
@@ -398,7 +398,7 @@ genTravisFromCabalFile (argv,opts) fn xpkgs = runFileWriter (optOutput opts) $ d
     tellStrLns
         [ " # Build with installed constraints for packages in global-db"
         , " - if $INSTALLED; then"
-        , "     ${HCPKG} list --global --simple-output --names-only | sed -r 's/([a-zA-Z0-9-]+*) */--constraint=\\1 installed;/g' | sed 's/;$/;all/' | xargs -d ';' cabal new-build -w ${HC} --disable-tests --disable-benchmarks;"
+        , "     echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(${HCPKG} list --global --simple-output --names-only | sed 's/\\([a-zA-Z0-9-]\\{1,\\}\\) */--constraint=\"\\1 installed\" /g') all | sh;"
         , "   else echo \"Not building with installed constraints\"; fi"
         , ""
         ]
