@@ -1,7 +1,8 @@
 #! /usr/bin/env runghc
--- NOTE: -XCPP + shebang require at least GHC 7.8.4; prior versions of
--- GHC don't support this. For older GHCs, remove the line and pass
--- this script manually to `runghc` (or compile it)
+-- NOTE: -XCPP + shebang require at least GHC 7.8.4 on non-macOS; 
+-- prior versions of GHC don't support this. For older GHCs
+-- (or macOS), remove the line and pass this script manually to
+-- `runghc` (or compile it)
 
 {-# LANGUAGE Haskell2010 #-}
 {-# LANGUAGE CPP #-}
