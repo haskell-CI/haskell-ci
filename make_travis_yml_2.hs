@@ -22,13 +22,13 @@
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
 module Main where
 
-import Prelude hiding (forM_)
+import Prelude
 import Control.Applicative ((<$>),(<$),(<*>),(<*),(*>),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad
 import Data.Char (isAsciiLower, isAsciiUpper, isSpace)
-import Data.Foldable (forM_)
+import qualified Data.Foldable as F
 import Data.Function
 import Data.List
 import Data.Maybe
@@ -441,7 +441,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     let colls = [ (collToGhcVer cid,cid) | cid <- reverse $ optCollections opts ]
 
-    forM_ versions $ \gv -> do
+    F.forM_ versions $ \gv -> do
         let cvs = dispGhcVersion (lookupCabVer gv)
             gvs = dispGhcVersion gv
 
@@ -465,7 +465,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         tellStrLn ""
         tellStrLn "  allow_failures:"
 
-    forM_ headGhcVers $ \gv -> do
+    F.forM_ headGhcVers $ \gv -> do
         let gvs = dispGhcVersion gv
         tellStrLn $ concat [ "    - compiler: \"ghc-", gvs, "\"" ]
 
