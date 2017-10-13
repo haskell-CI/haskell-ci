@@ -22,7 +22,7 @@
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
 module Main where
 
-import Control.Applicative ((<|>))
+import Control.Applicative ((<$>),(<$),(<*>),(<*),(*>),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad
