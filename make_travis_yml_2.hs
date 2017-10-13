@@ -22,11 +22,13 @@
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
 module Main where
 
+import Prelude hiding (forM_, null)
 import Control.Applicative ((<$>),(<$),(<*>),(<*),(*>),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad
 import Data.Char (isAsciiLower, isAsciiUpper, isSpace)
+import Data.Foldable (forM_, null)
 import Data.Function
 import Data.List
 import Data.Maybe
