@@ -461,7 +461,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     let headGhcVers = S.filter isGhcHead versions
 
-    unless (null headGhcVers) $ do
+    unless (S.null headGhcVers) $ do
         tellStrLn ""
         tellStrLn "  allow_failures:"
 
