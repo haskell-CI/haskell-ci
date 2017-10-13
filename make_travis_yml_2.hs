@@ -30,7 +30,7 @@ import Data.Char (isAsciiLower, isAsciiUpper, isSpace)
 import Data.Function
 import Data.List
 import Data.Maybe
-import Data.Monoid ((<>))
+import Data.Monoid (Monoid(..), (<>))
 import Data.Set (Set)
 import qualified Data.Set as S
 import System.Console.GetOpt
