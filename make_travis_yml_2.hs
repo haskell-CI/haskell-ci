@@ -1,7 +1,3 @@
--- NOTE: -XCPP + shebang require at least GHC 7.8.4; prior versions of
--- GHC don't support this. For older GHCs, remove the line and pass
--- this script manually to `runghc` (or compile it)
-
 {-# LANGUAGE Haskell2010 #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -92,6 +88,22 @@ tellStrLn str = tell [str]
 tellStrLns :: Monad m => [String] -> WriterT [String] m ()
 tellStrLns = tell
 
+foldedTellStrLns
+    :: Monad m
+    => String
+    -> String
+    -> Set String
+    -> WriterT [String] m ()
+    -> WriterT [String] m ()
+foldedTellStrLns label prettyLabel labels output
+    | label `S.notMember` labels = output
+    | otherwise = tellStrLns [prelude] >> output >> tellStrLns epilogue
+  where
+    prelude = mconcat
+        [ "  - echo ", prettyLabel
+        , " && echo -en 'travis_fold:start:", label, "\\\\r'" ]
+    epilogue = ["  - echo -en 'travis_fold:end:" ++ label ++ "\\\\r'" ]
+
 -- | Return the part after the first argument
 --
 -- >>> afterInfix "BAR" "FOOBAR XYZZY"
@@ -110,6 +122,7 @@ findMaybe f = foldr (\a b -> f a <|> b) Nothing
 data Options = Options
     { optNoCache :: !Bool
     , optCollections :: [String]
+    , optFolds :: Either [String] (Set String)
     , optIrcChannels :: [String]
     , optProjectName :: Maybe String
     , optOnlyBranches :: [String]
@@ -122,11 +135,31 @@ defOptions = Options
     { optNoCache = False
     , optIrcChannels = []
     , optCollections = []
+    , optFolds = Right S.empty
     , optProjectName = Nothing
     , optOnlyBranches = []
     , optOutput = Nothing
     , optRegenerate = Nothing
     }
+
+possibleFolds :: [String]
+possibleFolds =
+  [ "sdist", "unpack", "build", "build-installed", "build-everything", "test"
+  , "haddock", "stack" ]
+
+setFolds
+    :: Maybe String
+    -> Either [String] (Set String)
+    -> Either [String] (Set String)
+setFolds Nothing val = S.fromList possibleFolds <$ val
+setFolds (Just "all") val = setFolds Nothing val
+setFolds (Just n) val
+    | n `elem` possibleFolds = S.insert n <$> val
+    | otherwise = case val of
+        Left errs -> Left $ errs ++ err
+        Right _ -> Left err
+    where
+      err = ["illegal fold name: '" ++ n ++ "'"]
 
 options :: [OptDescr (Options -> Options)]
 options =
@@ -136,6 +169,9 @@ options =
     , Option ['c'] ["collection"]
       (ReqArg (\arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
+    , Option ['f'] ["fold"]
+      (OptArg (\arg opts -> opts { optFolds = setFolds arg (optFolds opts) }) "FOLD")
+      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, " ++ intercalate ", " possibleFolds)
     , Option [] ["irc-channel"]
       (ReqArg (\arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
       "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
@@ -374,6 +410,10 @@ genTravisFromConfigs
     -> (Set Version, Config, [Package])
     -> IO ()
 genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
+  folds <- case optFolds opts of
+      Left errs -> putStrLnErr $ unlines errs
+      Right val -> return val
+
   putStrLnInfo $
     "Generating Travis-CI config for testing for GHC versions: " ++ ghcVersions
 
@@ -472,10 +512,10 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     tellStrLns
         [ ""
         , "before_install:"
-        , " - HC=${CC}"
-        , " - HCPKG=${HC/ghc/ghc-pkg}"
-        , " - unset CC"
-        , " - PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH"
+        , "  - HC=${CC}"
+        , "  - HCPKG=${HC/ghc/ghc-pkg}"
+        , "  - unset CC"
+        , "  - PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH"
         ]
 
     unless (null colls) $
@@ -484,38 +524,38 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     tellStrLns
         [ ""
         , "install:"
-        , " - cabal --version"
-        , " - echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
-        , " - BENCH=${BENCH---enable-benchmarks}"
-        , " - TEST=${TEST---enable-tests}"
-        , " - HADDOCK=${HADDOCK-true}"
-        , " - INSTALLED=${INSTALLED-true}"
-        , " - travis_retry cabal update -v"
-        , " - sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
-        , " - rm -fv cabal.project.local"
+        , "  - cabal --version"
+        , "  - echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
+        , "  - BENCH=${BENCH---enable-benchmarks}"
+        , "  - TEST=${TEST---enable-tests}"
+        , "  - HADDOCK=${HADDOCK-true}"
+        , "  - INSTALLED=${INSTALLED-true}"
+        , "  - travis_retry cabal update -v"
+        , "  - sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
+        , "  - rm -fv cabal.project.local"
         ]
 
     when (isNothing isCabalProject) $ tellStrLns
-        [ " - \"echo 'packages: .' > cabal.project\"" ]
+        [ "  - \"echo 'packages: .' > cabal.project\"" ]
 
     let pkgFilter = intercalate " | " $ map (wrap.pkgName) pkgs
         wrap s = "grep -Fv \"" ++ s ++ " ==\""
     unless (null colls) $ tellStrLns
-        [ " - for COLL in \"${COLLS[@]}\"; do"
-        , "     echo \"== collection $COLL ==\";"
-        , "     ghc-travis collection ${COLL} > /dev/null || break;"
-        , "     ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
-        , "     grep ' collection-id' cabal.project.freeze;"
-        , "     rm -rf dist-newstyle/;"
-        , "     cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++ "\" --dep -j2 all;"
-        , "   done"
+        [ "  - for COLL in \"${COLLS[@]}\"; do"
+        , "      echo \"== collection $COLL ==\";"
+        , "      ghc-travis collection ${COLL} > /dev/null || break;"
+        , "      ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
+        , "      grep ' collection-id' cabal.project.freeze;"
+        , "      rm -rf dist-newstyle/;"
+        , "      cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++ "\" --dep -j2 all;"
+        , "    done"
         , ""
         ]
 
     forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
-        [ " - if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then"
-        , "     (cd \"" ++ pkgDir ++ "\"; autoreconf -i);"
-        , "   fi"
+        [ "  - if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then"
+        , "      (cd \"" ++ pkgDir ++ "\"; autoreconf -i);"
+        , "    fi"
         ]
 
     let quotedRmPaths =
@@ -524,11 +564,11 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
           quotedPaths (\Pkg{pkgDir} -> pkgDir ++ "/dist")
 
     tellStrLns
-        [ " - rm -f cabal.project.freeze"
-        , " - cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
-        , " - cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
-        , " - rm -rf " ++ quotedRmPaths
-        , " - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)"
+        [ "  - rm -f cabal.project.freeze"
+        , "  - cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
+        , "  - cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
+        , "  - rm -rf " ++ quotedRmPaths
+        , "  - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)"
         ]
 
     tellStrLns
@@ -536,69 +576,78 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , "# Here starts the actual work to be performed for the package under test;"
         , "# any command which exits with a non-zero exit code causes the build to fail."
         , "script:"
-        , " # test that source-distributions can be generated"
+        , "  # test that source-distributions can be generated"
         ]
 
-    forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
-        [ " - (cd \"" ++ pkgDir ++ "\"; cabal sdist)" ]
+    foldedTellStrLns "sdist" "Packaging..." folds $ do
+        forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
+            [ "  - (cd \"" ++ pkgDir ++ "\"; cabal sdist)" ]
 
     let tarFiles = quotedPaths $ \Pkg{pkgDir,pkgName} ->
                 pkgDir </> "dist" </> pkgName ++ "-*.tar.gz"
 
         cabalPaths = quotedPaths $ \Pkg{pkgName} -> pkgName ++ "-*/*.cabal"
 
-    tellStrLns
-        [ " - mv " ++ tarFiles ++ " ${DISTDIR}/"
-        , " - cd ${DISTDIR}"
-        , " - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \\;"
-        , " - \"printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project\""
-        , " # this builds all libraries and executables (without tests/benchmarks)"
-        , " - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
-        , ""
+    foldedTellStrLns "unpack" "Unpacking..." folds $ tellStrLns
+        [ "  - mv " ++ tarFiles ++ " ${DISTDIR}/"
+        , "  - cd ${DISTDIR}"
+        , "  - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \\;"
+        , "  - \"printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project\""
         ]
 
-    tellStrLns
-        [ " # Build with installed constraints for packages in global-db"
-        , " - if $INSTALLED; then"
-        , "     echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(${HCPKG} list --global --simple-output --names-only | sed 's/\\([a-zA-Z0-9-]\\{1,\\}\\) */--constraint=\"\\1 installed\" /g') all | sh;"
-        , "   else echo \"Not building with installed constraints\"; fi"
-        , ""
+    foldedTellStrLns "build" "Building..." folds $ tellStrLns
+        [ "  # this builds all libraries and executables (without tests/benchmarks)"
+        , "  - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
         ]
 
-    tellStrLns
-        [ " # build & run tests, build benchmarks"
-        , " - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
+    tellStrLns [""]
+
+    let msg = "Building with installed constraints for package in global-db..."
+    foldedTellStrLns "build-installed" msg folds $ tellStrLns
+        [ "  # Build with installed constraints for packages in global-db"
+        , "  - if $INSTALLED; then"
+        , "      echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(${HCPKG} list --global --simple-output --names-only | sed 's/\\([a-zA-Z0-9-]\\{1,\\}\\) */--constraint=\"\\1 installed\" /g') all | sh;"
+        , "    else echo \"Not building with installed constraints\"; fi"
+        ]
+
+    tellStrLns [""]
+
+    foldedTellStrLns "build-everything"
+        "Building with tests and benchmarks..." folds $ tellStrLns
+        [ "  # build & run tests, build benchmarks"
+        , "  - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
         ]
 
     -- cabal new-test fails if there are no test-suites.
-    when (hasTests cfg) $ tellStrLns
-        [ " - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
-        ]
+    when (hasTests cfg) $
+        foldedTellStrLns "test" "Testing..." folds $ tellStrLns
+            [ "  - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
+            ]
 
-    tellStrLns
-        [ ""
-        ]
+    tellStrLns [""]
 
-    when (hasLibrary cfg) $ tellStrLns
-        [ " # haddock"
-        , " - rm -rf ./dist-newstyle"
-        , " - if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
-        , ""
-        ]
+    when (hasLibrary cfg) $
+        foldedTellStrLns "haddock" "Haddock..." folds $ tellStrLns
+            [ "  # haddock"
+            , "  - rm -rf ./dist-newstyle"
+            , "  - if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
+            , ""
+            ]
 
-    unless (null colls) $ tellStrLns
-        [ " # try building & testing for package collections"
-        , " - for COLL in \"${COLLS[@]}\"; do"
-        , "     echo \"== collection $COLL ==\";"
-        , "     ghc-travis collection ${COLL} > /dev/null || break;"
-        , "     ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
-        , "     grep ' collection-id' cabal.project.freeze;"
-        , "     rm -rf dist-newstyle/;"
-        , "     cabal new-build -w ${HC} ${TEST} ${BENCH} all || break;"
-        , "     if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all || break; fi;"
-        , "   done"
-        , ""
-        ]
+    unless (null colls) $
+        foldedTellStrLns "stack" "Stack builds..." folds $ tellStrLns
+            [ "  # try building & testing for package collections"
+            , "  - for COLL in \"${COLLS[@]}\"; do"
+            , "      echo \"== collection $COLL ==\";"
+            , "      ghc-travis collection ${COLL} > /dev/null || break;"
+            , "      ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
+            , "      grep ' collection-id' cabal.project.freeze;"
+            , "      rm -rf dist-newstyle/;"
+            , "      cabal new-build -w ${HC} ${TEST} ${BENCH} all || break;"
+            , "      if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all || break; fi;"
+            , "    done"
+            , ""
+            ]
 
     tellStrLns
         [ "# REGENDATA " ++ show argv
