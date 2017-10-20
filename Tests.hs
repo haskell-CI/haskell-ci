@@ -1,6 +1,6 @@
 module Main (main) where
 
-import MakeTravisYml (travisFromCabalFile, Options (..), defOptions, options)
+import MakeTravisYml (travisFromConfigFile, Options (..), defOptions, options)
 
 import Control.Monad.Trans.Writer
 import Data.Algorithm.Diff (Diff (..), getGroupedDiff)
@@ -31,7 +31,7 @@ fixtureGoldenTest fp argv = cabalGoldenTest fp output $ do
     fmap (BS8.pack . unlines) $ execWriterT $
         -- always pass empty argv
         -- TODO: make test take argv, parse them.
-        travisFromCabalFile (argv, opts) fp xpkgs
+        travisFromConfigFile (argv, opts) fp xpkgs
   where
     input = "fixtures" </> fp
     output = replaceExtension input "travis.yml"

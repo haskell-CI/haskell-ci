@@ -1,11 +1,7 @@
-#! /usr/bin/env runghc
--- NOTE: -XCPP + shebang require at least GHC 7.8.4; prior versions of
--- GHC don't support this. For older GHCs, remove the line and pass
--- this script manually to `runghc` (or compile it)
-
 {-# LANGUAGE Haskell2010 #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 #if !defined(MIN_VERSION_Cabal)
 -- As a heuristic, if the macro isn't defined, be pessimistic and
@@ -22,23 +18,31 @@
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
 module MakeTravisYml where
 
-import Control.Applicative ((<|>))
+import Control.Applicative ((<$>),(<$),(<*>),(<*),(*>),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad
+import Data.Char (isAsciiLower, isAsciiUpper, isSpace)
+import qualified Data.Foldable as F
 import Data.Function
 import Data.List
 import Data.Maybe
+import Data.Monoid (Monoid(..), (<>))
+import Data.Set (Set)
+import qualified Data.Set as S
 import System.Console.GetOpt
+import System.Directory (doesDirectoryExist, getDirectoryContents)
 import System.Environment
 import System.Exit
+import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Writer
 import Text.Read (readMaybe)
 
 import Distribution.Compiler (CompilerFlavor(..))
-import Distribution.Package
+import Distribution.Package hiding (Package, pkgName)
+import qualified Distribution.Package as Pkg
 import Distribution.PackageDescription (packageDescription, testedWith, package, condLibrary, condTestSuites)
 import Distribution.Text
 import Distribution.Version
@@ -49,7 +53,9 @@ import Distribution.PackageDescription (GenericPackageDescription)
 import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Verbosity (Verbosity)
 #endif
-
+import Text.ParserCombinators.ReadP
+    ( ReadP, (<++), between, char, eof, munch, munch1, pfail, readP_to_S
+    , satisfy, sepBy, sepBy1, string)
 
 #if !(MIN_VERSION_Cabal(2,0,0))
 -- compat helpers for pre-2.0
@@ -65,8 +71,10 @@ versionNumbers (Version vn _) = vn
 
 #endif
 
-putStrLnErr, putStrLnWarn, putStrLnInfo :: MonadIO m => String -> m ()
+putStrLnErr :: MonadIO m => String -> m a
 putStrLnErr  m = liftIO $ hPutStrLn stderr ("*ERROR* " ++ m) >> exitFailure
+
+putStrLnWarn, putStrLnInfo :: MonadIO m => String -> m ()
 putStrLnWarn m = liftIO $ hPutStrLn stderr ("*WARNING* " ++ m)
 putStrLnInfo m = liftIO $ hPutStrLn stderr ("*INFO* " ++ m)
 
@@ -78,6 +86,22 @@ tellStrLn str = tell [str]
 
 tellStrLns :: Monad m => [String] -> WriterT [String] m ()
 tellStrLns = tell
+
+foldedTellStrLns
+    :: Monad m
+    => String
+    -> String
+    -> Set String
+    -> WriterT [String] m ()
+    -> WriterT [String] m ()
+foldedTellStrLns label prettyLabel labels output
+    | label `S.notMember` labels = output
+    | otherwise = tellStrLns [prelude] >> output >> tellStrLns epilogue
+  where
+    prelude = mconcat
+        [ "  - echo ", prettyLabel
+        , " && echo -en 'travis_fold:start:", label, "\\\\r'" ]
+    epilogue = ["  - echo -en 'travis_fold:end:" ++ label ++ "\\\\r'" ]
 
 -- | Return the part after the first argument
 --
@@ -97,7 +121,9 @@ findMaybe f = foldr (\a b -> f a <|> b) Nothing
 data Options = Options
     { optNoCache :: !Bool
     , optCollections :: [String]
+    , optFolds :: Either [String] (Set String)
     , optIrcChannels :: [String]
+    , optProjectName :: Maybe String
     , optOnlyBranches :: [String]
     , optOutput :: Maybe FilePath
     , optRegenerate :: Maybe FilePath
@@ -108,10 +134,31 @@ defOptions = Options
     { optNoCache = False
     , optIrcChannels = []
     , optCollections = []
+    , optFolds = Right S.empty
+    , optProjectName = Nothing
     , optOnlyBranches = []
     , optOutput = Nothing
     , optRegenerate = Nothing
     }
+
+possibleFolds :: [String]
+possibleFolds =
+  [ "sdist", "unpack", "build", "build-installed", "build-everything", "test"
+  , "haddock", "stack" ]
+
+setFolds
+    :: Maybe String
+    -> Either [String] (Set String)
+    -> Either [String] (Set String)
+setFolds Nothing val = S.fromList possibleFolds <$ val
+setFolds (Just "all") val = setFolds Nothing val
+setFolds (Just n) val
+    | n `elem` possibleFolds = S.insert n <$> val
+    | otherwise = case val of
+        Left errs -> Left $ errs ++ err
+        Right _ -> Left err
+    where
+      err = ["illegal fold name: '" ++ n ++ "'"]
 
 options :: [OptDescr (Options -> Options)]
 options =
@@ -121,9 +168,15 @@ options =
     , Option ['c'] ["collection"]
       (ReqArg (\arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
+    , Option ['f'] ["fold"]
+      (OptArg (\arg opts -> opts { optFolds = setFolds arg (optFolds opts) }) "FOLD")
+      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, " ++ intercalate ", " possibleFolds)
     , Option [] ["irc-channel"]
       (ReqArg (\arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
       "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
+    , Option ['n'] ["name"]
+      (ReqArg (\arg opts -> opts { optProjectName = Just arg }) "NAME")
+      "project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
     , Option [] ["branch"]
       (ReqArg (\arg opts -> opts { optOnlyBranches = arg : optOnlyBranches opts }) "BRANCH")
       "enable builds only for specific brances, use multiple times for multiple branches"
@@ -138,9 +191,8 @@ options =
 main :: IO ()
 main = do
     argv <- getArgs
-    (opts,argv',cabfn,xpkgs) <- parseOpts True argv
-    genTravisFromCabalFile (argv',opts) cabfn xpkgs
-
+    (opts,argv',configFile,xpkgs) <- parseOpts True argv
+    genTravisFromConfigFile (argv',opts) configFile xpkgs
 
 parseOpts :: Bool -> [String] -> IO (Options, [String], FilePath, [String])
 parseOpts regenerate argv = case getOpt Permute options argv of
@@ -151,8 +203,8 @@ parseOpts regenerate argv = case getOpt Permute options argv of
           Nothing    -> dieCli ["expected REGENDATA line in " ++ fp ++ "\n"]
           Just argv' -> parseOpts False argv'
       where opts = foldl (flip id) defOptions opts'
-    (opts,cabfn:xpkgs,[]) -> return (foldl (flip id) defOptions opts,argv,cabfn,xpkgs)
-    (_,_,[]) -> dieCli ["expected .cabal fle as first non-option argument\n"]
+    (opts,configFile:xpkgs,[]) -> return (foldl (flip id) defOptions opts,argv,configFile,xpkgs)
+    (_,_,[]) -> dieCli ["expected .cabal or cabal.project file as first non-option argument\n"]
     (_,_,errs) -> dieCli errs
   where
     findArgv :: [String] -> Maybe [String]
@@ -163,7 +215,7 @@ parseOpts regenerate argv = case getOpt Permute options argv of
     dieCli errs = hPutStrLn stderr (usageMsg errs) >> exitFailure
     usageMsg errs = concat (map ("*ERROR* "++) errs) ++ usageInfo h options ++ ex
     h = concat
-        [ "Usage: make_travis_yml_2.hs [OPTIONS] <cabal-file> <extra-apt-packages...>\n"
+        [ "Usage: make_travis_yml_2.hs [OPTIONS] <cabal-file | cabal.project> <extra-apt-packages...>\n"
         , "\n"
         , "Available options:"
         ]
@@ -181,17 +233,105 @@ runFileWriter mfp m = do
         Nothing -> putStr contents
         Just fp -> writeFile fp contents
 
-genTravisFromCabalFile :: ([String],Options) -> FilePath -> [String] -> IO ()
-genTravisFromCabalFile argvOpts@(_, opts) fn xpkgs = runFileWriter (optOutput opts) $
-    travisFromCabalFile argvOpts fn xpkgs
+ghcMajVer :: Version -> (Int,Int)
+ghcMajVer v
+    | x:y:_ <- versionNumbers v = (x,y)
+    | otherwise = undefined
 
-travisFromCabalFile :: MonadIO m => ([String],Options) -> FilePath -> [String] -> WriterT [String] m ()
-travisFromCabalFile (argv,opts) fn xpkgs = do
+isGhcHead :: Version -> Bool
+isGhcHead v
+    | (_,y) <- ghcMajVer v = odd y
+    | otherwise         = False
 
-    gpd <- liftIO $ readGenericPackageDescription maxBound fn
+dispGhcVersion :: Version -> String
+dispGhcVersion v
+    | isGhcHead v = "head"
+    | otherwise = display v
+
+data Config = Cfg { hasTests :: Bool, hasLibrary :: Bool }
+    deriving (Eq, Show)
+
+data Package = Pkg
+    { pkgName :: String
+    , pkgDir :: FilePath
+    } deriving (Eq, Show)
+
+instance Monoid Config where
+    mempty = Cfg False False
+    mappend cfg1 cfg2 = Cfg
+        { hasTests = hasTests cfg1 || hasTests cfg2
+        , hasLibrary = hasLibrary cfg1 || hasLibrary cfg2
+        }
+
+genTravisFromConfigFile :: ([String],Options) -> FilePath -> [String] -> IO ()
+genTravisFromConfigFile args@(_, opts) path xpkgs =
+    runFileWriter (optOutput opts) $ travisFromConfigFile args path xpkgs
+
+travisFromConfigFile
+    :: MonadIO m
+    => ([String],Options)
+    -> FilePath
+    -> [String]
+    -> WriterT [String] m ()
+travisFromConfigFile args@(_, opts) path xpkgs =
+  getCabalFiles
+    >>= mapM (configFromCabalFile opts)
+    >>= checkVersions
+    >>= genTravisFromConfigs args xpkgs isCabalProject
+  where
+    checkVersions
+        :: MonadIO m
+        => [(Package, Config, Set Version)]
+        -> m (Set Version, Config, [Package])
+    checkVersions [] = putStrLnErr "Error reading cabal file(s)!"
+    checkVersions cfgs = do
+        let (errors, cfg, names) = foldl' collectConfig mempty cfgs
+        unless (null errors) $ putStrLnErr . unlines $ errors
+        return (allVersions, cfg, names)
+      where
+        allVersions = S.unions $ map (\(_, _, s) -> s) cfgs
+
+        collectConfig
+            :: ([String], Config, [Package])
+            -> (Package, Config, Set Version)
+            -> ([String], Config, [Package])
+        collectConfig aggregate (pkg, config, testWith) =
+            aggregate <> (errors, config, [pkg])
+          where
+            diff = S.difference testWith allVersions
+            missingVersions = map dispGhcVersion $ S.toList diff
+            errors | S.null diff = []
+                   | otherwise = pure $ mconcat
+                        [ pkgName pkg
+                        , " is missing tested-with annotations for: "
+                        ] ++ intercalate "," missingVersions
+
+    isCabalProject :: Maybe FilePath
+    isCabalProject
+        | "cabal.project" `isPrefixOf` takeFileName path = Just path
+        | otherwise = Nothing
+
+    getCabalFiles :: MonadIO m => m [FilePath]
+    getCabalFiles
+        | isNothing isCabalProject = return [path]
+        | otherwise = liftIO $ do
+            result <- readP_to_S projectFile <$> readFile path
+            globs <- case result of
+                [(r,"")] -> return r
+                [] -> putStrLnErr $ "Parse error trying to parse: " ++ path
+                _ -> putStrLnErr $ "Ambiguous parse trying to parse: " ++ path
+            when (null globs) $
+                putStrLnErr $ "No 'packages:' entry found in: " ++ path
+
+            expandGlobs (takeDirectory path) globs
+
+configFromCabalFile
+    :: MonadIO m => Options -> FilePath -> m (Package, Config, Set Version)
+configFromCabalFile opts cabalFile = do
+    gpd <- liftIO $ readGenericPackageDescription maxBound cabalFile
 
     let compilers = testedWith $ packageDescription $ gpd
-        pkgNameStr = display $ pkgName $ package $ packageDescription gpd
+        pkgNameStr = display $ Pkg.pkgName $ package $ packageDescription gpd
 
     let unknownComps = nub [ c | (c,_) <- compilers, c /= GHC ]
         ghcVerConstrs = [ vc | (GHC,vc) <- compilers ]
@@ -238,13 +378,56 @@ travisFromCabalFile (argv,opts) fn xpkgs = do
         let v = collToGhcVer c
         unless (v `elem` testedGhcVersions) $
             putStrLnErr $ unlines
-               [ "collection " ++ c ++ " requires GHC " ++ disp' v
-               , "add 'tested-width: GHC == " ++ disp' v ++ "' to your .cabal file"
+               [ "collection " ++ c ++ " requires GHC " ++ dispGhcVersion v
+               , "add 'tested-width: GHC == " ++ dispGhcVersion v ++ "' to your .cabal file"
                ]
 
-    putStrLnInfo $ "Generating Travis-CI config for testing for GHC versions: " ++ (unwords $ map disp' $ testedGhcVersions)
+    let hasTests = not . null $ condTestSuites gpd
+        hasLibrary = case condLibrary gpd of
+            Just _ -> True
+            Nothing -> False
+        pkg = Pkg pkgNameStr (takeDirectory cabalFile)
 
-    ----------------------------------------------------------------------------
+    return (pkg, Cfg hasTests hasLibrary, S.fromList testedGhcVersions)
+  where
+    knownGhcVersions :: [Version]
+    knownGhcVersions = fmap mkVersion
+                       [ [7,0,1],  [7,0,2], [7,0,3], [7,0,4]
+                       , [7,2,1],  [7,2,2]
+                       , [7,4,1],  [7,4,2]
+                       , [7,6,1],  [7,6,2], [7,6,3]
+                       , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
+                       , [7,10,1], [7,10,2], [7,10,3]
+                       , [8,0,1], [8,0,2]
+                       , [8,2,1]
+                       , [8,3] -- HEAD
+                       ]
+
+    lastStableGhcVers :: [Version]
+    lastStableGhcVers = nubBy ((==) `on` ghcMajVer) $ filter (not . isGhcHead) $ reverse $ sort $ knownGhcVersions
+
+    isTwoDigitGhcVersion :: VersionRange -> Maybe Version
+    isTwoDigitGhcVersion vr = isSpecificVersion vr >>= t
+      where
+        t v | [_,_] <- versionNumbers v = Just v
+        t _                             = Nothing
+
+genTravisFromConfigs
+    :: MonadIO m
+    => ([String], Options)
+    -> [String]
+    -> Maybe FilePath
+    -> (Set Version, Config, [Package])
+    -> WriterT [String] m ()
+genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
+    folds <- case optFolds opts of
+        Left errs -> putStrLnErr $ unlines errs
+        Right val -> return val
+
+    putStrLnInfo $
+        "Generating Travis-CI config for testing for GHC versions: " ++ ghcVersions
+
+    ---------------------------------------------------------------------------
     -- travis.yml generation starts here
 
     tellStrLns
@@ -262,6 +445,7 @@ travisFromCabalFile (argv,opts) fn xpkgs = do
         , ""
         ]
 
+    let projectName = fromMaybe (pkgName $ head pkgs) (optProjectName opts)
     unless (null $ optIrcChannels opts) $ tellStrLns $
         [ "notifications:"
         , "  irc:"
@@ -270,7 +454,7 @@ travisFromCabalFile (argv,opts) fn xpkgs = do
         [ "      - \"" ++ chan ++ "\"" | chan <- optIrcChannels opts ] ++
         [ "    skip_join: true"
         , "    template:"
-        , "      - \"\\x0313" ++ pkgNameStr ++ "\\x03/\\x0306%{branch}\\x03 \\x0314%{commit}\\x03 %{build_url} %{message}\""
+        , "      - \"\\x0313" ++ projectName ++ "\\x03/\\x0306%{branch}\\x03 \\x0314%{commit}\\x03 %{build_url} %{message}\""
         , ""
         ]
 
@@ -306,9 +490,9 @@ travisFromCabalFile (argv,opts) fn xpkgs = do
 
     let colls = [ (collToGhcVer cid,cid) | cid <- reverse $ optCollections opts ]
 
-    forM_ testedGhcVersions $ \gv -> do
-        let cvs = disp' (lookupCabVer gv)
-            gvs = disp' gv
+    F.forM_ versions $ \gv -> do
+        let cvs = dispGhcVersion (lookupCabVer gv)
+            gvs = dispGhcVersion gv
 
             xpkgs' = concatMap (',':) xpkgs
 
@@ -324,24 +508,23 @@ travisFromCabalFile (argv,opts) fn xpkgs = do
             ]
         return ()
 
-    let headGhcVers = filter isHead testedGhcVersions
+    let headGhcVers = S.filter isGhcHead versions
 
-    unless (null headGhcVers) $ do
+    unless (S.null headGhcVers) $ do
         tellStrLn ""
         tellStrLn "  allow_failures:"
 
-    forM_ headGhcVers $ \gv -> do
-        let gvs = disp' gv
+    F.forM_ headGhcVers $ \gv -> do
+        let gvs = dispGhcVersion gv
         tellStrLn $ concat [ "    - compiler: \"ghc-", gvs, "\"" ]
 
     tellStrLns
         [ ""
         , "before_install:"
-        , " - HC=${CC}"
-        , " - HCPKG=${HC/ghc/ghc-pkg}"
-        , " - unset CC"
-        , " - PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH"
-        , " - PKGNAME='" ++ pkgNameStr ++ "'"
+        , "  - HC=${CC}"
+        , "  - HCPKG=${HC/ghc/ghc-pkg}"
+        , "  - unset CC"
+        , "  - PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH"
         ]
 
     unless (null colls) $
@@ -350,98 +533,130 @@ travisFromCabalFile (argv,opts) fn xpkgs = do
     tellStrLns
         [ ""
         , "install:"
-        , " - cabal --version"
-        , " - echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
-        , " - BENCH=${BENCH---enable-benchmarks}"
-        , " - TEST=${TEST---enable-tests}"
-        , " - HADDOCK=${HADDOCK-true}"
-        , " - INSTALLED=${INSTALLED-true}"
-        , " - travis_retry cabal update -v"
-        , " - sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
-        , " - rm -fv cabal.project.local"
-        , " - \"echo 'packages: .' > cabal.project\""
+        , "  - cabal --version"
+        , "  - echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
+        , "  - BENCH=${BENCH---enable-benchmarks}"
+        , "  - TEST=${TEST---enable-tests}"
+        , "  - HADDOCK=${HADDOCK-true}"
+        , "  - INSTALLED=${INSTALLED-true}"
+        , "  - travis_retry cabal update -v"
+        , "  - sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
+        , "  - rm -fv cabal.project.local"
         ]
 
+    when (isNothing isCabalProject) $ tellStrLns
+        [ "  - \"echo 'packages: .' > cabal.project\"" ]
+
+    let pkgFilter = intercalate " | " $ map (wrap.pkgName) pkgs
+        wrap s = "grep -Fv \"" ++ s ++ " ==\""
     unless (null colls) $ tellStrLns
-        [ " - for COLL in \"${COLLS[@]}\"; do"
-        , "     echo \"== collection $COLL ==\";"
-        , "     ghc-travis collection ${COLL} > /dev/null || break;"
-        , "     ghc-travis collection ${COLL} | grep -Fv \" ${PKGNAME} ==\" > cabal.project.freeze;"
-        , "     grep ' collection-id' cabal.project.freeze;"
-        , "     rm -rf dist-newstyle/;"
-        , "     cabal new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all;"
-        , "   done"
-        ]
-
-    tellStrLns
-        [ " - rm -f cabal.project.freeze"
-        , " - cabal new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all"
-        , " - cabal new-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all"
-        , ""
-        , "# Here starts the actual work to be performed for the package under test;"
-        , "# any command which exits with a non-zero exit code causes the build to fail."
-        , "script:"
-        , " - if [ -f configure.ac ]; then autoreconf -i; fi"
-        , " - rm -rf .ghc.environment.* dist/"
-        , " - cabal sdist # test that a source-distribution can be generated"
-        , " - cd dist/"
-        , " - SRCTAR=(${PKGNAME}-*.tar.gz)"
-        , " - SRC_BASENAME=\"${SRCTAR/%.tar.gz}\""
-        , " - tar -xvf \"./$SRC_BASENAME.tar.gz\""
-        , " - cd \"$SRC_BASENAME/\""
-        , "## from here on, CWD is inside the extracted source-tarball"
-        , " - rm -fv cabal.project.local"
-        , " - \"echo 'packages: .' > cabal.project\""
-        , " # this builds all libraries and executables (without tests/benchmarks)"
-        , " - rm -f cabal.project.freeze"
-        , " - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
-        , " # this builds all libraries and executables (including tests/benchmarks)"
-        , " # - rm -rf ./dist-newstyle"
+        [ "  - for COLL in \"${COLLS[@]}\"; do"
+        , "      echo \"== collection $COLL ==\";"
+        , "      ghc-travis collection ${COLL} > /dev/null || break;"
+        , "      ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
+        , "      grep ' collection-id' cabal.project.freeze;"
+        , "      rm -rf dist-newstyle/;"
+        , "      cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++ "\" --dep -j2 all;"
+        , "    done"
         , ""
         ]
 
-    tellStrLns
-        [ " # Build with installed constraints for packages in global-db"
-        , " - if $INSTALLED; then"
-        , "     echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(${HCPKG} list --global --simple-output --names-only | sed 's/\\([a-zA-Z0-9-]\\{1,\\}\\) */--constraint=\"\\1 installed\" /g') all | sh;"
-        , "   else echo \"Not building with installed constraints\"; fi"
-        , ""
+    forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
+        [ "  - if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then"
+        , "      (cd \"" ++ pkgDir ++ "\"; autoreconf -i);"
+        , "    fi"
         ]
 
-    tellStrLns
-        [ " # build & run tests, build benchmarks"
-        , " - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
-        ]
+    let quotedRmPaths =
+          quotedPaths (\Pkg{pkgDir} -> pkgDir ++ "/.ghc.environment.*")
+          ++ " " ++
+          quotedPaths (\Pkg{pkgDir} -> pkgDir ++ "/dist")
 
-    -- cabal new-test fails if there are no test-suites.
-    unless (null $ condTestSuites gpd) $ tellStrLns
-        [ " - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
+    tellStrLns
+        [ "  - rm -f cabal.project.freeze"
+        , "  - cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
+        , "  - cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
+        , "  - rm -rf " ++ quotedRmPaths
+        , "  - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)"
         ]
 
     tellStrLns
         [ ""
+        , "# Here starts the actual work to be performed for the package under test;"
+        , "# any command which exits with a non-zero exit code causes the build to fail."
+        , "script:"
+        , "  # test that source-distributions can be generated"
         ]
 
-    unless (isNothing $ condLibrary gpd) $ tellStrLns
-        [ " # haddock"
-        , " - rm -rf ./dist-newstyle"
-        , " - if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
-        , ""
+    foldedTellStrLns "sdist" "Packaging..." folds $ do
+        forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
+            [ "  - (cd \"" ++ pkgDir ++ "\"; cabal sdist)" ]
+
+    let tarFiles = quotedPaths $ \Pkg{pkgDir,pkgName} ->
+                pkgDir </> "dist" </> pkgName ++ "-*.tar.gz"
+
+        cabalPaths = quotedPaths $ \Pkg{pkgName} -> pkgName ++ "-*/*.cabal"
+
+    foldedTellStrLns "unpack" "Unpacking..." folds $ tellStrLns
+        [ "  - mv " ++ tarFiles ++ " ${DISTDIR}/"
+        , "  - cd ${DISTDIR}"
+        , "  - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \\;"
+        , "  - \"printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project\""
         ]
 
-    unless (null colls) $ tellStrLns
-        [ " # try building & testing for package collections"
-        , " - for COLL in \"${COLLS[@]}\"; do"
-        , "     echo \"== collection $COLL ==\";"
-        , "     ghc-travis collection ${COLL} > /dev/null || break;"
-        , "     ghc-travis collection ${COLL} | grep -Fv \" ${PKGNAME} ==\" > cabal.project.freeze;"
-        , "     grep ' collection-id' cabal.project.freeze;"
-        , "     rm -rf dist-newstyle/;"
-        , "     cabal new-build -w ${HC} ${TEST} ${BENCH} all || break;"
-        , "     if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all || break; fi;"
-        , "   done"
-        , ""
+    foldedTellStrLns "build" "Building..." folds $ tellStrLns
+        [ "  # this builds all libraries and executables (without tests/benchmarks)"
+        , "  - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
         ]
+
+    tellStrLns [""]
+
+    let msg = "Building with installed constraints for package in global-db..."
+    foldedTellStrLns "build-installed" msg folds $ tellStrLns
+        [ "  # Build with installed constraints for packages in global-db"
+        , "  - if $INSTALLED; then"
+        , "      echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(${HCPKG} list --global --simple-output --names-only | sed 's/\\([a-zA-Z0-9-]\\{1,\\}\\) */--constraint=\"\\1 installed\" /g') all | sh;"
+        , "    else echo \"Not building with installed constraints\"; fi"
+        ]
+
+    tellStrLns [""]
+
+    foldedTellStrLns "build-everything"
+        "Building with tests and benchmarks..." folds $ tellStrLns
+        [ "  # build & run tests, build benchmarks"
+        , "  - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
+        ]
+
+    -- cabal new-test fails if there are no test-suites.
+    when (hasTests cfg) $
+        foldedTellStrLns "test" "Testing..." folds $ tellStrLns
+            [ "  - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
+            ]
+
+    tellStrLns [""]
+
+    when (hasLibrary cfg) $
+        foldedTellStrLns "haddock" "Haddock..." folds $ tellStrLns
+            [ "  # haddock"
+            , "  - rm -rf ./dist-newstyle"
+            , "  - if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
+            , ""
+            ]
+
+    unless (null colls) $
+        foldedTellStrLns "stack" "Stack builds..." folds $ tellStrLns
+            [ "  # try building & testing for package collections"
+            , "  - for COLL in \"${COLLS[@]}\"; do"
+            , "      echo \"== collection $COLL ==\";"
+            , "      ghc-travis collection ${COLL} > /dev/null || break;"
+            , "      ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
+            , "      grep ' collection-id' cabal.project.freeze;"
+            , "      rm -rf dist-newstyle/;"
+            , "      cabal new-build -w ${HC} ${TEST} ${BENCH} all || break;"
+            , "      if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all || break; fi;"
+            , "    done"
+            , ""
+            ]
 
     tellStrLns
         [ "# REGENDATA " ++ show argv
@@ -450,31 +665,21 @@ travisFromCabalFile (argv,opts) fn xpkgs = do
 
     return ()
   where
-    knownGhcVersions :: [Version]
-    knownGhcVersions = fmap mkVersion
-                       [ [7,0,1],  [7,0,2], [7,0,3], [7,0,4]
-                       , [7,2,1],  [7,2,2]
-                       , [7,4,1],  [7,4,2]
-                       , [7,6,1],  [7,6,2], [7,6,3]
-                       , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
-                       , [7,10,1], [7,10,2], [7,10,3]
-                       , [8,0,1], [8,0,2]
-                       , [8,2,1]
-                       , [8,3] -- HEAD
-                       ]
+    projectFile :: FilePath
+    projectFile = fromMaybe "cabal.project" isCabalProject
 
-    lastStableGhcVers :: [Version]
-    lastStableGhcVers = nubBy ((==) `on` majVer) $ filter (not . isHead) $ reverse $ sort $ knownGhcVersions
+    quotedPaths :: (Package -> FilePath) -> String
+    quotedPaths f = unwords $ map (f . quote) pkgs
+      where
+        quote pkg = pkg{ pkgDir = "\"" ++ pkgDir pkg ++ "\"" }
 
-    majVer :: Version -> (Int,Int)
-    majVer v
-      | x:y:_ <- versionNumbers v = (x,y)
-      | otherwise = undefined
+    ghcVersions :: String
+    ghcVersions = unwords $ map dispGhcVersion $ S.toList $ versions
 
     lookupCabVer :: Version -> Version
     lookupCabVer v = maybe (error "internal error") id $ lookup (x,y) cabalVerMap
       where
-        (x,y) = majVer v
+        (x,y) = ghcMajVer v
         cabalVerMap = fmap (fmap mkVersion)
                       [ ((7, 0),  [1,25]) -- Use HEAD for everything.
                       , ((7, 2),  [1,25])
@@ -487,18 +692,6 @@ travisFromCabalFile (argv,opts) fn xpkgs = do
                       , ((8, 3),  [1,25])
                       ]
 
-    isHead v
-      | (_,y) <- majVer v = odd y
-      | otherwise         = False
-
-    disp' v | isHead v = "head"
-            | otherwise = display v
-
-    isTwoDigitGhcVersion :: VersionRange -> Maybe Version
-    isTwoDigitGhcVersion vr = isSpecificVersion vr >>= t
-      where
-        t v | [_,_] <- versionNumbers v = Just v
-        t _                             = Nothing
 
 collToGhcVer :: String -> Version
 collToGhcVer cid = case simpleParse cid of
@@ -514,3 +707,253 @@ collToGhcVer cid = case simpleParse cid of
     | isPrefixOf [6] v -> mkVersion [7,10,3]
     | isPrefixOf [7] v -> mkVersion [8,0,1]
     | otherwise -> error ("unknown collection " ++ show cid)
+
+{-
+
+Globbing code and grammar judiciously stolen from cabal-install:
+
+FilePathGlob    ::= FilePathRoot FilePathGlobRel
+FilePathRoot    ::= {- empty -}        # relative to cabal.project
+                  | "/"                # Unix root
+                  | [a-zA-Z] ":" [/\\] # Windows root
+                  | "~"                # home directory
+
+FilePathGlobRel ::= Glob "/"  FilePathGlobRel # Unix directory
+                  | Glob "\\" FilePathGlobRel # Windows directory
+                  | Glob         # file
+                  | {- empty -}  # trailing slash
+
+Glob      ::= GlobPiece *
+GlobPiece ::= "*"            # wildcard
+            | [^*{},/\\] *   # literal string
+            | "\\" [*{},]    # escaped reserved character
+            | "{" Glob "," ... "," Glob "}" # union (match any of these)
+-}
+
+data FilePathGlob = FilePathGlob FilePathRoot FilePathGlobRel
+  deriving (Eq, Show)
+
+data FilePathGlobRel
+   = GlobDir  Glob FilePathGlobRel
+   | GlobFile Glob
+   | GlobDirTrailing -- trailing dir, a glob ending in '/'
+  deriving (Eq, Show)
+
+-- | A single directory or file component of a globbed path
+type Glob = [GlobPiece]
+
+-- | A piece of a globbing pattern
+data GlobPiece = WildCard
+               | Literal String
+               | Union [Glob]
+  deriving (Eq, Show)
+
+data FilePathRoot
+   = FilePathRelative
+   | FilePathRoot FilePath -- e.g. '/', 'c:\' or result of 'takeDrive'
+   | FilePathHomeDir
+  deriving (Eq, Show)
+
+prettyPathGlob :: FilePathGlob -> String
+prettyPathGlob (FilePathGlob root relGlob) =
+  prettyRoot ++ prettyRelPathGlob relGlob
+  where
+    prettyRoot = case root of
+        FilePathRelative -> "./"
+        FilePathRoot r -> r
+        FilePathHomeDir -> "~/"
+
+prettyRelPathGlob :: FilePathGlobRel -> String
+prettyRelPathGlob relPathGlob = case relPathGlob of
+  GlobDir globs relGlob -> prettyGlob globs ++ "/" ++ prettyRelPathGlob relGlob
+  GlobFile globs -> prettyGlob globs
+  GlobDirTrailing -> ""
+
+prettyGlob :: Glob -> String
+prettyGlob = concatMap prettyGlobPiece
+
+prettyGlobPiece :: GlobPiece -> String
+prettyGlobPiece globPiece = case globPiece of
+    WildCard -> "*"
+    Literal l -> concatMap escape l
+    Union globs -> "{" ++ intercalate "," (map prettyGlob globs) ++ "}"
+  where
+    escape c | c `elem` reservedChars = ['\\',c]
+             | otherwise = [c]
+
+satisfyP :: (a -> Bool) -> ReadP a -> ReadP a
+satisfyP f p = p >>= \r -> if f r then return r else pfail
+
+eol :: ReadP ()
+eol = void (char '\n') <++ void (string "\r\n")
+
+line :: ReadP ()
+line = munch (\c -> c /= '\n' && c /= '\r') >> eol
+
+choice :: [ReadP a] -> ReadP a
+choice = foldr (<++) pfail
+
+option :: a -> ReadP a -> ReadP a
+option r p = p <++ return r
+
+many :: ReadP a -> ReadP [a]
+many = option [] . many1
+
+many1 :: ReadP a -> ReadP [a]
+many1 p = (:) <$> p <*> many p
+
+skipSpaces :: ReadP Int
+skipSpaces = length <$> munch (\c -> isSpace c && c /= '\n' && c /= '\r')
+
+skipSpaces1 :: ReadP Int
+skipSpaces1 = satisfyP (0/=) skipSpaces
+
+projectFile :: ReadP [FilePathGlob]
+projectFile = do
+    (i, r) <- findPackages
+    many (skipSpaces >> eol)
+    satisfyP (<=i) skipSpaces
+    many line >> eof
+    return r
+
+findPackages :: ReadP (Int, [FilePathGlob])
+findPackages = packagesField <++ (line >> findPackages)
+
+packagesField :: ReadP (Int, [FilePathGlob])
+packagesField = do
+    i <- skipSpaces
+    string "packages:"
+    skipSpaces
+    (,) i <$> globLines i
+
+globLines :: Int -> ReadP [FilePathGlob]
+globLines i = sepBy1 filePathGlob (globSep i) <* (skipSpaces >> eol)
+
+globSep :: Int -> ReadP ()
+globSep i = void $ choice [comma, nonComma]
+  where
+    emptyLines = do
+        many1 (skipSpaces >> eol)
+        satisfyP (>i) skipSpaces
+
+    comma = do
+        emptyLines <++ skipSpaces
+        char ','
+        emptyLines <++ skipSpaces
+
+    nonComma = emptyLines <++ satisfyP (>0) skipSpaces
+
+filePathGlob :: ReadP FilePathGlob
+filePathGlob = between (char '"') (char '"') (baseGlob True) <++ baseGlob False
+  where
+    nonEmpty = satisfyP (GlobDirTrailing/=)
+    baseGlob isQuoted = choice
+        [ FilePathGlob <$> filePathRoot <*> filePathGlobRel isQuoted
+        , FilePathGlob FilePathRelative <$> nonEmpty (filePathGlobRel isQuoted)
+        ]
+
+filePathRoot :: ReadP FilePathRoot
+filePathRoot = unixRoot <++ windowsRoot <++ homeDir
+  where
+    pathSep = char '\\' <++ char '/'
+    unixRoot = FilePathRoot . pure <$> char '/'
+    windowsRoot = do
+        drive <- satisfy $ \c -> isAsciiUpper c || isAsciiLower c
+        char ':'
+        sep <- pathSep
+        return $ FilePathRoot [drive,':',sep]
+    homeDir = FilePathHomeDir <$ char '~' <* pathSep
+
+filePathGlobRel :: Bool -> ReadP FilePathGlobRel
+filePathGlobRel b = nonEmptyFilePathGlobRel b <++ return GlobDirTrailing
+
+nonEmptyFilePathGlobRel :: Bool -> ReadP FilePathGlobRel
+nonEmptyFilePathGlobRel isQuoted = globDir <++ globFile
+  where
+    globDir = GlobDir <$> glob isQuoted <* (char '/' <++ char '\\')
+                      <*> filePathGlobRel isQuoted
+    globFile = GlobFile <$> glob isQuoted
+
+glob :: Bool -> ReadP Glob
+glob isQuoted = do
+    r <- globPiece isQuoted
+    (r:) <$> glob'
+  where
+    glob' :: ReadP Glob
+    glob' = ((:) <$> globPiece isQuoted <*> glob') <++ return []
+
+reservedChars :: [Char]
+reservedChars = "*{},\""
+
+globPiece :: Bool -> ReadP GlobPiece
+globPiece isQuoted = wildCard <++ union <++ literal
+  where
+    wildCard = WildCard <$ char '*'
+    union = between (char '{') (char '}') $
+        Union <$> sepBy (glob isQuoted) (char ',')
+
+    literal = Literal <$> many1 (safeChar <++ escapedChar)
+      where
+        notReserved c
+            | isQuoted = True
+            | otherwise = not (isSpace c)
+        safeChar = satisfy (\c -> c `notElem` "*{},/\\\"" && notReserved c)
+        escapedChar = char '\\' *> satisfy (`elem` reservedChars)
+
+expandGlobs :: FilePath -> [FilePathGlob] -> IO [FilePath]
+expandGlobs root globs = concat <$> mapM (expandGlob root) globs
+
+expandGlob :: FilePath -> FilePathGlob -> IO [FilePath]
+expandGlob _ g@(FilePathGlob FilePathHomeDir _) = do
+    putStrLnInfo $ "Ignoring home directory glob: " ++ prettyPathGlob g
+    return []
+expandGlob _ g@(FilePathGlob FilePathRoot{} _) = do
+    putStrLnInfo $ "Ignoring global directory glob: " ++ prettyPathGlob g
+    return []
+expandGlob root g@(FilePathGlob FilePathRelative relGlob) = do
+    result <- expandRelGlob root relGlob
+    when (null result) $
+        putStrLnErr $ "Illegal empty package glob: " ++ prettyPathGlob g
+    return result
+
+expandRelGlob :: FilePath -> FilePathGlobRel -> IO [FilePath]
+expandRelGlob root glob0 = go glob0 ""
+  where
+    go (GlobFile glob) dir = do
+      entries <- getDirectoryContents (root </> dir)
+      let files = filter (matchGlob glob) entries
+      return (map (dir </>) files)
+
+    go (GlobDir glob globPath) dir = do
+      entries <- getDirectoryContents (root </> dir)
+      subdirs <- filterM (\subdir -> doesDirectoryExist
+                                       (root </> dir </> subdir))
+               $ filter (matchGlob glob) entries
+      concat <$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
+
+    go GlobDirTrailing dir = go (GlobFile [WildCard,Literal ".cabal"]) dir
+
+matchGlob :: Glob -> FilePath -> Bool
+matchGlob = goStart
+  where
+    -- From the man page, glob(7):
+    --   "If a filename starts with a '.', this character must be
+    --    matched explicitly."
+
+    go, goStart :: [GlobPiece] -> String -> Bool
+
+    goStart (WildCard:_) ('.':_)  = False
+    goStart (Union globs:rest) cs = any (\glob -> goStart (glob ++ rest) cs)
+                                        globs
+    goStart rest               cs = go rest cs
+
+    go []                 ""    = True
+    go (Literal lit:rest) cs
+      | Just cs' <- stripPrefix lit cs
+                                = go rest cs'
+      | otherwise               = False
+    go [WildCard]         ""    = True
+    go (WildCard:rest)   (c:cs) = go rest (c:cs) || go (WildCard:rest) cs
+    go (Union globs:rest)   cs  = any (\glob -> go (glob ++ rest) cs) globs
+    go []                (_:_)  = False
+    go (_:_)              ""    = False
