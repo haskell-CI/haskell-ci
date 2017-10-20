@@ -88,6 +88,7 @@ script:
 
  # build & run tests, build benchmarks
  - cabal new-build -w ${HC} ${TEST} ${BENCH} all
+ - if [ "x$TEST" = "x--enable-tests" ]; then cabal new-test -w ${HC} ${TEST} all; fi
 
 # REGENDATA ["-o",".travis.yml","make-travis-yml.cabal"]
 # EOF
