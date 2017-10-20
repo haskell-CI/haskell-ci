@@ -20,7 +20,7 @@
 --
 -- NB: This code deliberately avoids relying on non-standard packages and
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
-module Main where
+module MakeTravisYml where
 
 import Control.Applicative ((<|>))
 import Control.DeepSeq (force)
@@ -182,7 +182,12 @@ runFileWriter mfp m = do
         Just fp -> writeFile fp contents
 
 genTravisFromCabalFile :: ([String],Options) -> FilePath -> [String] -> IO ()
-genTravisFromCabalFile (argv,opts) fn xpkgs = runFileWriter (optOutput opts) $ do
+genTravisFromCabalFile argvOpts@(_, opts) fn xpkgs = runFileWriter (optOutput opts) $
+    travisFromCabalFile argvOpts fn xpkgs
+
+travisFromCabalFile :: MonadIO m => ([String],Options) -> FilePath -> [String] -> WriterT [String] m ()
+travisFromCabalFile (argv,opts) fn xpkgs = do
+
     gpd <- liftIO $ readGenericPackageDescription maxBound fn
 
     let compilers = testedWith $ packageDescription $ gpd
