@@ -922,7 +922,7 @@ expandRelGlob root glob0 = go glob0 ""
                $ filter (matchGlob glob) entries
       concat <$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
 
-    go GlobDirTrailing dir = return [dir]
+    go GlobDirTrailing dir = go (GlobFile [WildCard,Literal ".cabal"]) dir
 
 matchGlob :: Glob -> FilePath -> Bool
 matchGlob = goStart
