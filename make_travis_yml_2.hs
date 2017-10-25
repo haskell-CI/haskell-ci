@@ -298,7 +298,8 @@ travisFromConfigFile args@(_, opts) path xpkgs =
         collectConfig aggregate (pkg, config, testWith) =
             aggregate <> (errors, config, [pkg])
           where
-            diff = S.difference testWith allVersions
+            symDiff a b = S.union a b `S.difference` S.intersection a b
+            diff = symDiff testWith allVersions
             missingVersions = map dispGhcVersion $ S.toList diff
             errors | S.null diff = []
                    | otherwise = pure $ mconcat
