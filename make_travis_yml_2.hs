@@ -345,7 +345,7 @@ configFromCabalFile opts cabalFile = do
 
     when (null compilers) $ do
         putStrLnErr (unlines $
-                     [ "empty or missing top-level 'tested-with:' definition in .cabal file; example definition:"
+                     [ "empty or missing top-level 'tested-with:' definition in " ++ cabalFile ++ " file; example definition:"
                      , ""
                      , "tested-with: " ++ intercalate ", " [ "GHC==" ++ display v | v <- lastStableGhcVers ]
                      ])
