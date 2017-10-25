@@ -2,14 +2,18 @@ module Main (main) where
 
 import MakeTravisYml (travisFromConfigFile, Options (..), defOptions, options)
 
+import Control.Exception (ErrorCall(..), throwIO)
 import Control.Monad.Trans.Writer
 import Data.Algorithm.Diff (Diff (..), getGroupedDiff)
+import Data.List (stripPrefix)
+import Data.Maybe (catMaybes)
 import System.Console.GetOpt (getOpt, ArgOrder(Permute))
 import System.Exit (exitFailure)
 import System.FilePath (replaceExtension, (</>))
 import System.IO (hPutStrLn, stderr)
 import Test.Tasty (TestName, TestTree, defaultMain, testGroup)
 import Test.Tasty.Golden.Advanced (goldenTest)
+import Text.Read (readMaybe)
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -17,21 +21,31 @@ import qualified Data.ByteString.Char8 as BS8
 main :: IO ()
 main = defaultMain $ testGroup "fixtures"
     [ fixtureGoldenTest "make-travis-yml.cabal"
-        ["-o",".travis.yml","make-travis-yml.cabal"]
     ]
 
--- | 
+linesToArgv :: String -> Maybe [String]
+linesToArgv txt = case catMaybes (map lineToArgv (lines txt)) of
+    [argv] -> Just argv
+    _ -> Nothing
+  where
+    lineToArgv line
+        | Just rest <- "# REGENDATA " `stripPrefix` line = readMaybe rest
+        | otherwise = Nothing
+
+-- |
 -- @
--- travisFromCabalFile ::
+-- travisFromConfigFile ::
 --    ... => ([String],Options) -> FilePath -> [String] -> Writer [String] m ()
 -- @
-fixtureGoldenTest :: FilePath ->  [String] -> TestTree
-fixtureGoldenTest fp argv = cabalGoldenTest fp output $ do
-    (opts, _fp, xpkgs) <- parseOpts argv
-    fmap (BS8.pack . unlines) $ execWriterT $
-        -- always pass empty argv
-        -- TODO: make test take argv, parse them.
-        travisFromConfigFile (argv, opts) fp xpkgs
+fixtureGoldenTest :: FilePath -> TestTree
+fixtureGoldenTest fp = cabalGoldenTest fp output $ do
+    result <- BS8.unpack <$> BS.readFile output
+    case linesToArgv result of
+        Nothing -> throwIO (ErrorCall "No REGENDATA in result file.")
+        Just argv -> do
+            (opts, _fp, xpkgs) <- parseOpts argv
+            fmap (BS8.pack . unlines) $ execWriterT $
+                travisFromConfigFile (argv, opts) fp xpkgs
   where
     input = "fixtures" </> fp
     output = replaceExtension input "travis.yml"
