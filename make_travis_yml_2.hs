@@ -79,7 +79,7 @@ logYamlWriter :: Monad m => String -> YamlWriter m ()
 logYamlWriter s = ask >>= \put -> lift . lift $ put s
 
 putStrLnErr :: MonadIO m => String -> YamlWriter m a
-putStrLnErr m = logYamlWriter ("*ERROR* " ++ m) *> liftIO exitFailure
+putStrLnErr m = logYamlWriter ("*ERROR* " ++ m) >> liftIO exitFailure
 
 putStrLnWarn, putStrLnInfo :: MonadIO m => String -> YamlWriter m ()
 putStrLnWarn m = logYamlWriter ("*WARNING* " ++ m)
@@ -326,7 +326,7 @@ travisFromConfigFile args@(_, opts) path xpkgs =
     getCabalFiles
         | isNothing isCabalProject = return [path]
         | otherwise = do
-            result <- readP_to_S projectFile <$> liftIO (readFile path)
+            result <- readP_to_S projectFile `liftM` liftIO (readFile path)
             globs <- case result of
                 [(r,"")] -> return r
                 [] -> putStrLnErr $ "Parse error trying to parse: " ++ path
@@ -914,7 +914,7 @@ globPiece isQuoted = wildCard <++ union <++ literal
 
 expandGlobs
     :: MonadIO m => FilePath -> [FilePathGlob] -> YamlWriter m [FilePath]
-expandGlobs root globs = concat <$> mapM (expandGlob root) globs
+expandGlobs root globs = concat `liftM` mapM (expandGlob root) globs
 
 expandGlob :: MonadIO m => FilePath -> FilePathGlob -> YamlWriter m [FilePath]
 expandGlob _ g@(FilePathGlob FilePathHomeDir _) = do

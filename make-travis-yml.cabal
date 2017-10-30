@@ -28,6 +28,13 @@ extra-source-files:
   fixtures/cabal.project.messy
   fixtures/cabal.project.messy.stderr
   fixtures/cabal.project.messy.travis.yml
+  fixtures/doc/tutorial/tutorial.cabal
+  fixtures/servant-client-core/*.cabal
+  fixtures/servant-client/*.cabal
+  fixtures/servant-docs/*.cabal
+  fixtures/servant-foreign/*.cabal
+  fixtures/servant-server/*.cabal
+  fixtures/servant/*.cabal
 
 executable make-travis-yml
   main-is:             MakeTravisYml.hs
