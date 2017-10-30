@@ -10,6 +10,7 @@ import Data.Algorithm.Diff (Diff (..), getGroupedDiff)
 import Data.IORef
 import Data.List (isPrefixOf, stripPrefix)
 import Data.Maybe (catMaybes)
+import Data.Monoid (mconcat)
 import System.Console.GetOpt (getOpt, ArgOrder(Permute))
 import System.Directory (doesFileExist, removeFile, setCurrentDirectory)
 import System.Exit (ExitCode(..), exitFailure)
