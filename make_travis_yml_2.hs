@@ -159,6 +159,7 @@ setFolds
     -> Either [String] (Set String)
 setFolds Nothing val = S.fromList possibleFolds <$ val
 setFolds (Just "all") val = setFolds Nothing val
+setFolds (Just "all-but-test") val = S.delete "test" <$> setFolds Nothing val
 setFolds (Just n) val
     | n `elem` possibleFolds = S.insert n <$> val
     | otherwise = case val of
@@ -177,7 +178,7 @@ options =
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
     , Option ['f'] ["fold"]
       (OptArg (\arg opts -> opts { optFolds = setFolds arg (optFolds opts) }) "FOLD")
-      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, " ++ intercalate ", " possibleFolds)
+      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, all-but-test, " ++ intercalate ", " possibleFolds)
     , Option [] ["irc-channel"]
       (ReqArg (\arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
       "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
