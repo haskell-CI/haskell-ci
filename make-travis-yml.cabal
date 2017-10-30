@@ -17,13 +17,22 @@ tested-with:
   GHC == 8.0.2,
   GHC == 8.2.1
 extra-source-files:
-  fixtures/*.cabal
-  fixtures/*.travis.yml
+  fixtures/make-travis-yml.cabal
+  fixtures/make-travis-yml.cabal.stderr
+  fixtures/make-travis-yml.cabal.travis.yml
+  fixtures/cabal.project.empty-line
+  fixtures/cabal.project.empty-line.stderr
+  fixtures/cabal.project.empty-line.travis.yml
+  fixtures/cabal.project.fail-versions
+  fixtures/cabal.project.fail-versions.stderr
+  fixtures/cabal.project.messy
+  fixtures/cabal.project.messy.stderr
+  fixtures/cabal.project.messy.travis.yml
 
 executable make-travis-yml
   main-is:             MakeTravisYml.hs
   ghc-options:         -main-is MakeTravisYml
-  other-extensions:    CPP, ViewPatterns
+  other-extensions:    CPP, ViewPatterns, NamedFieldPuns
   build-depends:       base  >=4.7  && <4.11
                      , Cabal >=1.10 && <2.1
                      , containers >=0.4 && <0.6
