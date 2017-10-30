@@ -2,6 +2,7 @@ module Main (main) where
 
 import MakeTravisYml (travisFromConfigFile, Options (..), defOptions, options)
 
+import Control.Applicative ((<$>), (<*>))
 import Control.Exception (ErrorCall(..), throwIO, try)
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Writer
