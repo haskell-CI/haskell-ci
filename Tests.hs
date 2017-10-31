@@ -1,10 +1,12 @@
+{-# LANGUAGE ViewPatterns #-}
 module Main (main) where
 
-import MakeTravisYml (travisFromConfigFile, Options (..), defOptions, options)
+import MakeTravisYml
+    (travisFromConfigFile, MakeTravisOutput(..), Options (..), defOptions, options)
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Exception (ErrorCall(..), throwIO, try)
-import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Writer
 import Data.Algorithm.Diff (Diff (..), getGroupedDiff)
 import Data.IORef
@@ -50,18 +52,16 @@ linesToArgv txt = case catMaybes (map lineToArgv (lines txt)) of
 fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
     (argv, opts, xpkgs) <- makeTravisFlags
-    ref <- newIORef []
-
-    let bsUnlines = BS8.pack . unlines
-        logError s = modifyIORef' ref (s:)
-        genConfig = travisFromConfigFile (argv, opts) fp xpkgs
-
-    ymlFile <- try $ execWriterT (runReaderT genConfig logError)
-    stderrOutput <- reverse <$> readIORef ref
-    return (bsUnlines <$> ymlFile, bsUnlines stderrOutput)
+    let genConfig = travisFromConfigFile (argv, opts) fp xpkgs
+    normalise <$> execWriterT (runMaybeT genConfig)
   where
     outputRef = addExtension fp "travis.yml"
     errorRef = addExtension fp "stderr"
+
+    -- Avoid issues with multiline errors invalidating the output
+    normalise :: MakeTravisOutput -> MakeTravisOutput
+    normalise (Failure errs) = Failure . lines . unlines $ errs
+    normalise other = other
 
     referenceArgv :: Bool -> IO (Maybe [String])
     referenceArgv refExists
@@ -89,44 +89,44 @@ cabalGoldenTest
     :: TestName
     -> FilePath
     -> FilePath
-    -> IO (Either ExitCode BS.ByteString, BS.ByteString)
+    -> IO MakeTravisOutput
     -> TestTree
 cabalGoldenTest name outRef errRef act = goldenTest name readGolden act cmp upd
   where
-    noYamlFile :: Either ExitCode a
-    noYamlFile = Left $ ExitFailure 1
+    readData :: FilePath -> IO [String]
+    readData fp = lines . BS8.unpack <$> BS.readFile fp
 
     readGolden = do
         refExists <- doesFileExist outRef
         if refExists
-           then (,) <$> (Right <$> BS.readFile outRef) <*> BS.readFile errRef
-           else (,) noYamlFile <$> BS.readFile errRef
+           then Success <$> readData errRef <*> readData outRef
+           else Failure <$> readData errRef
 
-    upd (output, errOutput) = do
-        case output of
-            Left _ -> return ()
-            Right out -> BS.writeFile outRef out
-        BS.writeFile errRef errOutput
+    packData :: [String] -> BS.ByteString
+    packData = BS8.pack . unlines
+
+    upd (Failure (packData -> errs)) = BS.writeFile errRef errs
+    upd (Success (packData -> warnings) (packData -> contents)) = do
+        BS.writeFile outRef contents
+        BS.writeFile errRef warnings
 
     cmp x y | x == y = return Nothing
-    cmp (x1,x2) (y1,y2) = return . Just $ mconcat
-        [ cmpFail x1 y1
+    cmp (Failure err1) (Failure err2) = return . Just $ diff err1 err2
+    cmp (Success warn1 out1) (Success warn2 out2) = return . Just . mconcat $
+        [ diff warn1 warn2
         , "\n\n"
-        , unlines $ concatMap f (getGroupedDiff (BS8.lines x2) (BS8.lines y2))
+        , diff out1 out2
         ]
-      where
-        cmpFail (Left x) (Right y) = unlines
-            [ "Expected failure:", show x, "Found success:", BS8.unpack y ]
-        cmpFail (Right x) (Left y) = unlines
-            [ "Expected success:", BS8.unpack x, "Found failure:", show y ]
-        cmpFail (Left x) (Left y) = unlines
-            [ "Expected failure:", show x, "Found failure:", show y ]
-        cmpFail (Right x) (Right y) = unlines $
-            concatMap f (getGroupedDiff (BS8.lines x) (BS8.lines y))
-        f (First xs)  = map (cons3 '-' . BS8.unpack) xs
-        f (Second ys) = map (cons3 '+' . BS8.unpack) ys
-        -- we print unchanged lines too. It shouldn't be a problem while we have
-        -- reasonably small examples
-        f (Both xs _) = map (cons3 ' ' . BS8.unpack) xs
-        -- we add three characters, so the changed lines are easier to spot
-        cons3 c cs = c : c : c : ' ' : cs
+    cmp (Failure err) (Success warnings _) = return . Just . unlines $
+        [ "Expected failure:" ] ++ err ++ ["\n\nFound success:"] ++ warnings
+    cmp (Success warnings _) (Failure err) = return . Just . unlines $
+        [ "Expected success:" ] ++ warnings ++ ["\n\nFound failure:"] ++ err
+
+    diff x y = unlines $ concatMap f (getGroupedDiff x y)
+    f (First xs)  = map (cons3 '-') xs
+    f (Second ys) = map (cons3 '+') ys
+    -- we print unchanged lines too. It shouldn't be a problem while we have
+    -- reasonably small examples
+    f (Both xs _) = map (cons3 ' ') xs
+    -- we add three characters, so the changed lines are easier to spot
+    cons3 c cs = c : c : c : ' ' : cs

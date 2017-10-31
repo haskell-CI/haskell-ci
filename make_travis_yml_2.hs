@@ -38,7 +38,7 @@ import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Reader
+import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Writer
 import Text.Read (readMaybe)
 
@@ -73,26 +73,35 @@ versionNumbers (Version vn _) = vn
 
 #endif
 
-type YamlWriter m a = ReaderT (String -> m ()) (WriterT [String] m) a
+data MakeTravisOutput
+    = Success [String] [String]
+    | Failure [String]
+    deriving (Eq, Show)
 
-logYamlWriter :: Monad m => String -> YamlWriter m ()
-logYamlWriter s = ask >>= \put -> lift . lift $ put s
+instance Monoid MakeTravisOutput where
+    mempty = Success [] []
+    Failure err1 `mappend` Failure err2 = Failure $ err1 `mappend` err2
+    Failure err1 `mappend` Success err2 _ = Failure $ err1 `mappend` err2
+    Success err1 _ `mappend` Failure err2 = Failure $ err1 `mappend` err2
+    Success l1 o1 `mappend` Success l2 o2 =
+        Success (mappend l1 l2) (mappend o1 o2)
 
-putStrLnErr :: MonadIO m => String -> YamlWriter m a
-putStrLnErr m = logYamlWriter ("*ERROR* " ++ m) >> liftIO exitFailure
+type YamlWriter m a = MaybeT (WriterT MakeTravisOutput m) a
 
-putStrLnWarn, putStrLnInfo :: MonadIO m => String -> YamlWriter m ()
-putStrLnWarn m = logYamlWriter ("*WARNING* " ++ m)
-putStrLnInfo m = logYamlWriter ("*INFO* " ++ m)
+putStrLnErr :: Monad m => String -> YamlWriter m a
+putStrLnErr m = do
+    lift . tell $ Failure ["*ERROR* " ++ m]
+    mzero
 
--- putStrLns :: [String] -> IO ()
--- putStrLns = putStr . unlines
+putStrLnWarn, putStrLnInfo :: Monad m => String -> YamlWriter m ()
+putStrLnWarn m = lift . tell $ Success ["*WARNING* " ++ m] []
+putStrLnInfo m = lift . tell $ Success ["*INFO* " ++ m] []
 
 tellStrLn :: Monad m => String -> YamlWriter m ()
-tellStrLn str = lift $ tell [str]
+tellStrLn str = lift . tell $ Success [] [str]
 
 tellStrLns :: Monad m => [String] -> YamlWriter m ()
-tellStrLns = lift . tell
+tellStrLns = lift . tell . Success []
 
 foldedTellStrLns
     :: Monad m
@@ -236,13 +245,14 @@ parseOpts regenerate argv = case getOpt Permute options argv of
 
 runYamlWriter :: Maybe FilePath -> YamlWriter IO () -> IO ()
 runYamlWriter mfp m = do
-    contents <- unlines <$> execWriterT (runReaderT m logError)
-    case mfp of
-        Nothing -> putStr contents
-        Just fp -> writeFile fp contents
-  where
-    logError :: String -> IO ()
-    logError = hPutStrLn stderr
+    result <- execWriterT (runMaybeT m)
+    case result of
+        Failure (unlines -> errors) -> hPutStr stderr errors >> exitFailure
+        Success (unlines -> warnings) (unlines -> contents) -> do
+            hPutStr stderr warnings
+            case mfp of
+                Nothing -> putStr contents
+                Just fp -> writeFile fp contents
 
 ghcMajVer :: Version -> (Int,Int)
 ghcMajVer v
@@ -297,7 +307,7 @@ travisFromConfigFile args@(_, opts) path xpkgs =
     checkVersions [] = putStrLnErr "Error reading cabal file(s)!"
     checkVersions cfgs = do
         let (errors, cfg, names) = foldl' collectConfig mempty cfgs
-        unless (null errors) $ putStrLnErr . unlines $ "":errors
+        unless (null errors) $ putStrLnErr . intercalate "\n" $ "":errors
         return (allVersions, cfg, names)
       where
         allVersions = S.unions $ map (\(_, _, s) -> s) cfgs
@@ -425,7 +435,7 @@ configFromCabalFile opts cabalFile = do
         t _                             = Nothing
 
 genTravisFromConfigs
-    :: MonadIO m
+    :: Monad m
     => ([String], Options)
     -> [String]
     -> Maybe FilePath
