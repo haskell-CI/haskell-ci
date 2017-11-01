@@ -86,6 +86,7 @@ instance Monoid MakeTravisOutput where
     Success l1 o1 `mappend` Success l2 o2 =
         Success (mappend l1 l2) (mappend o1 o2)
 
+-- MaybeT is used to preserve the short-circuiting semantics of 'putStrLnErr'.
 type YamlWriter m a = MaybeT (WriterT MakeTravisOutput m) a
 
 putStrLnErr :: Monad m => String -> YamlWriter m a
