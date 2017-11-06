@@ -37,6 +37,8 @@ import System.Exit
 import System.FilePath ((</>), takeDirectory, takeFileName)
 import System.IO
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Writer
 import Text.Read (readMaybe)
 
@@ -71,29 +73,44 @@ versionNumbers (Version vn _) = vn
 
 #endif
 
-putStrLnErr :: MonadIO m => String -> m a
-putStrLnErr  m = liftIO $ hPutStrLn stderr ("*ERROR* " ++ m) >> exitFailure
+data MakeTravisOutput
+    = Success [String] [String]
+    | Failure [String]
+    deriving (Eq, Show)
 
-putStrLnWarn, putStrLnInfo :: MonadIO m => String -> m ()
-putStrLnWarn m = liftIO $ hPutStrLn stderr ("*WARNING* " ++ m)
-putStrLnInfo m = liftIO $ hPutStrLn stderr ("*INFO* " ++ m)
+instance Monoid MakeTravisOutput where
+    mempty = Success [] []
+    Failure err1 `mappend` Failure err2 = Failure $ err1 `mappend` err2
+    Failure err1 `mappend` Success err2 _ = Failure $ err1 `mappend` err2
+    Success err1 _ `mappend` Failure err2 = Failure $ err1 `mappend` err2
+    Success l1 o1 `mappend` Success l2 o2 =
+        Success (mappend l1 l2) (mappend o1 o2)
 
--- putStrLns :: [String] -> IO ()
--- putStrLns = putStr . unlines
+-- MaybeT is used to preserve the short-circuiting semantics of 'putStrLnErr'.
+type YamlWriter m a = MaybeT (WriterT MakeTravisOutput m) a
 
-tellStrLn :: Monad m => String -> WriterT [String] m ()
-tellStrLn str = tell [str]
+putStrLnErr :: Monad m => String -> YamlWriter m a
+putStrLnErr m = do
+    lift . tell $ Failure ["*ERROR* " ++ m]
+    mzero
 
-tellStrLns :: Monad m => [String] -> WriterT [String] m ()
-tellStrLns = tell
+putStrLnWarn, putStrLnInfo :: Monad m => String -> YamlWriter m ()
+putStrLnWarn m = lift . tell $ Success ["*WARNING* " ++ m] []
+putStrLnInfo m = lift . tell $ Success ["*INFO* " ++ m] []
+
+tellStrLn :: Monad m => String -> YamlWriter m ()
+tellStrLn str = lift . tell $ Success [] [str]
+
+tellStrLns :: Monad m => [String] -> YamlWriter m ()
+tellStrLns = lift . tell . Success []
 
 foldedTellStrLns
     :: Monad m
     => String
     -> String
     -> Set String
-    -> WriterT [String] m ()
-    -> WriterT [String] m ()
+    -> YamlWriter m ()
+    -> YamlWriter m ()
 foldedTellStrLns label prettyLabel labels output
     | label `S.notMember` labels = output
     | otherwise = tellStrLns [prelude] >> output >> tellStrLns epilogue
@@ -152,6 +169,7 @@ setFolds
     -> Either [String] (Set String)
 setFolds Nothing val = S.fromList possibleFolds <$ val
 setFolds (Just "all") val = setFolds Nothing val
+setFolds (Just "all-but-test") val = S.delete "test" <$> setFolds Nothing val
 setFolds (Just n) val
     | n `elem` possibleFolds = S.insert n <$> val
     | otherwise = case val of
@@ -170,7 +188,7 @@ options =
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
     , Option ['f'] ["fold"]
       (OptArg (\arg opts -> opts { optFolds = setFolds arg (optFolds opts) }) "FOLD")
-      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, " ++ intercalate ", " possibleFolds)
+      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, all-but-test, " ++ intercalate ", " possibleFolds)
     , Option [] ["irc-channel"]
       (ReqArg (\arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
       "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
@@ -226,12 +244,16 @@ parseOpts regenerate argv = case getOpt Permute options argv of
         , "  make_travis_yml_2.hs -o .travis.yml someProject.cabal liblzma-dev"
         ]
 
-runFileWriter :: Maybe FilePath -> WriterT [String] IO () -> IO ()
-runFileWriter mfp m = do
-    contents <- fmap unlines (execWriterT m)
-    case mfp of
-        Nothing -> putStr contents
-        Just fp -> writeFile fp contents
+runYamlWriter :: Maybe FilePath -> YamlWriter IO () -> IO ()
+runYamlWriter mfp m = do
+    result <- execWriterT (runMaybeT m)
+    case result of
+        Failure (unlines -> errors) -> hPutStr stderr errors >> exitFailure
+        Success (unlines -> warnings) (unlines -> contents) -> do
+            hPutStr stderr warnings
+            case mfp of
+                Nothing -> putStr contents
+                Just fp -> writeFile fp contents
 
 ghcMajVer :: Version -> (Int,Int)
 ghcMajVer v
@@ -265,14 +287,14 @@ instance Monoid Config where
 
 genTravisFromConfigFile :: ([String],Options) -> FilePath -> [String] -> IO ()
 genTravisFromConfigFile args@(_, opts) path xpkgs =
-    runFileWriter (optOutput opts) $ travisFromConfigFile args path xpkgs
+    runYamlWriter (optOutput opts) $ travisFromConfigFile args path xpkgs
 
 travisFromConfigFile
     :: MonadIO m
     => ([String],Options)
     -> FilePath
     -> [String]
-    -> WriterT [String] m ()
+    -> YamlWriter m ()
 travisFromConfigFile args@(_, opts) path xpkgs =
   getCabalFiles
     >>= mapM (configFromCabalFile opts)
@@ -282,11 +304,11 @@ travisFromConfigFile args@(_, opts) path xpkgs =
     checkVersions
         :: MonadIO m
         => [(Package, Config, Set Version)]
-        -> m (Set Version, Config, [Package])
+        -> YamlWriter m (Set Version, Config, [Package])
     checkVersions [] = putStrLnErr "Error reading cabal file(s)!"
     checkVersions cfgs = do
         let (errors, cfg, names) = foldl' collectConfig mempty cfgs
-        unless (null errors) $ putStrLnErr . unlines $ errors
+        unless (null errors) $ putStrLnErr . intercalate "\n" $ "":errors
         return (allVersions, cfg, names)
       where
         allVersions = S.unions $ map (\(_, _, s) -> s) cfgs
@@ -312,11 +334,11 @@ travisFromConfigFile args@(_, opts) path xpkgs =
         | "cabal.project" `isPrefixOf` takeFileName path = Just path
         | otherwise = Nothing
 
-    getCabalFiles :: MonadIO m => m [FilePath]
+    getCabalFiles :: MonadIO m => YamlWriter m [FilePath]
     getCabalFiles
         | isNothing isCabalProject = return [path]
-        | otherwise = liftIO $ do
-            result <- readP_to_S projectFile <$> readFile path
+        | otherwise = do
+            result <- readP_to_S projectFile `liftM` liftIO (readFile path)
             globs <- case result of
                 [(r,"")] -> return r
                 [] -> putStrLnErr $ "Parse error trying to parse: " ++ path
@@ -327,7 +349,7 @@ travisFromConfigFile args@(_, opts) path xpkgs =
             expandGlobs (takeDirectory path) globs
 
 configFromCabalFile
-    :: MonadIO m => Options -> FilePath -> m (Package, Config, Set Version)
+    :: MonadIO m => Options -> FilePath -> YamlWriter m (Package, Config, Set Version)
 configFromCabalFile opts cabalFile = do
     gpd <- liftIO $ readGenericPackageDescription maxBound cabalFile
 
@@ -414,12 +436,12 @@ configFromCabalFile opts cabalFile = do
         t _                             = Nothing
 
 genTravisFromConfigs
-    :: MonadIO m
+    :: Monad m
     => ([String], Options)
     -> [String]
     -> Maybe FilePath
     -> (Set Version, Config, [Package])
-    -> WriterT [String] m ()
+    -> YamlWriter m ()
 genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     folds <- case optFolds opts of
         Left errs -> putStrLnErr $ unlines errs
@@ -809,6 +831,11 @@ skipSpaces = length <$> munch (\c -> isSpace c && c /= '\n' && c /= '\r')
 skipSpaces1 :: ReadP Int
 skipSpaces1 = satisfyP (0/=) skipSpaces
 
+emptyLines :: Int -> ReadP Int
+emptyLines i = do
+    many1 (skipSpaces >> eol)
+    satisfyP (>i) skipSpaces
+
 projectFile :: ReadP [FilePathGlob]
 projectFile = do
     (i, r) <- findPackages
@@ -824,7 +851,7 @@ packagesField :: ReadP (Int, [FilePathGlob])
 packagesField = do
     i <- skipSpaces
     string "packages:"
-    skipSpaces
+    emptyLines i <++ skipSpaces
     (,) i <$> globLines i
 
 globLines :: Int -> ReadP [FilePathGlob]
@@ -833,16 +860,12 @@ globLines i = sepBy1 filePathGlob (globSep i) <* (skipSpaces >> eol)
 globSep :: Int -> ReadP ()
 globSep i = void $ choice [comma, nonComma]
   where
-    emptyLines = do
-        many1 (skipSpaces >> eol)
-        satisfyP (>i) skipSpaces
-
     comma = do
-        emptyLines <++ skipSpaces
+        emptyLines i <++ skipSpaces
         char ','
-        emptyLines <++ skipSpaces
+        emptyLines i <++ skipSpaces
 
-    nonComma = emptyLines <++ satisfyP (>0) skipSpaces
+    nonComma = emptyLines i <++ satisfyP (>0) skipSpaces
 
 filePathGlob :: ReadP FilePathGlob
 filePathGlob = between (char '"') (char '"') (baseGlob True) <++ baseGlob False
@@ -901,10 +924,11 @@ globPiece isQuoted = wildCard <++ union <++ literal
         safeChar = satisfy (\c -> c `notElem` "*{},/\\\"" && notReserved c)
         escapedChar = char '\\' *> satisfy (`elem` reservedChars)
 
-expandGlobs :: FilePath -> [FilePathGlob] -> IO [FilePath]
-expandGlobs root globs = concat <$> mapM (expandGlob root) globs
+expandGlobs
+    :: MonadIO m => FilePath -> [FilePathGlob] -> YamlWriter m [FilePath]
+expandGlobs root globs = concat `liftM` mapM (expandGlob root) globs
 
-expandGlob :: FilePath -> FilePathGlob -> IO [FilePath]
+expandGlob :: MonadIO m => FilePath -> FilePathGlob -> YamlWriter m [FilePath]
 expandGlob _ g@(FilePathGlob FilePathHomeDir _) = do
     putStrLnInfo $ "Ignoring home directory glob: " ++ prettyPathGlob g
     return []
@@ -917,8 +941,8 @@ expandGlob root g@(FilePathGlob FilePathRelative relGlob) = do
         putStrLnErr $ "Illegal empty package glob: " ++ prettyPathGlob g
     return result
 
-expandRelGlob :: FilePath -> FilePathGlobRel -> IO [FilePath]
-expandRelGlob root glob0 = go glob0 ""
+expandRelGlob :: MonadIO m => FilePath -> FilePathGlobRel -> m [FilePath]
+expandRelGlob root glob0 = liftIO $ go glob0 ""
   where
     go (GlobFile glob) dir = do
       entries <- getDirectoryContents (root </> dir)
