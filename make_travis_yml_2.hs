@@ -34,7 +34,7 @@ import System.Console.GetOpt
 import System.Directory (doesDirectoryExist, getDirectoryContents)
 import System.Environment
 import System.Exit
-import System.FilePath ((</>), takeDirectory, takeFileName)
+import System.FilePath.Posix ((</>), takeDirectory, takeFileName)
 import System.IO
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class (lift)
