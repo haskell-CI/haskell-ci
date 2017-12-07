@@ -59,6 +59,16 @@ import Text.ParserCombinators.ReadP
     ( ReadP, (<++), between, char, eof, munch, munch1, pfail, readP_to_S
     , satisfy, sepBy, sepBy1, string)
 
+#ifdef MIN_VERSION_ShellCheck
+import ShellCheck.Checker (checkScript)
+import qualified ShellCheck.Interface as SC
+import qualified ShellCheck.Formatter.Format as SC
+import qualified ShellCheck.Formatter.TTY as SC.TTY
+
+import Data.Functor.Identity (Identity (..))
+import System.IO.Unsafe (unsafePerformIO)
+#endif
+
 #if !(MIN_VERSION_Cabal(2,0,0))
 -- compat helpers for pre-2.0
 
@@ -72,6 +82,43 @@ versionNumbers :: Version -> [Int]
 versionNumbers (Version vn _) = vn
 
 #endif
+
+-- |  Encode shell command to be YAML safe and (optionally) ShellCheck it.
+sh :: String -> String
+sh = sh'
+    [ 2034 -- VAR appears unused. Verify it or export it.
+    , 2086 -- SC2086: Double quote to prevent globbing and word splitting.
+    ]
+
+-- | Like 'sh' but with explicit SC exclude codes.
+sh' :: [Integer] -> String -> String
+#ifndef MIN_VERSION_ShellCheck
+sh' _ = shImpl
+#else
+sh' excl cmd = case checkScript iface spec of
+    Identity res@(SC.CheckResult _ comments)
+        | null comments -> shImpl cmd
+        -- this is ugly use of unsafePerformIO
+        -- but whole ShellCheck here is a little like `traceShow` anyway.
+        | otherwise     -> unsafePerformIO $ do
+            SC.onResult scFormatter res cmd
+            fail "ShellCheck!"
+  where
+    iface = SC.SystemInterface $ \n -> return $ Left $ "cannot read file: " ++ n
+    spec  = SC.CheckSpec "stdin" cmd excl (Just SC.Sh)
+
+scFormatter :: SC.Formatter
+scFormatter = unsafePerformIO (SC.TTY.format (SC.FormatterOptions SC.ColorAlways))
+#endif
+
+-- Non-ShellCheck version of sh'
+shImpl :: String -> String
+shImpl cmd
+    | ':' `elem` cmd = "  - " ++ show cmd
+    | otherwise      = "  - " ++ cmd
+
+comment :: String -> String
+comment = ("  # " ++)
 
 data MakeTravisOutput
     = Success [String] [String]
@@ -544,7 +591,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     tellStrLns
         [ ""
         , "before_install:"
-        , "  - HC=${CC}"
+        , sh "HC=${CC}"
         , "  - HCPKG=${HC/ghc/ghc-pkg}"
         , "  - unset CC"
         , "  - PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH"
@@ -556,19 +603,20 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     tellStrLns
         [ ""
         , "install:"
-        , "  - cabal --version"
-        , "  - echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
-        , "  - BENCH=${BENCH---enable-benchmarks}"
-        , "  - TEST=${TEST---enable-tests}"
-        , "  - HADDOCK=${HADDOCK-true}"
-        , "  - INSTALLED=${INSTALLED-true}"
-        , "  - travis_retry cabal update -v"
-        , "  - sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
-        , "  - rm -fv cabal.project.local"
+        , sh "cabal --version"
+        , sh "echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
+        , sh "BENCH=${BENCH---enable-benchmarks}"
+        , sh "TEST=${TEST---enable-tests}"
+        , sh "HADDOCK=${HADDOCK-true}"
+        , sh "INSTALLED=${INSTALLED-true}"
+        , sh "travis_retry cabal update -v"
+        , sh "sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
+        , sh "rm -fv cabal.project.local"
         ]
 
     when (isNothing isCabalProject) $ tellStrLns
-        [ "  - \"echo 'packages: .' > cabal.project\"" ]
+        [ sh "echo 'packages: .' > cabal.project"
+        ]
 
     let pkgFilter = intercalate " | " $ map (wrap.pkgName) pkgs
         wrap s = "grep -Fv \"" ++ s ++ " ==\""
@@ -596,11 +644,11 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
           quotedPaths (\Pkg{pkgDir} -> pkgDir ++ "/dist")
 
     tellStrLns
-        [ "  - rm -f cabal.project.freeze"
-        , "  - cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
-        , "  - cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
-        , "  - rm -rf " ++ quotedRmPaths
-        , "  - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)"
+        [ sh $ "rm -f cabal.project.freeze"
+        , sh $ "cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
+        , sh $ "cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
+        , sh $ "rm -rf " ++ quotedRmPaths
+        , sh $  "DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)"
         ]
 
     tellStrLns
@@ -613,7 +661,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     foldedTellStrLns "sdist" "Packaging..." folds $ do
         forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
-            [ "  - (cd \"" ++ pkgDir ++ "\"; cabal sdist)" ]
+            [ sh $ "(cd \"" ++ pkgDir ++ "\" && cabal sdist)"
+            ]
 
     let tarFiles = quotedPaths $ \Pkg{pkgDir,pkgName} ->
                 pkgDir </> "dist" </> pkgName ++ "-*.tar.gz"
@@ -621,48 +670,52 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         cabalPaths = quotedPaths $ \Pkg{pkgName} -> pkgName ++ "-*/*.cabal"
 
     foldedTellStrLns "unpack" "Unpacking..." folds $ tellStrLns
-        [ "  - mv " ++ tarFiles ++ " ${DISTDIR}/"
-        , "  - cd ${DISTDIR}"
-        , "  - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \\;"
-        , "  - \"printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project\""
+        [ sh $ "mv " ++ tarFiles ++ " ${DISTDIR}/"
+        , sh $ "cd ${DISTDIR} || false" -- fail explicitly, makes SC happier
+        , sh $ "find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \\;"
+        , sh $ "printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project"
         ]
 
     foldedTellStrLns "build" "Building..." folds $ tellStrLns
-        [ "  # this builds all libraries and executables (without tests/benchmarks)"
-        , "  - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
+        [ comment "this builds all libraries and executables (without tests/benchmarks)"
+        , sh "cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
         ]
 
     tellStrLns [""]
 
     let msg = "Building with installed constraints for package in global-db..."
     foldedTellStrLns "build-installed" msg folds $ tellStrLns
-        [ "  # Build with installed constraints for packages in global-db"
-        , "  - if $INSTALLED; then"
-        , "      echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(${HCPKG} list --global --simple-output --names-only | sed 's/\\([a-zA-Z0-9-]\\{1,\\}\\) */--constraint=\"\\1 installed\" /g') all | sh;"
-        , "    else echo \"Not building with installed constraints\"; fi"
+        [ comment "Build with installed constraints for packages in global-db"
+        -- SC2046: Quote this to prevent word splitting.
+        -- here we split on purpose!
+        , sh' [2046, 2086] $ unwords
+            [ "if $INSTALLED;"
+            , "then echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(${HCPKG} list --global --simple-output --names-only | sed 's/\\([a-zA-Z0-9-]\\{1,\\}\\) */--constraint=\"\\1 installed\" /g') all | sh;"
+            , "else echo \"Not building with installed constraints\"; fi"
+            ]
         ]
 
     tellStrLns [""]
 
     foldedTellStrLns "build-everything"
         "Building with tests and benchmarks..." folds $ tellStrLns
-        [ "  # build & run tests, build benchmarks"
-        , "  - cabal new-build -w ${HC} ${TEST} ${BENCH} all"
+        [ comment "build & run tests, build benchmarks"
+        , sh "cabal new-build -w ${HC} ${TEST} ${BENCH} all"
         ]
 
     -- cabal new-test fails if there are no test-suites.
     when (hasTests cfg) $
         foldedTellStrLns "test" "Testing..." folds $ tellStrLns
-            [ "  - if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
+            [ sh "if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
             ]
 
     tellStrLns [""]
 
     when (hasLibrary cfg) $
         foldedTellStrLns "haddock" "Haddock..." folds $ tellStrLns
-            [ "  # haddock"
-            , "  - rm -rf ./dist-newstyle"
-            , "  - if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
+            [ comment "haddock"
+            , sh "rm -rf ./dist-newstyle"
+            , sh "if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
             , ""
             ]
 
