@@ -49,6 +49,10 @@ executable make-travis-yml
                      , deepseq >=1.3 && <1.5
   default-language:    Haskell2010
 
+  -- ShellCheck. Would need newer transformers for older GHC
+  if impl(ghc >= 7.10)
+    build-depends: ShellCheck == 0.4.6
+
 -- executable make-travis-yml-old
 --   main-is:             make_travis_yml.hs
 --   build-depends:       base  >=4.7  && <4.11
