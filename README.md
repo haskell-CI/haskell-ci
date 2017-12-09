@@ -304,6 +304,37 @@ If your package (or one of its dependencies) contain Alex/Happy generated parser
  - NB: the line in `matrix.allow_failures.env` must match exactly
    (including any whitespace) the line specified in `env`
 
+Constraints
+-----------
+
+`make_travis_yml_2.hs` supports `--constraints` flag which takes a path
+to helper script providing constraint sets for different compilers.
+Script should admit simple interface:
+
+- `script list $HC` lists single word tokens for identifying different constraint sets
+- `script constraints $C` outputs cabal flags to be given to `new-build`
+
+### Example
+
+From `servant-yaml` [`constraints.hs`](https://github.com/phadej/servant-yaml/blob/master/constraints.hs)
+
+```
+$ ./constraints.hs list ghc-7.8.4
+servant_0_4
+servant_0_5
+servant_0_6
+servant_0_7
+servant_0_8
+servant_0_9
+servant_0_10
+servant_0_11
+servant_0_12
+aeson_0_11
+
+% ./constraints.hs constraints aeson_0_11
+--constraint aeson==0.11.*
+```
+
 Ideas for Additional Checks
 ---------------------------
 
