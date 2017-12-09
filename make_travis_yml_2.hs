@@ -22,9 +22,8 @@ module MakeTravisYml where
 import Control.Applicative ((<$>),(<$),(<*>),(<*),(*>),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
-import Control.Monad
+import Control.Monad (void, when, unless, filterM, liftM, forM_, mzero)
 import Data.Char (isAsciiLower, isAsciiUpper, isSpace)
-import Data.Either (partitionEithers)
 import qualified Data.Foldable as F
 import Data.Function
 import Data.List
@@ -58,7 +57,7 @@ import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Verbosity (Verbosity)
 #endif
 import Text.ParserCombinators.ReadP
-    ( ReadP, (<++), between, char, eof, munch, munch1, pfail, readP_to_S
+    ( ReadP, (<++), between, char, eof, munch, pfail, readP_to_S
     , satisfy, sepBy, sepBy1, string)
 
 #ifdef MIN_VERSION_ShellCheck
@@ -405,7 +404,7 @@ travisFromConfigFile args@(_, opts) path xpkgs =
     getCabalFiles
         | isNothing isCabalProject = return [path]
         | otherwise = do
-            result <- readP_to_S projectFile `liftM` liftIO (readFile path)
+            result <- readP_to_S projectFileP `liftM` liftIO (readFile path)
             globs <- case result of
                 [(r,"")] -> return r
                 [] -> putStrLnErr $ "Parse error trying to parse: " ++ path
@@ -987,6 +986,12 @@ many = option [] . many1
 many1 :: ReadP a -> ReadP [a]
 many1 p = (:) <$> p <*> many p
 
+skipMany :: ReadP a -> ReadP ()
+skipMany = option () . skipMany1
+
+skipMany1 :: ReadP a -> ReadP ()
+skipMany1 p = p *> skipMany p
+
 skipSpaces :: ReadP Int
 skipSpaces = length <$> munch (\c -> isSpace c && c /= '\n' && c /= '\r')
 
@@ -995,14 +1000,14 @@ skipSpaces1 = satisfyP (0/=) skipSpaces
 
 emptyLines :: Int -> ReadP Int
 emptyLines i = do
-    many1 (skipSpaces >> eol)
+    skipMany1 (skipSpaces >> eol)
     satisfyP (>i) skipSpaces
 
-projectFile :: ReadP [FilePathGlob]
-projectFile = do
+projectFileP :: ReadP [FilePathGlob]
+projectFileP = do
     (i, r) <- findPackages
-    many (skipSpaces >> eol)
-    satisfyP (<=i) skipSpaces
+    skipMany (skipSpaces >> eol)
+    _ <- satisfyP (<=i) skipSpaces
     many line >> eof
     return r
 
@@ -1012,8 +1017,8 @@ findPackages = packagesField <++ (line >> findPackages)
 packagesField :: ReadP (Int, [FilePathGlob])
 packagesField = do
     i <- skipSpaces
-    string "packages:"
-    emptyLines i <++ skipSpaces
+    _ <- string "packages:"
+    _ <- emptyLines i <++ skipSpaces
     (,) i <$> globLines i
 
 globLines :: Int -> ReadP [FilePathGlob]
@@ -1023,8 +1028,8 @@ globSep :: Int -> ReadP ()
 globSep i = void $ choice [comma, nonComma]
   where
     comma = do
-        emptyLines i <++ skipSpaces
-        char ','
+        _ <- emptyLines i <++ skipSpaces
+        _ <- char ','
         emptyLines i <++ skipSpaces
 
     nonComma = emptyLines i <++ satisfyP (>0) skipSpaces
@@ -1045,7 +1050,7 @@ filePathRoot = unixRoot <++ windowsRoot <++ homeDir
     unixRoot = FilePathRoot . pure <$> char '/'
     windowsRoot = do
         drive <- satisfy $ \c -> isAsciiUpper c || isAsciiLower c
-        char ':'
+        void $ char ':'
         sep <- pathSep
         return $ FilePathRoot [drive,':',sep]
     homeDir = FilePathHomeDir <$ char '~' <* pathSep
@@ -1056,27 +1061,27 @@ filePathGlobRel b = nonEmptyFilePathGlobRel b <++ return GlobDirTrailing
 nonEmptyFilePathGlobRel :: Bool -> ReadP FilePathGlobRel
 nonEmptyFilePathGlobRel isQuoted = globDir <++ globFile
   where
-    globDir = GlobDir <$> glob isQuoted <* (char '/' <++ char '\\')
+    globDir = GlobDir <$> globP isQuoted <* (char '/' <++ char '\\')
                       <*> filePathGlobRel isQuoted
-    globFile = GlobFile <$> glob isQuoted
+    globFile = GlobFile <$> globP isQuoted
 
-glob :: Bool -> ReadP Glob
-glob isQuoted = do
-    r <- globPiece isQuoted
+globP :: Bool -> ReadP Glob
+globP isQuoted = do
+    r <- globPieceP isQuoted
     (r:) <$> glob'
   where
     glob' :: ReadP Glob
-    glob' = ((:) <$> globPiece isQuoted <*> glob') <++ return []
+    glob' = ((:) <$> globPieceP isQuoted <*> glob') <++ return []
 
 reservedChars :: [Char]
 reservedChars = "*{},\""
 
-globPiece :: Bool -> ReadP GlobPiece
-globPiece isQuoted = wildCard <++ union <++ literal
+globPieceP :: Bool -> ReadP GlobPiece
+globPieceP isQuoted = wildCard <++ unionP <++ literal
   where
     wildCard = WildCard <$ char '*'
-    union = between (char '{') (char '}') $
-        Union <$> sepBy (glob isQuoted) (char ',')
+    unionP = between (char '{') (char '}') $
+        Union <$> sepBy (globP isQuoted) (char ',')
 
     literal = Literal <$> many1 (safeChar <++ escapedChar)
       where

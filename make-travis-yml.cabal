@@ -3,6 +3,25 @@
 name:                make-travis-yml
 version:             0
 synopsis:            Script generator for Travis-CI
+description:
+  Script generator for Travis-CI based on cabal new-build
+
+  Included features (not limited to):
+
+  * Multiple GHC support
+
+  * Dependency caching
+
+  * cabal.project support
+
+  * Runs tests and builds benchmarks
+
+  * Generates haddocks
+
+  * macOS (OSX) support
+
+  * building with specific constraints
+
 homepage:            https://github.com/hvr/multi-ghc-travis
 license:             BSD3
 license-file:        LICENSE
@@ -37,9 +56,13 @@ extra-source-files:
   fixtures/servant-server/*.cabal
   fixtures/servant/*.cabal
 
+source-repository head
+  type: git
+  location: https://github.com/hvr/multi-ghc-travis.git
+
 executable make-travis-yml
   main-is:             MakeTravisYml.hs
-  ghc-options:         -main-is MakeTravisYml
+  ghc-options:         -Wall -main-is MakeTravisYml
   other-extensions:    CPP, ViewPatterns, NamedFieldPuns
   build-depends:       base  >=4.7  && <4.11
                      , Cabal >=1.10 && <2.1
