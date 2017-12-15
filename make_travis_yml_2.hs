@@ -251,7 +251,7 @@ options =
     , Option ['o'] ["output"]
       (ReqArg (\arg opts -> opts { optOutput = Just arg }) "OUTPUT")
       "output file (stdout if omitted)"
-    , Option ['r'] ["regerate"]
+    , Option ['r'] ["regenerate"]
       (ReqArg (\arg opts -> opts { optRegenerate = Just arg }) "INPUTOUTPUT")
       "regenerate the file using the magic command in output file"
     , Option [] ["osx"]
