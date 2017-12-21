@@ -583,6 +583,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , "  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/01-index.tar"
         , "  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/01-index.tar.idx"
         , ""
+        , "  - rm -fv $HOME/.cabal/packages/head.hackage" -- if we cache, it will break builds.
+        , ""
         ]
 
     tellStrLn "matrix:"
@@ -600,7 +602,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
             tellStrLns
                 [ "    - compiler: \"ghc-" <> gvs <> "\""
-                , if | isGhcHead gv -> "      env: GHCHEAD=YES"
+                , if | isGhcHead gv -> "      env: GHCHEAD=true"
                      | null colls'  -> "    # env: TEST=--disable-tests BENCH=--disable-benchmarks"
                      | otherwise    -> "      env: 'COLLECTIONS=" ++ intercalate "," colls' ++ "'"
                 , "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-" <> cvs <> ",ghc-" <> gvs <> xpkgs' <> "], sources: [hvr-ghc]}}"
@@ -612,8 +614,6 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     F.forM_ versions $ tellJob False
     F.forM_ osxVersions $ tellJob True
-
-    let headGhcVers = S.filter isGhcHead versions
 
     unless (S.null headGhcVers) $ do
         tellStrLn ""
@@ -654,13 +654,16 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , sh "TEST=${TEST---enable-tests}"
         , sh "HADDOCK=${HADDOCK-true}"
         , sh "INSTALLED=${INSTALLED-true}"
+        , sh "GHCHEAD=${GHCHEAD-false}"
         , sh "travis_retry cabal update -v"
         , sh "sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
         , sh "rm -fv cabal.project.local"
         ]
 
-    when (isNothing isCabalProject) $ tellStrLns
-        [ sh "echo 'packages: .' > cabal.project"
+    when (isNothing isCabalProject) $ generateCabalProject False
+
+    tellStrLns
+        [ sh "if $GHCHEAD; then cabal new-update head.hackage -v; fi"
         ]
 
     let pkgFilter = intercalate " | " $ map (wrap.pkgName) pkgs
@@ -712,14 +715,14 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     let tarFiles = quotedPaths $ \Pkg{pkgDir,pkgName} ->
                 pkgDir </> "dist" </> pkgName ++ "-*.tar.gz"
 
-        cabalPaths = quotedPaths $ \Pkg{pkgName} -> pkgName ++ "-*/*.cabal"
 
-    foldedTellStrLns "unpack" "Unpacking..." folds $ tellStrLns
-        [ sh $ "mv " ++ tarFiles ++ " ${DISTDIR}/"
-        , sh $ "cd ${DISTDIR} || false" -- fail explicitly, makes SC happier
-        , sh $ "find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \\;"
-        , sh $ "printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project"
-        ]
+    foldedTellStrLns "unpack" "Unpacking..." folds $ do
+        tellStrLns
+            [ sh $ "mv " ++ tarFiles ++ " ${DISTDIR}/"
+            , sh $ "cd ${DISTDIR} || false" -- fail explicitly, makes SC happier
+            , sh $ "find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \\;"
+            ]
+        generateCabalProject True
 
     foldedTellStrLns "build" "Building..." folds $ tellStrLns
         [ comment "this builds all libraries and executables (without tests/benchmarks)"
@@ -786,6 +789,35 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     return ()
   where
+    headGhcVers = S.filter isGhcHead versions
+
+    generateCabalProject dist = do
+        tellStrLns
+            [ sh $ "printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project"
+            ]
+        unless (S.null headGhcVers) $ tellStrLns
+            [ "  # Overlay Hackage Package Index for GHC HEAD: https://github.com/hvr/head.hackage"
+            , "  - |"
+            , "    if $GHCHEAD; then"
+            , "      echo 'allow-newer: *:base, *:template-haskell' >> cabal.project"
+            , "      echo 'repository head.hackage' >> cabal.project"
+            , "      echo '   url: http://head.hackage.haskell.org/' >> cabal.project"
+            , "      echo '   secure: True' >> cabal.project"
+            , "      echo '   root-keys: 07c59cb65787dedfaef5bd5f987ceb5f7e5ebf88b904bbd4c5cbdeb2ff71b740' >> cabal.project"
+            , "      echo '              2e8555dde16ebd8df076f1a8ef13b8f14c66bad8eafefd7d9e37d0ed711821fb' >> cabal.project"
+            , "      echo '              8f79fd2389ab2967354407ec852cbe73f2e8635793ac446d09461ffb99527f6e' >> cabal.project"
+            , "      echo '   key-threshold: 3' >> cabal.project"
+            , "    fi"
+            ]
+        tellStrLns
+            [ sh $ "cat cabal.project"
+            ]
+
+      where
+        cabalPaths
+            | dist      = quotedPaths $ \Pkg{pkgName} -> pkgName ++ "-*/*.cabal"
+            | otherwise = quotedPaths $ \Pkg{pkgDir}  -> pkgDir
+
     projectFile :: FilePath
     projectFile = fromMaybe "cabal.project" isCabalProject
 
