@@ -2,6 +2,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE MultiWayIf #-}
 
 #if !defined(MIN_VERSION_Cabal)
 -- As a heuristic, if the macro isn't defined, be pessimistic and
@@ -83,6 +84,9 @@ versionNumbers :: Version -> [Int]
 versionNumbers (Version vn _) = vn
 
 #endif
+
+ghcAlpha :: Maybe Version
+ghcAlpha = Just $ mkVersion [8,4,1]
 
 -- |  Encode shell command to be YAML safe and (optionally) ShellCheck it.
 sh :: String -> String
@@ -311,16 +315,21 @@ runYamlWriter mfp m = do
 ghcMajVer :: Version -> (Int,Int)
 ghcMajVer v
     | x:y:_ <- versionNumbers v = (x,y)
-    | otherwise = undefined
+    | otherwise = error $ "panic: ghcMajVer called with " ++ show v
 
 isGhcHead :: Version -> Bool
 isGhcHead v
+    | (_,y) <- ghcMajVer v = odd y || Just v == ghcAlpha
+    | otherwise            = False
+
+isGhcOdd :: Version -> Bool
+isGhcOdd v
     | (_,y) <- ghcMajVer v = odd y
-    | otherwise         = False
+    | otherwise            = False
 
 dispGhcVersion :: Version -> String
 dispGhcVersion v
-    | isGhcHead v = "head"
+    | isGhcOdd v = "head"
     | otherwise = display v
 
 data Config = Cfg { hasTests :: Bool, hasLibrary :: Bool }
@@ -476,7 +485,8 @@ configFromCabalFile opts cabalFile = do
                        , [7,10,1], [7,10,2], [7,10,3]
                        , [8,0,1], [8,0,2]
                        , [8,2,1], [8,2,2]
-                       , [8,3] -- HEAD
+                       , [8,4,1]
+                       , [8,5] -- HEAD
                        ]
 
     lastStableGhcVers :: [Version]
@@ -589,12 +599,11 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
                 colls' = [ cid | (v,cid) <- colls, v == gv ]
 
             tellStrLns
-                [ concat [ "    - compiler: \"ghc-", gvs, "\"" ]
-                , if null colls' then
-                           "    # env: TEST=--disable-tests BENCH=--disable-benchmarks"
-                  else
-                          ("      env: 'COLLECTIONS=" ++ intercalate "," colls' ++ "'")
-                , concat [ "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-", cvs, ",ghc-", gvs, xpkgs', "], sources: [hvr-ghc]}}" ]
+                [ "    - compiler: \"ghc-" <> gvs <> "\""
+                , if | isGhcHead gv -> "      env: GHCHEAD=YES"
+                     | null colls'  -> "    # env: TEST=--disable-tests BENCH=--disable-benchmarks"
+                     | otherwise    -> "      env: 'COLLECTIONS=" ++ intercalate "," colls' ++ "'"
+                , "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-" <> cvs <> ",ghc-" <> gvs <> xpkgs' <> "], sources: [hvr-ghc]}}"
                 ]
 
             when osx $ tellStrLns
@@ -817,7 +826,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
                       , ((7,10),  [1,25])
                       , ((8, 0),  [1,25])
                       , ((8, 2),  [1,25])
-                      , ((8, 3),  [1,25])
+                      , ((8, 4),  [1,25])
+                      , ((8, 5),  [1,25])
                       ]
 
 
