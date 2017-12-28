@@ -1,3 +1,5 @@
+#!/usr/bin/env runghc
+
 {-# LANGUAGE Haskell2010 #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
