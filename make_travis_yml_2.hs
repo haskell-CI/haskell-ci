@@ -691,7 +691,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
         [ "  - if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then"
-        , "      (cd \"" ++ pkgDir ++ "\"; autoreconf -i);"
+        , "      (cd \"" ++ pkgDir ++ "\" && autoreconf -i);"
         , "    fi"
         ]
 
@@ -779,11 +779,13 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     tellStrLns [""]
 
     unless (optNoCheck opts) $
-        foldedTellStrLns "check" "cabal check..." folds $ tellStrLns
-            [ comment "cabal check"
-            , sh "cabal check"
-            , ""
-            ]
+        foldedTellStrLns "check" "abal check..." folds $ do
+            tellStrLns [ comment "cabal check" ]
+            forM_ pkgs $ \Pkg{pkgName} -> tellStrLns
+                [ sh $ "(cd " ++ pkgName ++ "-* && cabal check)"
+
+                ]
+            tellStrLns [ "" ]
 
     when (hasLibrary cfg) $
         foldedTellStrLns "haddock" "Haddock..." folds $ tellStrLns
