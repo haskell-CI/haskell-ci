@@ -60,9 +60,10 @@ source-repository head
   type: git
   location: https://github.com/hvr/multi-ghc-travis.git
 
-executable make-travis-yml
-  main-is:             MakeTravisYml.hs
-  ghc-options:         -Wall -main-is MakeTravisYml
+library
+  exposed-modules:     MakeTravisYml
+  ghc-options:         -Wall
+  hs-source-dirs:      src
   other-extensions:    CPP, ViewPatterns, NamedFieldPuns
   build-depends:       base  >=4.7  && <4.11
                      , Cabal >=1.10 && <2.1
@@ -77,24 +78,21 @@ executable make-travis-yml
   if impl(ghc >= 7.10)
     build-depends: ShellCheck == 0.4.6
 
--- executable make-travis-yml-old
---   main-is:             make_travis_yml.hs
---   build-depends:       base  >=4.7  && <4.11
---                      , Cabal >=1.10 && <1.25
---   default-language:    Haskell2010
+executable make-travis-yml
+  main-is:             Main.hs
+  ghc-options:         -Wall
+  build-depends:       base, make-travis-yml
+  default-language:    Haskell2010
 
 test-suite golden
-  type:              exitcode-stdio-1.0
-  main-is:           Tests.hs
-  other-modules:     MakeTravisYml
-  other-extensions:  ViewPatterns
-  build-depends:       base  >=4.7  && <4.11
-                     , Cabal >=1.10 && <2.1
-                     , transformers >= 0.3 && <0.6
-                     , deepseq >=1.3 && <1.5
-                     , containers >=0.4 && <0.6
-                     , directory >=1.1 && <1.4
+  type:                exitcode-stdio-1.0
+  main-is:             Tests.hs
+  hs-source-dirs:      test
+  build-depends:       base
+                     , make-travis-yml
+                     , transformers
                      , filepath
+                     , directory
                      , bytestring
                      , tasty >= 0.11.3 && <0.12
                      , tasty-golden >=2.3.1.1 && <2.4

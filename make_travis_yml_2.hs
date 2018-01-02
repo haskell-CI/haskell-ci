@@ -52,12 +52,14 @@ import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.Package hiding (Package, pkgName)
 import qualified Distribution.Package as Pkg
 import Distribution.PackageDescription (packageDescription, testedWith, package, condLibrary, condTestSuites)
+import Distribution.PackageDescription.Configuration (flattenPackageDescription)
+import qualified Distribution.PackageDescription as PD
 import Distribution.Text
 import Distribution.Version
+import Distribution.PackageDescription (GenericPackageDescription)
 #if MIN_VERSION_Cabal(2,0,0)
 import Distribution.PackageDescription.Parse (readGenericPackageDescription)
 #else
-import Distribution.PackageDescription (GenericPackageDescription)
 import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Verbosity (Verbosity)
 #endif
@@ -204,6 +206,7 @@ data Options = Options
     , optNoCheck :: !Bool
     , optOsx :: [String]
     , optJobs :: Maybe String
+    , optDoctest :: Maybe String
     } deriving Show
 
 defOptions :: Options
@@ -220,6 +223,7 @@ defOptions = Options
     , optNoCheck = False
     , optOsx = []
     , optJobs = Nothing
+    , optDoctest = Nothing
     }
 
 data Fold
@@ -232,6 +236,7 @@ data Fold
     | FoldHaddock
     | FoldStackage
     | FoldCheck
+    | FoldDoctest
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 showFold :: Fold -> String
@@ -303,6 +308,9 @@ options =
     , Option ['j'] ["jobs"]
       (ReqArg (\arg opts -> opts { optJobs = Just arg }) "JOBS")
       "jobs (N:M - cabal:ghc)"
+    , Option ['d'] ["doctest"]
+      (OptArg (\arg opts -> opts { optDoctest = Just $ maybe "" (' ' :) arg }) "OPTIONS")
+      "Run doctest using .ghc.environment files. You can supply additional doctest options as an optional argument."
     ]
 
 main :: IO ()
@@ -380,6 +388,7 @@ data Config = Cfg { hasTests :: Bool, hasLibrary :: Bool }
 data Package = Pkg
     { pkgName :: String
     , pkgDir :: FilePath
+    , pkgGpd :: GenericPackageDescription
     } deriving (Eq, Show)
 
 instance Monoid Config where
@@ -513,7 +522,7 @@ configFromCabalFile opts cabalFile = do
         hasLibrary = case condLibrary gpd of
             Just _ -> True
             Nothing -> False
-        pkg = Pkg pkgNameStr (takeDirectory cabalFile)
+        pkg = Pkg pkgNameStr (takeDirectory cabalFile) gpd
 
     return (pkg, Cfg hasTests hasLibrary, S.fromList testedGhcVersions)
   where
@@ -673,19 +682,23 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , sh "unset CC"
         -- rootdir is useful for manual script additions
         , sh "ROOTDIR=$(pwd)"
-        -- numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
-        , sh $ "HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+)/\\1 * 10000 + \\2 * 100 + \\3/') ))"
         ]
 
     let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
 
     if null (optOsx opts)
     then tellStrLns
-        [ sh "PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH"
+        [ sh "PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$HOME/local/bin:$PATH"
         ]
     else tellStrLns
         [ sh $ "if [ \"$(uname)\" = \"Darwin\" ]; then brew update; brew install python3; curl " ++ haskellOnMacos ++ " | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${HC}; fi"
         , sh $ "if [ \"$(uname)\" = \"Darwin\" ]; then PATH=$HOME/.ghc-install/ghc/bin:$PATH; else PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH; fi"
+        ]
+
+    -- HCNUMVER, numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
+    tellStrLns
+        [ sh $ "HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+).*/\\1 * 10000 + \\2 * 100 + \\3/') ))"
+        , sh "echo $HCNUMVER"
         ]
 
     unless (null colls) $
@@ -724,6 +737,11 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     tellStrLns
         [ sh "if $GHCHEAD; then cabal new-update head.hackage -v; fi"
+        ]
+
+    when (isJust $ optDoctest opts) $ tellStrLns
+        [ sh "mkdir -p $HOME/.local/bin"
+        , sh "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest; fi"
         ]
 
     let pkgFilter = intercalate " | " $ map (wrap.pkgName) pkgs
@@ -828,6 +846,17 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
             ]
 
     tellStrLns [""]
+
+    F.forM_ (optDoctest opts) $ \doctestOptions -> do
+        tellStrLns [ comment "doctest" ]
+        foldedTellStrLns FoldDoctest "Doctest..." folds $ do
+            forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
+                let args = doctestArgs pkgGpd
+                    args' = intercalate " " args
+                unless (null args) $ tellStrLns
+                    [ sh $ "if [ $HCNUMVER -ge 80000 ]; then (cd " ++ pkgName ++ "-* && doctest" ++ doctestOptions ++ " " ++ args' ++ "); fi"
+                    ]
+        tellStrLns [ "" ]
 
     unless (optNoCheck opts) $
         foldedTellStrLns FoldCheck "cabal check..." folds $ do
@@ -941,6 +970,28 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
                       , ((8, 5),  [1,25])
                       ]
 
+-- | Modules arguments to the library
+--
+-- * We check the library component
+--
+-- * If there are hs-source-dirs, use them
+--
+-- * otherwise use exposed + other modules
+--
+-- * Also add default-extensions
+--
+doctestArgs :: GenericPackageDescription -> [String]
+doctestArgs gpd = case PD.library $ flattenPackageDescription gpd of
+    Nothing -> []
+    Just l  -> exts ++ dirsOrMods
+      where
+        bi = PD.libBuildInfo l
+
+        dirsOrMods
+            | null (PD.hsSourceDirs bi) = map display (PD.exposedModules l)
+            | otherwise = PD.hsSourceDirs bi
+
+        exts = map (("-X" ++) . display) (PD.defaultExtensions bi)
 
 collToGhcVer :: String -> Version
 collToGhcVer cid = case simpleParse cid of

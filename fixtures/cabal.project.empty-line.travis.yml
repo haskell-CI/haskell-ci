@@ -77,8 +77,9 @@ before_install:
   - HCPKG=${HC/ghc/ghc-pkg}
   - unset CC
   - ROOTDIR=$(pwd)
-  - HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\.([0-9]+)\.([0-9]+)/\1 * 10000 + \2 * 100 + \3/') ))
-  - "PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH"
+  - "PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$HOME/local/bin:$PATH"
+  - HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 * 10000 + \2 * 100 + \3/') ))
+  - echo $HCNUMVER
 
 install:
   - cabal --version
