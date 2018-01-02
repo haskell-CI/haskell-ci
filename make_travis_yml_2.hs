@@ -198,6 +198,7 @@ data Options = Options
     , optQuietTests :: !Bool
     , optNoCheck :: !Bool
     , optOsx :: [String]
+    , optConstraints :: Maybe FilePath
     } deriving Show
 
 defOptions :: Options
@@ -213,12 +214,14 @@ defOptions = Options
     , optQuietTests = False
     , optNoCheck = False
     , optOsx = []
+    , optConstraints = Nothing
     }
 
+-- TODO: make Enum
 possibleFolds :: [String]
 possibleFolds =
   [ "sdist", "unpack", "build", "build-installed", "build-everything", "test"
-  , "haddock", "stack" ]
+  , "haddock", "stackage", "check", "constraints" ]
 
 setFolds
     :: Maybe String
@@ -270,6 +273,9 @@ options =
     , Option [] ["osx"]
       (ReqArg (\arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
       "generate osx build job with ghc version"
+    , Option [] ["constraints"]
+      (ReqArg (\arg opts -> opts { optConstraints = Just arg }) "CONSTRAINT")
+      "constraint script"
     ]
 
 main :: IO ()
@@ -638,6 +644,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , sh "HC=${CC}"
         , sh' [2034,2039] "HCPKG=${HC/ghc/ghc-pkg}" -- SC2039. In POSIX sh, string replacement is undefined.
         , sh "unset CC"
+        , sh "ROOTDIR=$(pwd)"
         ]
 
     let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
@@ -778,6 +785,19 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     tellStrLns [""]
 
+    forM_ (optConstraints opts) $ \constr ->
+        foldedTellStrLns "constraints" "Building with different constraints..." folds $ tellStrLns
+            [ comment "build & run tests, with constraints"
+            , sh' [2086,2046] $ unwords
+                [ "for c in $(" ++ constr ++ " list ${HC}); do"
+                , "echo \"=== Constraint\" $c;"
+                , "echo \"--------------------------------\";"
+                , "cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(" ++ constr ++ " constraints $c) all;"
+                , "done"
+                ]
+            , ""
+            ]
+
     unless (optNoCheck opts) $
         foldedTellStrLns "check" "cabal check..." folds $ tellStrLns
             [ comment "cabal check"
@@ -794,7 +814,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
             ]
 
     unless (null colls) $
-        foldedTellStrLns "stack" "Stack builds..." folds $ tellStrLns
+        foldedTellStrLns "stackage" "Stackage builds..." folds $ tellStrLns
             [ "  # try building & testing for package collections"
             , "  - for COLL in \"${COLLS[@]}\"; do"
             , "      echo \"== collection $COLL ==\";"
