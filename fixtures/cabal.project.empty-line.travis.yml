@@ -91,16 +91,16 @@ install:
   - rm -fv cabal.project.local
   - if $GHCHEAD; then cabal new-update head.hackage -v; fi
   - if [ -f "servant/configure.ac" ]; then
-      (cd "servant"; autoreconf -i);
+      (cd "servant" && autoreconf -i);
     fi
   - if [ -f "servant-client/configure.ac" ]; then
-      (cd "servant-client"; autoreconf -i);
+      (cd "servant-client" && autoreconf -i);
     fi
   - if [ -f "servant-docs/configure.ac" ]; then
-      (cd "servant-docs"; autoreconf -i);
+      (cd "servant-docs" && autoreconf -i);
     fi
   - if [ -f "servant-server/configure.ac" ]; then
-      (cd "servant-server"; autoreconf -i);
+      (cd "servant-server" && autoreconf -i);
     fi
   - rm -f cabal.project.freeze
   - cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project.empty-line" --dep -j2 all
@@ -144,7 +144,10 @@ script:
   - if [ "x$TEST" = "x--enable-tests" ]; then cabal new-test -w ${HC} ${TEST} all; fi
 
   # cabal check
-  - cabal check
+  - (cd servant-* && cabal check)
+  - (cd servant-client-* && cabal check)
+  - (cd servant-docs-* && cabal check)
+  - (cd servant-server-* && cabal check)
 
   # haddock
   - rm -rf ./dist-newstyle
