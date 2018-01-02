@@ -51,6 +51,8 @@ before_install:
   - HC=${CC}
   - HCPKG=${HC/ghc/ghc-pkg}
   - unset CC
+  - ROOTDIR=$(pwd)
+  - HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\.([0-9]+)\.([0-9]+)/\1 * 10000 + \2 * 100 + \3/') ))
   - "PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH"
 
 install:
@@ -65,7 +67,7 @@ install:
   - "sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
   - rm -fv cabal.project.local
   - "echo 'jobs:' 2 >> ${HOME}/.cabal/config"
-  - "if [ $(( $(ghc --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+)/\\1 * 10000 + \\2 * 100 + \\3/'))) -ge 70800 ]; then echo 'ghc-options: -j2' >> ${HOME}/.cabal/config; fi"
+  - "if [ $HCNUMVER -ge 70800 ]; then echo 'ghc-options: -j2' >> ${HOME}/.cabal/config; fi"
   - "printf 'packages: \".\"\\n' > cabal.project"
   # Overlay Hackage Package Index for GHC HEAD: https://github.com/hvr/head.hackage
   - |

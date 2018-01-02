@@ -647,6 +647,10 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , sh "HC=${CC}"
         , sh' [2034,2039] "HCPKG=${HC/ghc/ghc-pkg}" -- SC2039. In POSIX sh, string replacement is undefined.
         , sh "unset CC"
+        -- rootdir is useful for manual script additions
+        , sh "ROOTDIR=$(pwd)"
+        -- numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
+        , sh $ "HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+)/\\1 * 10000 + \\2 * 100 + \\3/') ))"
         ]
 
     let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
@@ -688,7 +692,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     -- GHC jobs
     case parseJobsM (optJobs opts) of
         (_, Just m) -> tellStrLns
-            [ sh $ "if [ $(( $(ghc --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+)/\\1 * 10000 + \\2 * 100 + \\3/'))) -ge 70800 ]; then echo 'ghc-options: -j" ++ show m ++ "' >> ${HOME}/.cabal/config; fi"
+            [ sh $ "if [ $HCNUMVER -ge 70800 ]; then echo 'ghc-options: -j" ++ show m ++ "' >> ${HOME}/.cabal/config; fi"
             ]
         _ -> return ()
 
