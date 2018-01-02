@@ -27,7 +27,7 @@ import Control.Applicative ((<$>),(<$),(<*>),(<*),(*>),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad (void, when, unless, filterM, liftM, forM_, mzero)
-import Data.Char (isAsciiLower, isAsciiUpper, isSpace, isDigit)
+import Data.Char (isAsciiLower, isAsciiUpper, isSpace, isDigit, isUpper, toLower)
 import qualified Data.Foldable as F
 import Data.Function
 import Data.List
@@ -35,6 +35,7 @@ import Data.Maybe
 import Data.Monoid (Monoid(..), (<>))
 import Data.Set (Set)
 import qualified Data.Set as S
+import qualified Data.Map as M
 import System.Console.GetOpt
 import System.Directory (doesDirectoryExist, getDirectoryContents)
 import System.Environment
@@ -161,19 +162,19 @@ tellStrLns = lift . tell . Success []
 
 foldedTellStrLns
     :: Monad m
-    => String
+    => Fold
     -> String
-    -> Set String
+    -> Set Fold
     -> YamlWriter m ()
     -> YamlWriter m ()
 foldedTellStrLns label prettyLabel labels output
     | label `S.notMember` labels = output
-    | otherwise = tellStrLns [prelude] >> output >> tellStrLns epilogue
+    | otherwise = tellStrLns [prologue] >> output >> tellStrLns epilogue
   where
-    prelude = mconcat
+    prologue = mconcat
         [ "  - echo ", prettyLabel
-        , " && echo -en 'travis_fold:start:", label, "\\\\r'" ]
-    epilogue = ["  - echo -en 'travis_fold:end:" ++ label ++ "\\\\r'" ]
+        , " && echo -en 'travis_fold:start:", showFold label, "\\\\r'" ]
+    epilogue = ["  - echo -en 'travis_fold:end:" ++ showFold label ++ "\\\\r'" ]
 
 -- | Return the part after the first argument
 --
@@ -193,7 +194,7 @@ findMaybe f = foldr (\a b -> f a <|> b) Nothing
 data Options = Options
     { optNoCache :: !Bool
     , optCollections :: [String]
-    , optFolds :: Either [String] (Set String)
+    , optFolds :: Either [String] (Set Fold)
     , optIrcChannels :: [String]
     , optProjectName :: Maybe String
     , optOnlyBranches :: [String]
@@ -221,25 +222,48 @@ defOptions = Options
     , optJobs = Nothing
     }
 
-possibleFolds :: [String]
-possibleFolds =
-  [ "sdist", "unpack", "build", "build-installed", "build-everything", "test"
-  , "haddock", "stack" ]
+data Fold
+    = FoldSDist
+    | FoldUnpack
+    | FoldBuild
+    | FoldBuildInstalled
+    | FoldBuildEverything
+    | FoldTest
+    | FoldHaddock
+    | FoldStackage
+    | FoldCheck
+  deriving (Eq, Ord, Show, Enum, Bounded)
+
+showFold :: Fold -> String
+showFold = dashise . drop 4 . show
+  where
+    dashise = intercalate "-" . map (map toLower) . split
+
+    split [] = []
+    split xs0 =
+        let (ys, xs1) = span isUpper xs0
+            (zs, xs2) = span (not . isUpper) xs1
+        in (ys ++ zs) : split xs2
+
+
+possibleFolds :: [Fold]
+possibleFolds = [minBound .. maxBound]
 
 setFolds
     :: Maybe String
-    -> Either [String] (Set String)
-    -> Either [String] (Set String)
+    -> Either [String] (Set Fold)
+    -> Either [String] (Set Fold)
 setFolds Nothing val = S.fromList possibleFolds <$ val
 setFolds (Just "all") val = setFolds Nothing val
-setFolds (Just "all-but-test") val = S.delete "test" <$> setFolds Nothing val
+setFolds (Just "all-but-test") val = S.delete FoldTest <$> setFolds Nothing val
 setFolds (Just n) val
-    | n `elem` possibleFolds = S.insert n <$> val
+    | Just n' <- M.lookup n ps = S.insert n' <$> val
     | otherwise = case val of
         Left errs -> Left $ errs ++ err
         Right _ -> Left err
     where
       err = ["illegal fold name: '" ++ n ++ "'"]
+      ps = M.fromList $ map (\x -> (showFold x, x)) possibleFolds
 
 options :: [OptDescr (Options -> Options)]
 options =
@@ -257,7 +281,7 @@ options =
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
     , Option ['f'] ["fold"]
       (OptArg (\arg opts -> opts { optFolds = setFolds arg (optFolds opts) }) "FOLD")
-      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, all-but-test, " ++ intercalate ", " possibleFolds)
+      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, all-but-test, " ++ intercalate ", " (map showFold possibleFolds))
     , Option [] ["irc-channel"]
       (ReqArg (\arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
       "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
@@ -743,7 +767,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , "  # test that source-distributions can be generated"
         ]
 
-    foldedTellStrLns "sdist" "Packaging..." folds $ do
+    foldedTellStrLns FoldSDist "Packaging..." folds $ do
         forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
             [ sh $ "(cd \"" ++ pkgDir ++ "\" && cabal sdist)"
             ]
@@ -752,7 +776,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
                 pkgDir </> "dist" </> pkgName ++ "-*.tar.gz"
 
 
-    foldedTellStrLns "unpack" "Unpacking..." folds $ do
+    foldedTellStrLns FoldUnpack "Unpacking..." folds $ do
         tellStrLns
             [ sh $ "mv " ++ tarFiles ++ " ${DISTDIR}/"
             , sh $ "cd ${DISTDIR} || false" -- fail explicitly, makes SC happier
@@ -760,15 +784,15 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
             ]
         generateCabalProject True
 
-    foldedTellStrLns "build" "Building..." folds $ tellStrLns
+    foldedTellStrLns FoldBuild "Building..." folds $ tellStrLns
         [ comment "this builds all libraries and executables (without tests/benchmarks)"
         , sh "cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
         ]
 
     tellStrLns [""]
 
-    let msg = "Building with installed constraints for package in global-db..."
-    foldedTellStrLns "build-installed" msg folds $ tellStrLns
+    foldedTellStrLns FoldBuildInstalled
+        "Building with installed constraints for package in global-db..." folds $ tellStrLns
         [ comment "Build with installed constraints for packages in global-db"
         -- SC2046: Quote this to prevent word splitting.
         -- here we split on purpose!
@@ -781,7 +805,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     tellStrLns [""]
 
-    foldedTellStrLns "build-everything"
+    foldedTellStrLns FoldBuildEverything
         "Building with tests and benchmarks..." folds $ tellStrLns
         [ comment "build & run tests, build benchmarks"
         , sh "cabal new-build -w ${HC} ${TEST} ${BENCH} all"
@@ -789,7 +813,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     -- cabal new-test fails if there are no test-suites.
     when (hasTests cfg) $
-        foldedTellStrLns "test" "Testing..." folds $ tellStrLns
+        foldedTellStrLns FoldTest "Testing..." folds $ tellStrLns
             [ sh $ mconcat
                 [ "if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal "
                 , if optQuietTests opts
@@ -806,7 +830,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     tellStrLns [""]
 
     unless (optNoCheck opts) $
-        foldedTellStrLns "check" "abal check..." folds $ do
+        foldedTellStrLns FoldCheck "cabal check..." folds $ do
             tellStrLns [ comment "cabal check" ]
             forM_ pkgs $ \Pkg{pkgName} -> tellStrLns
                 [ sh $ "(cd " ++ pkgName ++ "-* && cabal check)"
@@ -815,7 +839,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
             tellStrLns [ "" ]
 
     when (hasLibrary cfg) $
-        foldedTellStrLns "haddock" "Haddock..." folds $ tellStrLns
+        foldedTellStrLns FoldHaddock "Haddock..." folds $ tellStrLns
             [ comment "haddock"
             , sh "rm -rf ./dist-newstyle"
             , sh "if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
@@ -823,7 +847,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
             ]
 
     unless (null colls) $
-        foldedTellStrLns "stack" "Stack builds..." folds $ tellStrLns
+        foldedTellStrLns FoldStackage "Stackage builds..." folds $ tellStrLns
             [ "  # try building & testing for package collections"
             , "  - for COLL in \"${COLLS[@]}\"; do"
             , "      echo \"== collection $COLL ==\";"
