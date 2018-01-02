@@ -196,6 +196,7 @@ data Options = Options
     , optOnlyBranches :: [String]
     , optOutput :: Maybe FilePath
     , optRegenerate :: Maybe FilePath
+    , optQuietTests :: !Bool
     , optOsx :: [String]
     } deriving Show
 
@@ -209,6 +210,7 @@ defOptions = Options
     , optOnlyBranches = []
     , optOutput = Nothing
     , optRegenerate = Nothing
+    , optQuietTests = False
     , optOsx = []
     }
 
@@ -237,6 +239,9 @@ options =
     [ Option [] ["no-cache"]
       (NoArg $ \opts -> opts { optNoCache = True })
       "disable Travis caching"
+    , Option [] ["no-cabal-noise"]
+      (NoArg $ \opts -> opts { optQuietTests = True })
+      "remove cabal noise from test output"
     , Option ['c'] ["collection"]
       (ReqArg (\arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
@@ -754,7 +759,17 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     -- cabal new-test fails if there are no test-suites.
     when (hasTests cfg) $
         foldedTellStrLns "test" "Testing..." folds $ tellStrLns
-            [ sh "if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all; fi"
+            [ sh $ mconcat
+                [ "if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal "
+                , if optQuietTests opts
+                     then "-vnormal+nowrap+markoutput "
+                     else ""
+                , "new-test -w ${HC} ${TEST} all"
+                , if optQuietTests opts
+                     then " | sed '/^-----BEGIN CABAL OUTPUT-----$/,/^-----END CABAL OUTPUT-----$/d'"
+                     else ""
+                , "; fi"
+                ]
             ]
 
     tellStrLns [""]
