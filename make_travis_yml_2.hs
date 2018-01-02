@@ -17,13 +17,17 @@
 --
 -- NB: This code deliberately avoids relying on non-standard packages and
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
-module MakeTravisYml where
+module MakeTravisYml (
+    main,
+    -- * for tests
+    travisFromConfigFile, MakeTravisOutput(..), Options (..), defOptions, options,
+    ) where
 
 import Control.Applicative ((<$>),(<$),(<*>),(<*),(*>),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad (void, when, unless, filterM, liftM, forM_, mzero)
-import Data.Char (isAsciiLower, isAsciiUpper, isSpace)
+import Data.Char (isAsciiLower, isAsciiUpper, isSpace, isDigit)
 import qualified Data.Foldable as F
 import Data.Function
 import Data.List
@@ -57,7 +61,7 @@ import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Verbosity (Verbosity)
 #endif
 import Text.ParserCombinators.ReadP
-    ( ReadP, (<++), between, char, eof, munch, pfail, readP_to_S
+    ( ReadP, (<++), between, char, eof, munch, munch1, pfail, readP_to_S
     , satisfy, sepBy, sepBy1, string)
 
 #ifdef MIN_VERSION_ShellCheck
@@ -198,6 +202,7 @@ data Options = Options
     , optQuietTests :: !Bool
     , optNoCheck :: !Bool
     , optOsx :: [String]
+    , optJobs :: Maybe String
     } deriving Show
 
 defOptions :: Options
@@ -213,6 +218,7 @@ defOptions = Options
     , optQuietTests = False
     , optNoCheck = False
     , optOsx = []
+    , optJobs = Nothing
     }
 
 possibleFolds :: [String]
@@ -270,6 +276,9 @@ options =
     , Option [] ["osx"]
       (ReqArg (\arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
       "generate osx build job with ghc version"
+    , Option ['j'] ["jobs"]
+      (ReqArg (\arg opts -> opts { optJobs = Just arg }) "JOBS")
+      "jobs (N:M - cabal:ghc)"
     ]
 
 main :: IO ()
@@ -669,6 +678,20 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , sh "rm -fv cabal.project.local"
         ]
 
+    -- Cabal jobs
+    case parseJobsM (optJobs opts) of
+        (Just n, _) -> tellStrLns
+            [ sh $ "echo 'jobs:' " ++ show n ++ " >> ${HOME}/.cabal/config"
+            ]
+        _ -> return ()
+
+    -- GHC jobs
+    case parseJobsM (optJobs opts) of
+        (_, Just m) -> tellStrLns
+            [ sh $ "if [ $(( $(ghc --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+)/\\1 * 10000 + \\2 * 100 + \\3/'))) -ge 70800 ]; then echo 'ghc-options: -j" ++ show m ++ "' >> ${HOME}/.cabal/config; fi"
+            ]
+        _ -> return ()
+
     when (isNothing isCabalProject) $ generateCabalProject False
 
     tellStrLns
@@ -906,6 +929,44 @@ collToGhcVer cid = case simpleParse cid of
     | isPrefixOf [7] v -> mkVersion [8,0,1]
     | otherwise -> error ("unknown collection " ++ show cid)
 
+-- | parse jobs defintion
+--
+-- * N:M - N ghcs (cabal -j), M threads (ghc -j)
+-- * N   - N ghcs
+-- * :M  - M threads
+-- *     - no parallelism
+--
+parseJobs :: String -> (Maybe Int, Maybe Int)
+parseJobs input = case filter (null . snd) $ readP_to_S jobsP input of
+    [(r, "")] -> r
+    _         -> (Nothing, Nothing)
+  where
+    jobsP :: ReadP (Maybe Int, Maybe Int)
+    jobsP = nm <++ m <++ n <++ return (Nothing, Nothing)
+
+    nm = do
+      x <- int
+      _ <- char ':'
+      y <- int
+      return (Just x, Just y)
+
+    m = do
+      _ <- char ':'
+      y <- int
+      return (Nothing, Just y)
+
+    n = do
+      x <- int
+      return (Just x, Nothing)
+
+    int :: ReadP Int
+    int = do
+        ds <- munch1 isDigit
+        return (read ds)
+
+parseJobsM :: Maybe String -> (Maybe Int, Maybe Int)
+parseJobsM = maybe (Nothing, Nothing) parseJobs
+
 {-
 
 Globbing code and grammar judiciously stolen from cabal-install:
@@ -1008,9 +1069,6 @@ skipMany1 p = p *> skipMany p
 
 skipSpaces :: ReadP Int
 skipSpaces = length <$> munch (\c -> isSpace c && c /= '\n' && c /= '\r')
-
-skipSpaces1 :: ReadP Int
-skipSpaces1 = satisfyP (0/=) skipSpaces
 
 emptyLines :: Int -> ReadP Int
 emptyLines i = do
