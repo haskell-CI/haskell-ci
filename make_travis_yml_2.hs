@@ -254,7 +254,7 @@ options =
     , Option ['n'] ["name"]
       (ReqArg (\arg opts -> opts { optProjectName = Just arg }) "NAME")
       "project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
-    , Option [] ["branch"]
+    , Option ['b'] ["branch"]
       (ReqArg (\arg opts -> opts { optOnlyBranches = arg : optOnlyBranches opts }) "BRANCH")
       "enable builds only for specific brances, use multiple times for multiple branches"
     , Option ['o'] ["output"]
