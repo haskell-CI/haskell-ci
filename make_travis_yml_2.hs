@@ -196,6 +196,7 @@ data Options = Options
     , optOutput :: Maybe FilePath
     , optRegenerate :: Maybe FilePath
     , optQuietTests :: !Bool
+    , optNoCheck :: !Bool
     , optOsx :: [String]
     } deriving Show
 
@@ -210,6 +211,7 @@ defOptions = Options
     , optOutput = Nothing
     , optRegenerate = Nothing
     , optQuietTests = False
+    , optNoCheck = False
     , optOsx = []
     }
 
@@ -241,6 +243,9 @@ options =
     , Option [] ["no-cabal-noise"]
       (NoArg $ \opts -> opts { optQuietTests = True })
       "remove cabal noise from test output"
+    , Option [] ["no-cabal-check"]
+      (NoArg $ \opts -> opts { optNoCheck = True })
+      "diable cabal check"
     , Option ['c'] ["collection"]
       (ReqArg (\arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
@@ -772,6 +777,13 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
             ]
 
     tellStrLns [""]
+
+    unless (optNoCheck opts) $
+        foldedTellStrLns "check" "cabal check..." folds $ tellStrLns
+            [ comment "cabal check"
+            , sh "cabal check"
+            , ""
+            ]
 
     when (hasLibrary cfg) $
         foldedTellStrLns "haddock" "Haddock..." folds $ tellStrLns
