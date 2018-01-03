@@ -26,7 +26,7 @@ module MakeTravisYml (
 import Control.Applicative ((<$>),(<$),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
-import Control.Monad (void, when, unless, filterM, liftM, liftM2, forM_, mzero)
+import Control.Monad (void, when, unless, filterM, liftM, liftM2, forM_, mzero, foldM)
 import Data.Char (isSpace, isUpper, toLower)
 import qualified Data.Foldable as F
 import Data.Function
@@ -170,14 +170,26 @@ foldedTellStrLns
     -> Set Fold
     -> YamlWriter m ()
     -> YamlWriter m ()
-foldedTellStrLns label prettyLabel labels output
+foldedTellStrLns label = foldedTellStrLns' label ""
+
+foldedTellStrLns'
+    :: Monad m
+    => Fold
+    -> String
+    -> String
+    -> Set Fold
+    -> YamlWriter m ()
+    -> YamlWriter m ()
+foldedTellStrLns' label pfx prettyLabel labels output
     | label `S.notMember` labels = output
     | otherwise = tellStrLns [prologue] >> output >> tellStrLns epilogue
   where
     prologue = mconcat
         [ "  - echo ", prettyLabel
-        , " && echo -en 'travis_fold:start:", showFold label, "\\\\r'" ]
-    epilogue = ["  - echo -en 'travis_fold:end:" ++ showFold label ++ "\\\\r'" ]
+        , " && echo -en 'travis_fold:start:", showFold' label, "\\\\r'" ]
+    epilogue = ["  - echo -en 'travis_fold:end:" ++ showFold' label ++ "\\\\r'" ]
+
+    showFold' l = showFold l ++ if null pfx then "" else "-" ++ pfx
 
 -- | Return the part after the first argument
 --
@@ -209,6 +221,7 @@ data Options = Options
     , optJobs :: Maybe String
     , optDoctest :: Maybe String
     , optHLint :: Maybe FilePath
+    , optConfig :: Maybe FilePath
     } deriving Show
 
 defOptions :: Options
@@ -227,6 +240,7 @@ defOptions = Options
     , optJobs = Nothing
     , optDoctest = Nothing
     , optHLint = Nothing
+    , optConfig = Nothing
     }
 
 data Fold
@@ -241,6 +255,7 @@ data Fold
     | FoldCheck
     | FoldDoctest
     | FoldHLint
+    | FoldConstraintSets
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 showFold :: Fold -> String
@@ -306,6 +321,9 @@ options =
     , Option ['r'] ["regenerate"]
       (OptArg (\arg opts -> opts { optRegenerate = Just $ fromMaybe ".travis.yml" arg }) "INPUTOUTPUT")
       "regenerate the file using the magic command in output file. Default: .travis.yml"
+    , Option [] ["config"]
+      (OptArg (\arg opts -> opts { optConfig = Just $ fromMaybe "cabal.make-travis-yml" arg }) "CONFIG")
+      "config file, currently used only to specify constraint sets"
     , Option [] ["osx"]
       (ReqArg (\arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
       "generate osx build job with ghc version"
@@ -389,21 +407,11 @@ dispGhcVersion v
     | isGhcOdd v = "head"
     | otherwise = display v
 
-data Config = Cfg { hasTests :: Bool, hasLibrary :: Bool }
-    deriving (Eq, Show)
-
 data Package = Pkg
     { pkgName :: String
     , pkgDir :: FilePath
     , pkgGpd :: GenericPackageDescription
     } deriving (Eq, Show)
-
-instance Monoid Config where
-    mempty = Cfg False False
-    mappend cfg1 cfg2 = Cfg
-        { hasTests = hasTests cfg1 || hasTests cfg2
-        , hasLibrary = hasLibrary cfg1 || hasLibrary cfg2
-        }
 
 genTravisFromConfigFile :: ([String],Options) -> FilePath -> [String] -> IO ()
 genTravisFromConfigFile args@(_, opts) path xpkgs =
@@ -415,30 +423,30 @@ travisFromConfigFile
     -> FilePath
     -> [String]
     -> YamlWriter m ()
-travisFromConfigFile args@(_, opts) path xpkgs =
-  getCabalFiles
-    >>= mapM (configFromCabalFile opts)
-    >>= checkVersions
-    >>= genTravisFromConfigs args xpkgs isCabalProject
+travisFromConfigFile args@(_, opts) path xpkgs = do
+    cabalFiles <- getCabalFiles
+    pkgs <- mapM (configFromCabalFile opts) cabalFiles
+    config <- maybe (return emptyConfig) readConfigFile (optConfig opts)
+    checkVersions pkgs >>= genTravisFromConfigs args xpkgs isCabalProject config
   where
     checkVersions
         :: MonadIO m
-        => [(Package, Config, Set Version)]
-        -> YamlWriter m (Set Version, Config, [Package])
+        => [(Package, Set Version)]
+        -> YamlWriter m (Set Version, [Package])
     checkVersions [] = putStrLnErr "Error reading cabal file(s)!"
     checkVersions cfgs = do
-        let (errors, cfg, names) = foldl' collectConfig mempty cfgs
+        let (errors, names) = foldl' collectConfig mempty cfgs
         unless (null errors) $ putStrLnErr . intercalate "\n" $ "":errors
-        return (allVersions, cfg, names)
+        return (allVersions, names)
       where
-        allVersions = S.unions $ map (\(_, _, s) -> s) cfgs
+        allVersions = S.unions $ map snd cfgs
 
         collectConfig
-            :: ([String], Config, [Package])
-            -> (Package, Config, Set Version)
-            -> ([String], Config, [Package])
-        collectConfig aggregate (pkg, config, testWith) =
-            aggregate <> (errors, config, [pkg])
+            :: ([String], [Package])
+            -> (Package, Set Version)
+            -> ([String], [Package])
+        collectConfig aggregate (pkg, testWith) =
+            aggregate <> (errors, [pkg])
           where
             symDiff a b = S.union a b `S.difference` S.intersection a b
             diff = symDiff testWith allVersions
@@ -498,7 +506,7 @@ travisFromConfigFile args@(_, opts) path xpkgs =
             Just x  -> return (Just x)
 
 configFromCabalFile
-    :: MonadIO m => Options -> FilePath -> YamlWriter m (Package, Config, Set Version)
+    :: MonadIO m => Options -> FilePath -> YamlWriter m (Package, Set Version)
 configFromCabalFile opts cabalFile = do
     gpd <- liftIO $ readGenericPackageDescription maxBound cabalFile
 
@@ -554,13 +562,9 @@ configFromCabalFile opts cabalFile = do
                , "add 'tested-width: GHC == " ++ dispGhcVersion v ++ "' to your .cabal file"
                ]
 
-    let hasTests = not . null $ condTestSuites gpd
-        hasLibrary = case condLibrary gpd of
-            Just _ -> True
-            Nothing -> False
-        pkg = Pkg pkgNameStr (takeDirectory cabalFile) gpd
+    let pkg = Pkg pkgNameStr (takeDirectory cabalFile) gpd
 
-    return (pkg, Cfg hasTests hasLibrary, S.fromList testedGhcVersions)
+    return (pkg, S.fromList testedGhcVersions)
   where
     knownGhcVersions :: [Version]
     knownGhcVersions = fmap mkVersion
@@ -590,9 +594,10 @@ genTravisFromConfigs
     => ([String], Options)
     -> [String]
     -> Maybe FilePath
-    -> (Set Version, Config, [Package])
+    -> Config
+    -> (Set Version, [Package])
     -> YamlWriter m ()
-genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
+genTravisFromConfigs (argv,opts) xpkgs isCabalProject config (versions, pkgs) = do
     folds <- case optFolds opts of
         Left errs -> putStrLnErr $ unlines errs
         Right val -> return val
@@ -900,7 +905,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         ]
 
     -- cabal new-test fails if there are no test-suites.
-    when (hasTests cfg) $
+    when hasTests $
         foldedTellStrLns FoldTest "Testing..." folds $ tellStrLns
             [ sh $ mconcat
                 [ "if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal "
@@ -951,11 +956,20 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
                 ]
             tellStrLns [ "" ]
 
-    when (hasLibrary cfg) $
+    when hasLibrary $
         foldedTellStrLns FoldHaddock "Haddock..." folds $ tellStrLns
             [ comment "haddock"
             , sh "rm -rf ./dist-newstyle"
             , sh "if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
+            , ""
+            ]
+
+    let constraintSets = cfgConstraintSets config
+    forM_ constraintSets $ \cs -> do
+        let name = csName cs
+        let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
+        foldedTellStrLns' FoldConstraintSets name ("Constraint set " ++ name) folds $ tellStrLns
+            [ sh' [2086] $ "if " ++ ghcVersionPredicate (csGhcVersions cs) ++ "; then cabal new-build -w ${HC} --disable-tests --disable-benchmarks" ++ constraintFlags ++ " all; else echo skipping...; fi"
             , ""
             ]
 
@@ -981,6 +995,9 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     return ()
   where
+    hasTests   = F.any (\Pkg{pkgGpd} -> not . null $ condTestSuites pkgGpd) pkgs
+    hasLibrary = F.any (\Pkg{pkgGpd} -> isJust $ condLibrary pkgGpd) pkgs
+
     headGhcVers = S.filter isGhcHead versions
 
     generateCabalProject dist = tellStrLns
@@ -1146,6 +1163,111 @@ legacyProjectConfigFieldDescrs =
         id           -- getter
         const        -- setter
     ]
+
+-------------------------------------------------------------------------------
+-- Config file
+-------------------------------------------------------------------------------
+
+newtype Config = Config
+    { cfgConstraintSets :: [ConstraintSet]
+    }
+  deriving (Show)
+
+emptyConfig :: Config
+emptyConfig = Config []
+
+data ConstraintSet = ConstraintSet
+    { csName        :: String
+    , csGhcVersions :: VersionRange
+    , csConstraints :: [String] -- we parse these simply as strings
+    }
+  deriving (Show)
+
+emptyConstraintSet :: String -> ConstraintSet
+emptyConstraintSet n = ConstraintSet n anyVersion []
+
+constraintSetFieldDescrs :: [PU.FieldDescr ConstraintSet]
+constraintSetFieldDescrs =
+    [ PU.listField "constraints"
+        (error "we don't pretty print") -- pretty
+        (parseHaskellString <++ munch1 (`notElem` [',', '"']))
+        csConstraints
+        (\c cs -> cs { csConstraints = csConstraints cs ++ c })
+    , PU.simpleField "ghc"
+        (error "we don't pretty print") -- pretty
+        Distribution.Text.parse
+        csGhcVersions
+        (\c cs -> cs { csGhcVersions = c })
+    ]
+
+ghcVersionPredicate :: VersionRange -> String
+ghcVersionPredicate = conj . asVersionIntervals
+  where
+    conj = intercalate "  ||  " . map disj
+
+    disj :: VersionInterval -> String
+    disj (LowerBound v InclusiveBound, UpperBound u InclusiveBound)
+        | v == u              = "[ $HCNUMVER -eq " ++ f v ++ " ]"
+    disj (lb, NoUpperBound)   = lower lb
+    disj (lb, UpperBound v b) = lower lb ++ " && " ++ upper v b
+
+    lower (LowerBound v InclusiveBound) = "[ $HCNUMVER -ge " ++ f v ++ " ]"
+    lower (LowerBound v ExclusiveBound) = "[ $HCNUMVER -gt " ++ f v ++ " ]"
+
+    upper v InclusiveBound = "[ $HCNUMVER -le " ++ f v ++ " ]"
+    upper v ExclusiveBound = "[ $HCNUMVER -lt " ++ f v ++ " ]"
+
+    f v =  case versionNumbers v of
+        []        -> "0"
+        [x]       -> show (x * 10000)
+        [x,y]     -> show (x * 10000 + y * 100)
+        (x:y:z:_) -> show (x * 10000 + y * 100 + z)
+
+readConfigFile :: MonadIO m => FilePath -> YamlWriter m Config
+readConfigFile path = do
+    contents <- liftIO $ readFile path
+    either putStrLnErr return (parseConfigFile path contents)
+
+parseConfigFile :: FilePath -> String -> Either String Config
+parseConfigFile path contents = toEither $ do
+    fields <- PU.readFields contents
+    go emptyConfig fields
+  where
+    toEither r = case r of
+        PU.ParseOk _ x -> Right x
+        PU.ParseFailed err -> Left $ case PU.locatedErrorMsg err of
+            (l, msg) -> "ERROR " ++ path ++ ":" ++ show l ++ ": " ++ msg
+
+    go :: Config -> [PU.Field] -> PU.ParseResult Config
+    go  cfg [] = return cfg
+    go _cfg (PU.IfBlock {} : _fields) = fail "if conditional found"
+    go  cfg (PU.F {} : fields)        = go cfg fields
+    go  cfg (PU.Section line name arg subfields : fields)
+        | name == "constraint-set" = do
+            cs <- accumFields constraintSetFieldDescrs (emptyConstraintSet arg) subfields
+            let cfg' = cfg { cfgConstraintSets = cfgConstraintSets cfg ++ [cs] }
+            go cfg' fields
+        | otherwise = do
+            PU.warning $ "Unknown section " ++ name ++ " on line " ++ show line
+            go cfg fields
+
+-------------------------------------------------------------------------------
+-- From Cabal
+-------------------------------------------------------------------------------
+
+accumFields :: [PU.FieldDescr a] -> a -> [PU.Field] -> PU.ParseResult a
+accumFields fields = foldM setField
+  where
+    fieldMap = M.fromList
+        [ (name, f) | f@(PU.FieldDescr name _ _) <- fields ]
+    setField accum (PU.F line name value) = case M.lookup name fieldMap of
+      Just (PU.FieldDescr _ _ set) -> set line value accum
+      Nothing -> do
+          PU.warning $ "Unrecognized field " ++ name ++ " on line " ++ show line
+          return accum
+    setField accum f = do
+        PU.warning ("Unrecognized stanza on line " ++ show (PU.lineNo f))
+        return accum
 
 -------------------------------------------------------------------------------
 -- From cabal-install

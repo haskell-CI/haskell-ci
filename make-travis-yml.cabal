@@ -37,6 +37,7 @@ tested-with:
   GHC == 8.2.2,
   GHC == 8.4.1
 extra-source-files:
+  fixtures/cabal.make-travis-yml
   fixtures/make-travis-yml.cabal
   fixtures/make-travis-yml.cabal.stderr
   fixtures/make-travis-yml.cabal.travis.yml
