@@ -299,8 +299,8 @@ options =
       (ReqArg (\arg opts -> opts { optOutput = Just arg }) "OUTPUT")
       "output file (stdout if omitted)"
     , Option ['r'] ["regenerate"]
-      (ReqArg (\arg opts -> opts { optRegenerate = Just arg }) "INPUTOUTPUT")
-      "regenerate the file using the magic command in output file"
+      (OptArg (\arg opts -> opts { optRegenerate = Just $ fromMaybe ".travis.yml" arg }) "INPUTOUTPUT")
+      "regenerate the file using the magic command in output file. Default: .travis.yml"
     , Option [] ["osx"]
       (ReqArg (\arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
       "generate osx build job with ghc version"
