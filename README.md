@@ -307,7 +307,6 @@ If your package (or one of its dependencies) contain Alex/Happy generated parser
 Ideas for Additional Checks
 ---------------------------
 
- - Check for code-smell via [`hlint`](http://hackage.haskell.org/package/hlint)
  - Check for `build-depends` excluding latest package versions with [`packdeps`](http://hackage.haskell.org/package/packdeps)
  - Check for unused `build-depends` with [`packunused`](http://hackage.haskell.org/package/packunused)
  - Check for 100% Haddock coverage

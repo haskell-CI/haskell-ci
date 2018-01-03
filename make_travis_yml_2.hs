@@ -51,12 +51,11 @@ import Text.Read (readMaybe)
 import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.Package hiding (Package, pkgName)
 import qualified Distribution.Package as Pkg
-import Distribution.PackageDescription (packageDescription, testedWith, package, condLibrary, condTestSuites)
+import Distribution.PackageDescription (GenericPackageDescription,packageDescription, testedWith, package, condLibrary, condTestSuites)
 import Distribution.PackageDescription.Configuration (flattenPackageDescription)
 import qualified Distribution.PackageDescription as PD
 import Distribution.Text
 import Distribution.Version
-import Distribution.PackageDescription (GenericPackageDescription)
 #if MIN_VERSION_Cabal(2,0,0)
 import Distribution.PackageDescription.Parse (readGenericPackageDescription)
 #else
@@ -207,6 +206,7 @@ data Options = Options
     , optOsx :: [String]
     , optJobs :: Maybe String
     , optDoctest :: Maybe String
+    , optHLint :: Maybe FilePath
     } deriving Show
 
 defOptions :: Options
@@ -224,6 +224,7 @@ defOptions = Options
     , optOsx = []
     , optJobs = Nothing
     , optDoctest = Nothing
+    , optHLint = Nothing
     }
 
 data Fold
@@ -237,6 +238,7 @@ data Fold
     | FoldStackage
     | FoldCheck
     | FoldDoctest
+    | FoldHLint
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 showFold :: Fold -> String
@@ -247,7 +249,7 @@ showFold = dashise . drop 4 . show
     split [] = []
     split xs0 =
         let (ys, xs1) = span isUpper xs0
-            (zs, xs2) = span (not . isUpper) xs1
+            (zs, xs2) = break isUpper xs1
         in (ys ++ zs) : split xs2
 
 
@@ -300,8 +302,8 @@ options =
       (ReqArg (\arg opts -> opts { optOutput = Just arg }) "OUTPUT")
       "output file (stdout if omitted)"
     , Option ['r'] ["regenerate"]
-      (ReqArg (\arg opts -> opts { optRegenerate = Just arg }) "INPUTOUTPUT")
-      "regenerate the file using the magic command in output file"
+      (OptArg (\arg opts -> opts { optRegenerate = Just $ fromMaybe ".travis.yml" arg }) "INPUTOUTPUT")
+      "regenerate the file using the magic command in output file. Default: .travis.yml"
     , Option [] ["osx"]
       (ReqArg (\arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
       "generate osx build job with ghc version"
@@ -311,6 +313,9 @@ options =
     , Option ['d'] ["doctest"]
       (OptArg (\arg opts -> opts { optDoctest = Just $ maybe "" (' ' :) arg }) "OPTIONS")
       "Run doctest using .ghc.environment files. You can supply additional doctest options as an optional argument."
+    , Option ['l'] ["hlint"]
+      (OptArg (\arg opts -> opts { optHLint = Just $ fromMaybe "" arg }) "HLINT.YAML")
+      "Run hlint (only on GHC-8.2.2 target). Specify relative path to .hlint.yaml."
     ]
 
 main :: IO ()
@@ -338,7 +343,7 @@ parseOpts regenerate argv = case getOpt Permute options argv of
         readMaybe l
 
     dieCli errs = hPutStrLn stderr (usageMsg errs) >> exitFailure
-    usageMsg errs = concat (map ("*ERROR* "++) errs) ++ usageInfo h options ++ ex
+    usageMsg errs = concatMap ("*ERROR* "++) errs ++ usageInfo h options ++ ex
     h = concat
         [ "Usage: runghc make_travis_yml_2.hs [OPTIONS] <cabal-file | cabal.project> <extra-apt-packages...>\n"
         , "\n"
@@ -466,7 +471,7 @@ configFromCabalFile
 configFromCabalFile opts cabalFile = do
     gpd <- liftIO $ readGenericPackageDescription maxBound cabalFile
 
-    let compilers = testedWith $ packageDescription $ gpd
+    let compilers = testedWith $ packageDescription gpd
         pkgNameStr = display $ Pkg.pkgName $ package $ packageDescription gpd
 
     let unknownComps = nub [ c | (c,_) <- compilers, c /= GHC ]
@@ -475,8 +480,8 @@ configFromCabalFile opts cabalFile = do
         twoDigitGhcVerConstrs = mapMaybe isTwoDigitGhcVersion ghcVerConstrs :: [Version]
         specificGhcVers = nub $ mapMaybe isSpecificVersion ghcVerConstrs
 
-    when (not . null $ twoDigitGhcVerConstrs) $ do
-        putStrLnWarn $ "'tested-with:' uses two digit GHC versions (which don't match any existing GHC version): " ++ (intercalate ", " $ map display twoDigitGhcVerConstrs)
+    unless (null twoDigitGhcVerConstrs) $ do
+        putStrLnWarn $ "'tested-with:' uses two digit GHC versions (which don't match any existing GHC version): " ++ intercalate ", " (map display twoDigitGhcVerConstrs)
         putStrLnInfo $ "Either use wild-card format, for example 'tested-with: GHC ==7.10.*' or a specific existing version 'tested-with: GHC ==7.10.3'"
 
     when (null compilers) $ do
@@ -541,7 +546,7 @@ configFromCabalFile opts cabalFile = do
                        ]
 
     lastStableGhcVers :: [Version]
-    lastStableGhcVers = nubBy ((==) `on` ghcMajVer) $ filter (not . isGhcHead) $ reverse $ sort $ knownGhcVersions
+    lastStableGhcVers = nubBy ((==) `on` ghcMajVer) $ filter (not . isGhcHead) $ sortBy (flip compare) knownGhcVersions
 
     isTwoDigitGhcVersion :: VersionRange -> Maybe Version
     isTwoDigitGhcVersion vr = isSpecificVersion vr >>= t
@@ -575,7 +580,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     tellStrLns
         [ "# This Travis job script has been generated by a script via"
         , "#"
-        , ("#   runghc make_travis_yml_2.hs " ++ unwords [ "'" ++ a ++ "'" | a <- argv ])
+        , "#   runghc make_travis_yml_2.hs " ++ unwords [ "'" ++ a ++ "'" | a <- argv ]
         , "#"
         , "# For more information, see https://github.com/hvr/multi-ghc-travis"
         , "#"
@@ -682,6 +687,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , sh "unset CC"
         -- rootdir is useful for manual script additions
         , sh "ROOTDIR=$(pwd)"
+        , sh "mkdir -p $HOME/.local/bin"
         ]
 
     let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
@@ -692,7 +698,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         ]
     else tellStrLns
         [ sh $ "if [ \"$(uname)\" = \"Darwin\" ]; then brew update; brew install python3; curl " ++ haskellOnMacos ++ " | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${HC}; fi"
-        , sh $ "if [ \"$(uname)\" = \"Darwin\" ]; then PATH=$HOME/.ghc-install/ghc/bin:$PATH; else PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH; fi"
+        , sh $ "if [ \"$(uname)\" = \"Darwin\" ]; then PATH=$HOME/.ghc-install/ghc/bin:$HOME/local/bin:$PATH; else PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$HOME/local/bin:$PATH; fi"
         ]
 
     -- HCNUMVER, numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
@@ -766,8 +772,12 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     -- Install doctest
     when (isJust $ optDoctest opts) $ tellStrLns
-        [ sh "mkdir -p $HOME/.local/bin"
-        , sh "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest; fi"
+        [ sh "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest; fi"
+        ]
+
+    -- Install hlint
+    when (isJust $ optHLint opts) $ tellStrLns
+        [ sh "if [ $HCNUMVER -eq 80202 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint; fi"
         ]
 
     -- create cabal.project file
@@ -881,9 +891,23 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         foldedTellStrLns FoldDoctest "Doctest..." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
                 let args = doctestArgs pkgGpd
-                    args' = intercalate " " args
+                    args' = unwords args
                 unless (null args) $ tellStrLns
                     [ sh $ "if [ $HCNUMVER -ge 80000 ]; then (cd " ++ pkgName ++ "-* && doctest" ++ doctestOptions ++ " " ++ args' ++ "); fi"
+                    ]
+        tellStrLns [ "" ]
+
+    F.forM_ (optHLint opts) $ \hlintYaml -> do
+        let hlintOptions | null hlintYaml = ""
+                         | otherwise      = " -h ${ROOTDIR}/" ++ hlintYaml
+        tellStrLns [ comment "hlint" ]
+        foldedTellStrLns FoldHLint "HLint.." folds $ do
+            forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
+                -- note: same arguments work so far for doctest and hlint
+                let args = doctestArgs pkgGpd
+                    args' = unwords args
+                unless (null args) $ tellStrLns
+                    [ sh $ "if [ $HCNUMVER -eq 80202 ]; then (cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ "); fi"
                     ]
         tellStrLns [ "" ]
 
@@ -965,7 +989,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
     ghcOmittedOsxVersions = showVersions omittedOsxVersions
 
     lookupCabVer :: Version -> Version
-    lookupCabVer v = maybe (error "internal error") id $ lookup (x,y) cabalVerMap
+    lookupCabVer v = fromMaybe (error "internal error") $ lookup (x,y) cabalVerMap
       where
         (x,y) = ghcMajVer v
         cabalVerMap = fmap (fmap mkVersion)
@@ -990,6 +1014,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 -- * otherwise use exposed + other modules
 --
 -- * Also add default-extensions
+--
+-- /Note:/ same argument work for hlint too!
 --
 doctestArgs :: GenericPackageDescription -> [String]
 doctestArgs gpd = case PD.library $ flattenPackageDescription gpd of
@@ -1022,9 +1048,18 @@ collToGhcVer cid = case simpleParse cid of
 -- | parse jobs defintion
 --
 -- * N:M - N ghcs (cabal -j), M threads (ghc -j)
--- * N   - N ghcs
--- * :M  - M threads
--- *     - no parallelism
+--
+-- >>> parseJobs "2:2"
+-- (Just 2,Just 2)
+--
+-- >>> parseJobs ":2"
+-- (Nothing,Just 2)
+--
+-- >>> parseJobs "2"
+-- (Just 2,Nothing)
+--
+-- >>> parseJobs "garbage"
+-- (Nothing,Nothing)
 --
 parseJobs :: String -> (Maybe Int, Maybe Int)
 parseJobs input = case filter (null . snd) $ readP_to_S jobsP input of

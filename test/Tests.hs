@@ -11,7 +11,7 @@ import Control.Monad.Trans.Writer
 import Data.Algorithm.Diff (Diff (..), getGroupedDiff)
 import Data.IORef
 import Data.List (isPrefixOf, stripPrefix)
-import Data.Maybe (catMaybes)
+import Data.Maybe (mapMaybe)
 import Data.Monoid (mconcat)
 import System.Console.GetOpt (getOpt, ArgOrder(Permute))
 import System.Directory (doesFileExist, removeFile, setCurrentDirectory)
@@ -36,7 +36,7 @@ main = do
         ]
 
 linesToArgv :: String -> Maybe [String]
-linesToArgv txt = case catMaybes (map lineToArgv (lines txt)) of
+linesToArgv txt = case mapMaybe lineToArgv (lines txt) of
     [argv] -> Just argv
     _ -> Nothing
   where
