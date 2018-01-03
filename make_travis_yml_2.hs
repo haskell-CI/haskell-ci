@@ -23,11 +23,11 @@ module MakeTravisYml (
     travisFromConfigFile, MakeTravisOutput(..), Options (..), defOptions, options,
     ) where
 
-import Control.Applicative ((<$>),(<$),(<*>),(<*),(*>),(<|>), pure)
+import Control.Applicative ((<$>),(<$),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
-import Control.Monad (void, when, unless, filterM, liftM, forM_, mzero)
-import Data.Char (isAsciiLower, isAsciiUpper, isSpace, isDigit, isUpper, toLower)
+import Control.Monad (void, when, unless, filterM, liftM, liftM2, forM_, mzero)
+import Data.Char (isSpace, isUpper, toLower)
 import qualified Data.Foldable as F
 import Data.Function
 import Data.List
@@ -37,10 +37,10 @@ import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Map as M
 import System.Console.GetOpt
-import System.Directory (doesDirectoryExist, getDirectoryContents)
+import System.Directory (doesDirectoryExist, getDirectoryContents, doesFileExist)
 import System.Environment
 import System.Exit
-import System.FilePath.Posix ((</>), takeDirectory, takeFileName)
+import System.FilePath.Posix ((</>), takeDirectory, takeFileName, takeExtension)
 import System.IO
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class (lift)
@@ -54,6 +54,7 @@ import qualified Distribution.Package as Pkg
 import Distribution.PackageDescription (GenericPackageDescription,packageDescription, testedWith, package, condLibrary, condTestSuites)
 import Distribution.PackageDescription.Configuration (flattenPackageDescription)
 import qualified Distribution.PackageDescription as PD
+import qualified Distribution.ParseUtils as PU
 import Distribution.Text
 import Distribution.Version
 #if MIN_VERSION_Cabal(2,0,0)
@@ -62,9 +63,10 @@ import Distribution.PackageDescription.Parse (readGenericPackageDescription)
 import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Verbosity (Verbosity)
 #endif
-import Text.ParserCombinators.ReadP
-    ( ReadP, (<++), between, char, eof, munch, munch1, pfail, readP_to_S
-    , satisfy, sepBy, sepBy1, string)
+import Distribution.Compat.ReadP
+    ( ReadP, (<++), (+++), between, char, many1, munch1
+    , pfail, readP_to_S, readS_to_P, look
+    , satisfy, sepBy1, gather)
 
 #ifdef MIN_VERSION_ShellCheck
 import ShellCheck.Checker (checkScript)
@@ -456,15 +458,44 @@ travisFromConfigFile args@(_, opts) path xpkgs =
     getCabalFiles
         | isNothing isCabalProject = return [path]
         | otherwise = do
-            result <- readP_to_S projectFileP `liftM` liftIO (readFile path)
-            globs <- case result of
-                [(r,"")] -> return r
-                [] -> putStrLnErr $ "Parse error trying to parse: " ++ path
-                _ -> putStrLnErr $ "Ambiguous parse trying to parse: " ++ path
-            when (null globs) $
-                putStrLnErr $ "No 'packages:' entry found in: " ++ path
+            contents <- liftIO $ readFile path
+            pkgs <- either putStrLnErr return $ parseProjectFile path contents
+            concat `liftM` mapM findProjectPackage pkgs
 
-            expandGlobs (takeDirectory path) globs
+    rootdir = takeDirectory path
+
+    -- See findProjectPackages in cabal-install codebase
+    -- this is simple variant.
+    findProjectPackage :: MonadIO m => String -> YamlWriter m [FilePath]
+    findProjectPackage pkglocstr = do
+        mfp <- checkisFileGlobPackage pkglocstr `mplusMaybeT`
+               checkIsSingleFilePackage pkglocstr
+        maybe (putStrLnErr $ "bad package location: " ++ pkglocstr) return mfp
+
+    checkIsSingleFilePackage pkglocstr = do
+        let abspath = rootdir </> pkglocstr
+        isFile <- liftIO $ doesFileExist abspath
+        isDir  <- liftIO $ doesDirectoryExist abspath
+        if | isFile && takeExtension pkglocstr == ".cabal" -> return (Just [abspath])
+           | isDir -> checkisFileGlobPackage (pkglocstr </> "*.cabal")
+           | otherwise -> return Nothing
+
+    -- if it looks like glob, glob
+    checkisFileGlobPackage pkglocstr =
+        case filter (null . snd) $ readP_to_S parseFilePathGlobRel pkglocstr of
+            [(g, "")] -> do
+                files <- liftIO $ expandRelGlob rootdir g
+                let files' = filter ((== ".cabal") . takeExtension) files
+                -- if nothing is matched, skip.
+                if null files' then return Nothing else return (Just files')
+            _         -> return Nothing
+
+    mplusMaybeT :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
+    mplusMaybeT ma mb = do
+        mx <- ma
+        case mx of
+            Nothing -> mb
+            Just x  -> return (Just x)
 
 configFromCabalFile
     :: MonadIO m => Options -> FilePath -> YamlWriter m (Package, Config, Set Version)
@@ -1045,6 +1076,10 @@ collToGhcVer cid = case simpleParse cid of
     | isPrefixOf [7] v -> mkVersion [8,0,1]
     | otherwise -> error ("unknown collection " ++ show cid)
 
+-------------------------------------------------------------------------------
+-- Jobs
+-------------------------------------------------------------------------------
+
 -- | parse jobs defintion
 --
 -- * N:M - N ghcs (cabal -j), M threads (ghc -j)
@@ -1066,31 +1101,96 @@ parseJobs input = case filter (null . snd) $ readP_to_S jobsP input of
     [(r, "")] -> r
     _         -> (Nothing, Nothing)
   where
-    jobsP :: ReadP (Maybe Int, Maybe Int)
+    jobsP :: ReadP r (Maybe Int, Maybe Int)
     jobsP = nm <++ m <++ n <++ return (Nothing, Nothing)
 
     nm = do
-      x <- int
+      x <- parseInt
       _ <- char ':'
-      y <- int
+      y <- parseInt
       return (Just x, Just y)
 
     m = do
       _ <- char ':'
-      y <- int
+      y <- parseInt
       return (Nothing, Just y)
 
     n = do
-      x <- int
+      x <- parseInt
       return (Just x, Nothing)
-
-    int :: ReadP Int
-    int = do
-        ds <- munch1 isDigit
-        return (read ds)
 
 parseJobsM :: Maybe String -> (Maybe Int, Maybe Int)
 parseJobsM = maybe (Nothing, Nothing) parseJobs
+
+-------------------------------------------------------------------------------
+-- Project file
+-------------------------------------------------------------------------------
+
+-- | Parse project file. Extracts only @packages@ field.
+--
+-- >>> parseProjectFile "cabal.project" "packages: foo bar/*.cabal"
+-- Right ["foo","bar/*.cabal"]
+--
+parseProjectFile :: FilePath -> String -> Either String [String]
+parseProjectFile path contents =
+    case PU.parseFields legacyProjectConfigFieldDescrs [] contents of
+        PU.ParseOk _ x -> Right x
+        PU.ParseFailed err -> Left $ case PU.locatedErrorMsg err of
+            (l, msg) -> "ERROR " ++ path ++ ":" ++ show l ++ ": " ++ msg
+
+legacyProjectConfigFieldDescrs :: [PU.FieldDescr [String]]
+legacyProjectConfigFieldDescrs =
+    [ PU.listField "packages"
+        (error "we don't pretty print") -- pretty
+        parsePackageLocationTokenQ -- parse
+        id           -- getter
+        const        -- setter
+    ]
+
+-------------------------------------------------------------------------------
+-- From cabal-install
+-------------------------------------------------------------------------------
+
+-- | This is a bit tricky since it has to cover globs which have embedded @,@
+-- chars. But we don't just want to parse strictly as a glob since we want to
+-- allow http urls which don't parse as globs, and possibly some
+-- system-dependent file paths. So we parse fairly liberally as a token, but
+-- we allow @,@ inside matched @{}@ braces.
+--
+parsePackageLocationTokenQ :: ReadP r String
+parsePackageLocationTokenQ = parseHaskellString <++ parsePackageLocationToken
+  where
+    parsePackageLocationToken :: ReadP r String
+    parsePackageLocationToken = fmap fst (gather outerTerm)
+      where
+        outerTerm   = alternateEither1 outerToken (braces innerTerm)
+        innerTerm   = alternateEither  innerToken (braces innerTerm)
+        outerToken  = void $ munch1 outerChar
+        innerToken  = void $ munch1 innerChar
+        outerChar c = not (isSpace c || c == '{' || c == '}' || c == ',')
+        innerChar c = not (isSpace c || c == '{' || c == '}')
+        braces      = between (char '{') (char '}')
+
+    alternateEither, alternateEither1,
+      alternatePQs, alternate1PQs, alternateQsP, alternate1QsP
+      :: ReadP r () -> ReadP r () -> ReadP r ()
+
+    alternateEither1 p q = alternate1PQs p q +++ alternate1QsP q p
+    alternateEither  p q = alternateEither1 p q +++ return ()
+    alternate1PQs    p q = p >> alternateQsP q p
+    alternatePQs     p q = alternate1PQs p q +++ return ()
+    alternate1QsP    q p = many1 q >> alternatePQs p q
+    alternateQsP     q p = alternate1QsP q p +++ return ()
+
+parseHaskellString :: ReadP r String
+parseHaskellString = readS_to_P reads
+
+parseInt :: ReadP r Int
+parseInt = readS_to_P reads
+
+-------------------------------------------------------------------------------
+-- Glob
+-------------------------------------------------------------------------------
 
 {-
 
@@ -1138,172 +1238,58 @@ data FilePathRoot
    | FilePathHomeDir
   deriving (Eq, Show)
 
-prettyPathGlob :: FilePathGlob -> String
-prettyPathGlob (FilePathGlob root relGlob) =
-  prettyRoot ++ prettyRelPathGlob relGlob
+parseFilePathGlobRel :: ReadP r FilePathGlobRel
+parseFilePathGlobRel =
+      parseGlob >>= \globpieces ->
+          asDir globpieces
+      <++ asTDir globpieces
+      <++ asFile globpieces
   where
-    prettyRoot = case root of
-        FilePathRelative -> "./"
-        FilePathRoot r -> r
-        FilePathHomeDir -> "~/"
+    asDir  glob = do dirSep
+                     globs <- parseFilePathGlobRel
+                     return (GlobDir glob globs)
+    asTDir glob = do dirSep
+                     return (GlobDir glob GlobDirTrailing)
+    asFile glob = return (GlobFile glob)
 
-prettyRelPathGlob :: FilePathGlobRel -> String
-prettyRelPathGlob relPathGlob = case relPathGlob of
-  GlobDir globs relGlob -> prettyGlob globs ++ "/" ++ prettyRelPathGlob relGlob
-  GlobFile globs -> prettyGlob globs
-  GlobDirTrailing -> ""
+    dirSep = void (char '/')
+         +++ (do _ <- char '\\'
+                 -- check this isn't an escape code
+                 following <- look
+                 case following of
+                   (c:_) | isGlobEscapedChar c -> pfail
+                   _                           -> return ())
 
-prettyGlob :: Glob -> String
-prettyGlob = concatMap prettyGlobPiece
-
-prettyGlobPiece :: GlobPiece -> String
-prettyGlobPiece globPiece = case globPiece of
-    WildCard -> "*"
-    Literal l -> concatMap escape l
-    Union globs -> "{" ++ intercalate "," (map prettyGlob globs) ++ "}"
+parseGlob :: ReadP r Glob
+parseGlob = many1 parsePiece
   where
-    escape c | c `elem` reservedChars = ['\\',c]
-             | otherwise = [c]
+    parsePiece = literal +++ wildcard +++ union'
 
-satisfyP :: (a -> Bool) -> ReadP a -> ReadP a
-satisfyP f p = p >>= \r -> if f r then return r else pfail
+    wildcard = char '*' >> return WildCard
 
-eol :: ReadP ()
-eol = void (char '\n') <++ void (string "\r\n")
+    union' = between (char '{') (char '}') $
+              fmap Union (sepBy1 parseGlob (char ','))
 
-line :: ReadP ()
-line = munch (\c -> c /= '\n' && c /= '\r') >> eol
+    literal = Literal `fmap` litchars1
 
-choice :: [ReadP a] -> ReadP a
-choice = foldr (<++) pfail
+    litchar = normal +++ escape
 
-option :: a -> ReadP a -> ReadP a
-option r p = p <++ return r
+    normal  = satisfy (\c -> not (isGlobEscapedChar c)
+                                && c /= '/' && c /= '\\')
+    escape  = char '\\' >> satisfy isGlobEscapedChar
 
-many :: ReadP a -> ReadP [a]
-many = option [] . many1
+    litchars1 :: ReadP r [Char]
+    litchars1 = liftM2 (:) litchar litchars
 
-many1 :: ReadP a -> ReadP [a]
-many1 p = (:) <$> p <*> many p
+    litchars :: ReadP r [Char]
+    litchars = litchars1 <++ return []
 
-skipMany :: ReadP a -> ReadP ()
-skipMany = option () . skipMany1
-
-skipMany1 :: ReadP a -> ReadP ()
-skipMany1 p = p *> skipMany p
-
-skipSpaces :: ReadP Int
-skipSpaces = length <$> munch (\c -> isSpace c && c /= '\n' && c /= '\r')
-
-emptyLines :: Int -> ReadP Int
-emptyLines i = do
-    skipMany1 (skipSpaces >> eol)
-    satisfyP (>i) skipSpaces
-
-projectFileP :: ReadP [FilePathGlob]
-projectFileP = do
-    (i, r) <- findPackages
-    skipMany (skipSpaces >> eol)
-    _ <- satisfyP (<=i) skipSpaces
-    many line >> eof
-    return r
-
-findPackages :: ReadP (Int, [FilePathGlob])
-findPackages = packagesField <++ (line >> findPackages)
-
-packagesField :: ReadP (Int, [FilePathGlob])
-packagesField = do
-    i <- skipSpaces
-    _ <- string "packages:"
-    _ <- emptyLines i <++ skipSpaces
-    (,) i <$> globLines i
-
-globLines :: Int -> ReadP [FilePathGlob]
-globLines i = sepBy1 filePathGlob (globSep i) <* (skipSpaces >> eol)
-
-globSep :: Int -> ReadP ()
-globSep i = void $ choice [comma, nonComma]
-  where
-    comma = do
-        _ <- emptyLines i <++ skipSpaces
-        _ <- char ','
-        emptyLines i <++ skipSpaces
-
-    nonComma = emptyLines i <++ satisfyP (>0) skipSpaces
-
-filePathGlob :: ReadP FilePathGlob
-filePathGlob = between (char '"') (char '"') (baseGlob True) <++ baseGlob False
-  where
-    nonEmpty = satisfyP (GlobDirTrailing/=)
-    baseGlob isQuoted = choice
-        [ FilePathGlob <$> filePathRoot <*> filePathGlobRel isQuoted
-        , FilePathGlob FilePathRelative <$> nonEmpty (filePathGlobRel isQuoted)
-        ]
-
-filePathRoot :: ReadP FilePathRoot
-filePathRoot = unixRoot <++ windowsRoot <++ homeDir
-  where
-    pathSep = char '\\' <++ char '/'
-    unixRoot = FilePathRoot . pure <$> char '/'
-    windowsRoot = do
-        drive <- satisfy $ \c -> isAsciiUpper c || isAsciiLower c
-        void $ char ':'
-        sep <- pathSep
-        return $ FilePathRoot [drive,':',sep]
-    homeDir = FilePathHomeDir <$ char '~' <* pathSep
-
-filePathGlobRel :: Bool -> ReadP FilePathGlobRel
-filePathGlobRel b = nonEmptyFilePathGlobRel b <++ return GlobDirTrailing
-
-nonEmptyFilePathGlobRel :: Bool -> ReadP FilePathGlobRel
-nonEmptyFilePathGlobRel isQuoted = globDir <++ globFile
-  where
-    globDir = GlobDir <$> globP isQuoted <* (char '/' <++ char '\\')
-                      <*> filePathGlobRel isQuoted
-    globFile = GlobFile <$> globP isQuoted
-
-globP :: Bool -> ReadP Glob
-globP isQuoted = do
-    r <- globPieceP isQuoted
-    (r:) <$> glob'
-  where
-    glob' :: ReadP Glob
-    glob' = ((:) <$> globPieceP isQuoted <*> glob') <++ return []
-
-reservedChars :: [Char]
-reservedChars = "*{},\""
-
-globPieceP :: Bool -> ReadP GlobPiece
-globPieceP isQuoted = wildCard <++ unionP <++ literal
-  where
-    wildCard = WildCard <$ char '*'
-    unionP = between (char '{') (char '}') $
-        Union <$> sepBy (globP isQuoted) (char ',')
-
-    literal = Literal <$> many1 (safeChar <++ escapedChar)
-      where
-        notReserved c
-            | isQuoted = True
-            | otherwise = not (isSpace c)
-        safeChar = satisfy (\c -> c `notElem` "*{},/\\\"" && notReserved c)
-        escapedChar = char '\\' *> satisfy (`elem` reservedChars)
-
-expandGlobs
-    :: MonadIO m => FilePath -> [FilePathGlob] -> YamlWriter m [FilePath]
-expandGlobs root globs = concat `liftM` mapM (expandGlob root) globs
-
-expandGlob :: MonadIO m => FilePath -> FilePathGlob -> YamlWriter m [FilePath]
-expandGlob _ g@(FilePathGlob FilePathHomeDir _) = do
-    putStrLnInfo $ "Ignoring home directory glob: " ++ prettyPathGlob g
-    return []
-expandGlob _ g@(FilePathGlob FilePathRoot{} _) = do
-    putStrLnInfo $ "Ignoring global directory glob: " ++ prettyPathGlob g
-    return []
-expandGlob root g@(FilePathGlob FilePathRelative relGlob) = do
-    result <- expandRelGlob root relGlob
-    when (null result) $
-        putStrLnErr $ "Illegal empty package glob: " ++ prettyPathGlob g
-    return result
+isGlobEscapedChar :: Char -> Bool
+isGlobEscapedChar '*'  = True
+isGlobEscapedChar '{'  = True
+isGlobEscapedChar '}'  = True
+isGlobEscapedChar ','  = True
+isGlobEscapedChar _    = False
 
 expandRelGlob :: MonadIO m => FilePath -> FilePathGlobRel -> m [FilePath]
 expandRelGlob root glob0 = liftIO $ go glob0 ""
@@ -1320,7 +1306,7 @@ expandRelGlob root glob0 = liftIO $ go glob0 ""
                $ filter (matchGlob glob) entries
       concat <$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
 
-    go GlobDirTrailing dir = go (GlobFile [WildCard,Literal ".cabal"]) dir
+    go GlobDirTrailing dir = return [dir]
 
 matchGlob :: Glob -> FilePath -> Bool
 matchGlob = goStart
