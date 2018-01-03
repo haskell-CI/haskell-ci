@@ -1021,9 +1021,18 @@ collToGhcVer cid = case simpleParse cid of
 -- | parse jobs defintion
 --
 -- * N:M - N ghcs (cabal -j), M threads (ghc -j)
--- * N   - N ghcs
--- * :M  - M threads
--- *     - no parallelism
+--
+-- >>> parseJobs "2:2"
+-- (Just 2,Just 2)
+--
+-- >>> parseJobs ":2"
+-- (Nothing,Just 2)
+--
+-- >>> parseJobs "2"
+-- (Just 2,Nothing)
+--
+-- >>> parseJobs "garbage"
+-- (Nothing,Nothing)
 --
 parseJobs :: String -> (Maybe Int, Maybe Int)
 parseJobs input = case filter (null . snd) $ readP_to_S jobsP input of
