@@ -714,35 +714,64 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , sh "HADDOCK=${HADDOCK-true}"
         , sh "INSTALLED=${INSTALLED-true}"
         , sh "GHCHEAD=${GHCHEAD-false}"
-        , sh "travis_retry cabal update -v"
+        ]
+
+    -- Update hackage index. Side-effect: ~/.cabal.config is created.
+    tellStrLns
+        [ sh "travis_retry cabal update -v"
         , sh "sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
-        , sh "rm -fv cabal.project.local"
+        , sh "rm -fv cabal.project cabal.project.local"
         ]
 
     -- Cabal jobs
     case parseJobsM (optJobs opts) of
         (Just n, _) -> tellStrLns
-            [ sh $ "echo 'jobs:' " ++ show n ++ " >> ${HOME}/.cabal/config"
+            [ sh $ "sed -i.bak 's/^-- jobs:.*/jobs: " ++ show n ++ "/' ${HOME}/.cabal/config"
             ]
         _ -> return ()
 
     -- GHC jobs
     case parseJobsM (optJobs opts) of
         (_, Just m) -> tellStrLns
-            [ sh $ "if [ $HCNUMVER -ge 70800 ]; then echo 'ghc-options: -j" ++ show m ++ "' >> ${HOME}/.cabal/config; fi"
+            [ sh $ "if [ $HCNUMVER -ge 70800 ]; then sed -i.bak 's/-- ghc-options:.*/ghc-options: -j" ++ show m ++ "/' ${HOME}/.cabal/config; fi"
             ]
         _ -> return ()
 
-    when (isNothing isCabalProject) $ generateCabalProject False
-
-    tellStrLns
-        [ sh "if $GHCHEAD; then cabal new-update head.hackage -v; fi"
+    -- Add head.hackage repository to ~/.cabal/config
+    -- (locally you want to add it to cabal.project)
+    unless (S.null headGhcVers) $ tellStrLns
+        [ "  # Overlay Hackage Package Index for GHC HEAD: https://github.com/hvr/head.hackage"
+        , "  - |"
+        , "    if $GHCHEAD; then"
+        --  See: https://ghc.haskell.org/trac/ghc/wiki/Commentary/Libraries/VersionHistory
+        --  other packages don't have major bumps GHC-8.2.2 -> GHC-8.4.1 (2018-01-03)
+        , "      sed -i.bak 's/-- allow-newer:.*/allow-newer: *:base, *:template-haskell, *:ghc, *:Cabal/' ${HOME}/.cabal/config"
+        , ""
+        , "      echo 'repository head.hackage'                                                        >> ${HOME}/.cabal/config"
+        , "      echo '   url: http://head.hackage.haskell.org/'                                       >> ${HOME}/.cabal/config"
+        , "      echo '   secure: True'                                                                >> ${HOME}/.cabal/config"
+        , "      echo '   root-keys: 07c59cb65787dedfaef5bd5f987ceb5f7e5ebf88b904bbd4c5cbdeb2ff71b740' >> ${HOME}/.cabal/config"
+        , "      echo '              2e8555dde16ebd8df076f1a8ef13b8f14c66bad8eafefd7d9e37d0ed711821fb' >> ${HOME}/.cabal/config"
+        , "      echo '              8f79fd2389ab2967354407ec852cbe73f2e8635793ac446d09461ffb99527f6e' >> ${HOME}/.cabal/config"
+        , "      echo '   key-threshold: 3'                                                            >> ${HOME}/.cabal.config"
+        , ""
+        , "      cabal new-update head.hackage -v"
+        , "    fi"
         ]
 
+    -- Output cabal.config
+    tellStrLns
+        [ sh "grep -Ev -- '^\\s*--' ${HOME}/.cabal/config | grep -Ev '^\\s*$'"
+        ]
+
+    -- Install doctest
     when (isJust $ optDoctest opts) $ tellStrLns
         [ sh "mkdir -p $HOME/.local/bin"
         , sh "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest; fi"
         ]
+
+    -- create cabal.project file
+    when (isNothing isCabalProject) $ generateCabalProject False
 
     let pkgFilter = intercalate " | " $ map (wrap.pkgName) pkgs
         wrap s = "grep -Fv \"" ++ s ++ " ==\""
@@ -899,28 +928,10 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
   where
     headGhcVers = S.filter isGhcHead versions
 
-    generateCabalProject dist = do
-        tellStrLns
-            [ sh $ "printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project"
-            ]
-        unless (S.null headGhcVers) $ tellStrLns
-            [ "  # Overlay Hackage Package Index for GHC HEAD: https://github.com/hvr/head.hackage"
-            , "  - |"
-            , "    if $GHCHEAD; then"
-            , "      echo 'allow-newer: *:base, *:template-haskell' >> cabal.project"
-            , "      echo 'repository head.hackage' >> cabal.project"
-            , "      echo '   url: http://head.hackage.haskell.org/' >> cabal.project"
-            , "      echo '   secure: True' >> cabal.project"
-            , "      echo '   root-keys: 07c59cb65787dedfaef5bd5f987ceb5f7e5ebf88b904bbd4c5cbdeb2ff71b740' >> cabal.project"
-            , "      echo '              2e8555dde16ebd8df076f1a8ef13b8f14c66bad8eafefd7d9e37d0ed711821fb' >> cabal.project"
-            , "      echo '              8f79fd2389ab2967354407ec852cbe73f2e8635793ac446d09461ffb99527f6e' >> cabal.project"
-            , "      echo '   key-threshold: 3' >> cabal.project"
-            , "    fi"
-            ]
-        tellStrLns
-            [ sh $ "cat cabal.project"
-            ]
-
+    generateCabalProject dist = tellStrLns
+        [ sh $ "printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project"
+        , sh $ "cat cabal.project"
+        ]
       where
         cabalPaths
             | dist      = quotedPaths $ \Pkg{pkgName} -> pkgName ++ "-*/*.cabal"
