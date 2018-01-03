@@ -206,6 +206,7 @@ data Options = Options
     , optOsx :: [String]
     , optJobs :: Maybe String
     , optDoctest :: Maybe String
+    , optHLint :: Maybe FilePath
     } deriving Show
 
 defOptions :: Options
@@ -223,6 +224,7 @@ defOptions = Options
     , optOsx = []
     , optJobs = Nothing
     , optDoctest = Nothing
+    , optHLint = Nothing
     }
 
 data Fold
@@ -236,6 +238,7 @@ data Fold
     | FoldStackage
     | FoldCheck
     | FoldDoctest
+    | FoldHLint
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 showFold :: Fold -> String
@@ -310,6 +313,9 @@ options =
     , Option ['d'] ["doctest"]
       (OptArg (\arg opts -> opts { optDoctest = Just $ maybe "" (' ' :) arg }) "OPTIONS")
       "Run doctest using .ghc.environment files. You can supply additional doctest options as an optional argument."
+    , Option ['l'] ["hlint"]
+      (OptArg (\arg opts -> opts { optHLint = Just $ fromMaybe "" arg }) "HLINT.YAML")
+      "Run hlint (only on GHC-8.2.2 target). Specify relative path to .hlint.yaml."
     ]
 
 main :: IO ()
@@ -681,6 +687,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         , sh "unset CC"
         -- rootdir is useful for manual script additions
         , sh "ROOTDIR=$(pwd)"
+        , sh "mkdir -p $HOME/.local/bin"
         ]
 
     let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
@@ -691,7 +698,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
         ]
     else tellStrLns
         [ sh $ "if [ \"$(uname)\" = \"Darwin\" ]; then brew update; brew install python3; curl " ++ haskellOnMacos ++ " | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${HC}; fi"
-        , sh $ "if [ \"$(uname)\" = \"Darwin\" ]; then PATH=$HOME/.ghc-install/ghc/bin:$PATH; else PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$PATH; fi"
+        , sh $ "if [ \"$(uname)\" = \"Darwin\" ]; then PATH=$HOME/.ghc-install/ghc/bin:$HOME/local/bin:$PATH; else PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$HOME/local/bin:$PATH; fi"
         ]
 
     -- HCNUMVER, numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
@@ -765,8 +772,12 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 
     -- Install doctest
     when (isJust $ optDoctest opts) $ tellStrLns
-        [ sh "mkdir -p $HOME/.local/bin"
-        , sh "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest; fi"
+        [ sh "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest; fi"
+        ]
+
+    -- Install hlint
+    when (isJust $ optHLint opts) $ tellStrLns
+        [ sh "if [ $HCNUMVER -eq 80202 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint; fi"
         ]
 
     -- create cabal.project file
@@ -886,6 +897,20 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
                     ]
         tellStrLns [ "" ]
 
+    F.forM_ (optHLint opts) $ \hlintYaml -> do
+        let hlintOptions | null hlintYaml = ""
+                         | otherwise      = " -h ${ROOTDIR}/" ++ hlintYaml
+        tellStrLns [ comment "hlint" ]
+        foldedTellStrLns FoldHLint "HLint.." folds $ do
+            forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
+                -- note: same arguments work so far for doctest and hlint
+                let args = doctestArgs pkgGpd
+                    args' = unwords args
+                unless (null args) $ tellStrLns
+                    [ sh $ "if [ $HCNUMVER -eq 80202 ]; then (cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ "); fi"
+                    ]
+        tellStrLns [ "" ]
+
     unless (optNoCheck opts) $
         foldedTellStrLns FoldCheck "cabal check..." folds $ do
             tellStrLns [ comment "cabal check" ]
@@ -989,6 +1014,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject (versions,cfg,pkgs) = do
 -- * otherwise use exposed + other modules
 --
 -- * Also add default-extensions
+--
+-- /Note:/ same argument work for hlint too!
 --
 doctestArgs :: GenericPackageDescription -> [String]
 doctestArgs gpd = case PD.library $ flattenPackageDescription gpd of
