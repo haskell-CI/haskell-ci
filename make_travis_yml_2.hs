@@ -530,7 +530,7 @@ genTravisFromConfigs
     -> (Set Version, [Package])
     -> YamlWriter m ()
 genTravisFromConfigs (argv,opts) xpkgs isCabalProject config' (versions, pkgs) = do
-    let folds = optFolds opts
+    let folds = cfgFolds config
 
     putStrLnInfo $
         "Generating Travis-CI config for testing for GHC versions: " ++ ghcVersions
@@ -558,25 +558,25 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config' (versions, pkgs) =
         , ""
         ]
 
-    let projectName = fromMaybe (pkgName $ head pkgs) (optProjectName opts)
-    unless (null $ optIrcChannels opts) $ tellStrLns $
+    let projectName = fromMaybe (pkgName $ head pkgs) (cfgProjectName config)
+    unless (null $ cfgIrcChannels config) $ tellStrLns $
         [ "notifications:"
         , "  irc:"
         , "    channels:"
         ] ++
-        [ "      - \"" ++ chan ++ "\"" | chan <- optIrcChannels opts ] ++
+        [ "      - \"" ++ chan ++ "\"" | chan <- cfgIrcChannels config ] ++
         [ "    skip_join: true"
         , "    template:"
         , "      - \"\\x0313" ++ projectName ++ "\\x03/\\x0306%{branch}\\x03 \\x0314%{commit}\\x03 %{build_url} %{message}\""
         , ""
         ]
 
-    unless (null $ optOnlyBranches opts) $ tellStrLns $
+    unless (null $ cfgOnlyBranches config) $ tellStrLns $
         [ "branches:"
         , "  only:"
         ] ++
         [ "    - " ++ branch
-        | branch <- optOnlyBranches opts
+        | branch <- cfgOnlyBranches config
         ] ++
         [ ""
         ]
@@ -1097,10 +1097,6 @@ legacyProjectConfigFieldDescrs =
 
 data Options = Options
     { optCollections :: [String]
-    , optFolds :: Set Fold
-    , optIrcChannels :: [String]
-    , optProjectName :: Maybe String
-    , optOnlyBranches :: [String]
     , optOutput :: Maybe FilePath
     , optOsx :: [String]
     , optConfig :: Maybe FilePath
@@ -1110,10 +1106,6 @@ data Options = Options
 defOptions :: Options
 defOptions = Options
     { optCollections = []
-    , optFolds = S.empty
-    , optIrcChannels = []
-    , optProjectName = Nothing
-    , optOnlyBranches = []
     , optOutput = Nothing
     , optOsx = []
     , optConfig = Nothing
@@ -1135,16 +1127,20 @@ options =
       (ReqArg (success' $ \arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
     , Option ['f'] ["fold"]
-      (OptArg (fmap (\f opts -> opts { optFolds = f (optFolds opts) }) . setFolds) "FOLD")
+      (flip OptArg "FOLDS" $ \arg -> case arg of
+        Nothing   -> successCM $ \cfg -> cfg { cfgFolds = S.fromList possibleFolds }
+        Just arg' -> case maybeReadP parseFoldQ arg' of
+            Nothing -> Failure [Error $ "cannot parse --fold argument: " ++ arg' ++ "\n"]
+            Just f  -> successCM $ \cfg -> cfg { cfgFolds = f (cfgFolds cfg) })
       ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, all-but-test, " ++ intercalate ", " (map showFold possibleFolds))
     , Option [] ["irc-channel"]
-      (ReqArg (success' $ \arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
+      (ReqArg (successCM' $ \arg cfg -> cfg { cfgIrcChannels = arg : cfgIrcChannels cfg }) "HOST#CHANNEL")
       "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
     , Option ['n'] ["name"]
-      (ReqArg (success' $ \arg opts -> opts { optProjectName = Just arg }) "NAME")
+      (ReqArg (successCM' $ \arg cfg -> cfg { cfgProjectName = Just arg }) "NAME")
       "project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
     , Option ['b'] ["branch"]
-      (ReqArg (success' $ \arg opts -> opts { optOnlyBranches = arg : optOnlyBranches opts }) "BRANCH")
+      (ReqArg (successCM' $ \arg cfg -> cfg { cfgOnlyBranches = arg : cfgOnlyBranches cfg }) "BRANCH")
       "enable builds only for specific brances, use multiple times for multiple branches"
     , Option ['o'] ["output"]
       (ReqArg (success' $ \arg opts -> opts { optOutput = Just arg }) "OUTPUT")
@@ -1176,11 +1172,13 @@ options =
       "Relative path to .hlint.yaml."
     ]
   where
-    success' f arg = success (f arg)
-
-    successCM f = success $ \opts -> opts
+    overCM f opts = opts
         { optConfigMorphism = f . optConfigMorphism opts
         }
+
+    success' f arg = success (f arg)
+
+    successCM = success . overCM
     successCM' f arg = successCM (f arg)
 
 parseDoctestOptions :: String -> Maybe [String]
@@ -1249,16 +1247,17 @@ showFold = dashise . drop 4 . show
 possibleFolds :: [Fold]
 possibleFolds = [minBound .. maxBound]
 
-setFolds :: Maybe String -> Result Diagnostic (Set Fold -> Set Fold)
-setFolds Nothing               = success $ const (S.fromList possibleFolds)
-setFolds (Just "all")          = setFolds Nothing
-setFolds (Just "all-but-test") = fmap (S.delete FoldTest .) (setFolds Nothing)
-setFolds (Just n)
-    | Just n' <- M.lookup n ps = success (S.insert n')
-    | otherwise = Failure err
-    where
-      err = [Error $ "illegal fold name: '" ++ n ++ "'"]
-      ps = M.fromList $ map (\x -> (showFold x, x)) possibleFolds
+parseFoldQ :: ReadP r (Set Fold -> Set Fold)
+parseFoldQ = do
+    t <- PU.parseTokenQ
+    case t of
+        "all"          -> return $ const $ S.fromList possibleFolds
+        "all-but-test" -> return $ const $ S.delete FoldTest $ S.fromList possibleFolds
+        n -> case M.lookup n ps of
+            Just n' -> return (S.insert n')
+            Nothing -> fail $ "Illegal fold name: " ++ n
+  where
+    ps = M.fromList $ map (\x -> (showFold x, x)) possibleFolds
 
 -------------------------------------------------------------------------------
 -- Config file
@@ -1274,6 +1273,10 @@ data Config = Config
     , cfgCache          :: !Bool
     , cfgCheck          :: !Bool
     , cfgNoise          :: !Bool
+    , cfgOnlyBranches   :: [String]
+    , cfgIrcChannels    :: [String]
+    , cfgProjectName    :: Maybe String
+    , cfgFolds          :: Set Fold
     }
   deriving (Show)
 
@@ -1288,6 +1291,10 @@ emptyConfig = Config
     , cfgCache          = True
     , cfgCheck          = True
     , cfgNoise          = True
+    , cfgOnlyBranches   = []
+    , cfgIrcChannels    = []
+    , cfgProjectName    = Nothing
+    , cfgFolds          = S.empty
     }
 
 configFieldDescrs :: [PU.FieldDescr Config]
@@ -1322,6 +1329,26 @@ configFieldDescrs =
     , PU.boolField  "cabal-check"
         cfgCheck
         (\b cfg -> cfg { cfgCheck = b })
+    , PU.listField  "irc-channels"
+        (error "we don't pretty print")
+        PU.parseTokenQ
+        cfgIrcChannels
+        (\x cfg -> cfg { cfgIrcChannels = x })
+    , PU.simpleField "name"
+        (error "we don't pretty print")
+        (fmap Just PU.parseTokenQ)
+        cfgProjectName
+        (\x cfg -> cfg { cfgProjectName = x })
+    , PU.listField  "branches"
+        (error "we don't pretty print")
+        PU.parseTokenQ
+        cfgOnlyBranches
+        (\x cfg -> cfg { cfgOnlyBranches = x })
+    , PU.simpleField  "folds"
+        (error "we don't pretty print")
+        (sepBy parseFoldQ (munch1 isSpace))
+        (\cfg -> [\_ -> cfgFolds cfg])
+        (\x cfg -> cfg { cfgFolds = foldl' (flip id) (cfgFolds cfg) x })
     ]
 
 readConfigFile :: MonadIO m => FilePath -> YamlWriter m Config

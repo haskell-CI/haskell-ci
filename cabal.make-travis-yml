@@ -12,6 +12,16 @@ jobs: 2:2
 -- Run cabal check
 -- cabal-check: True
 
+-- Build only these branches
+branches: master
+
+-- Enable IRC notifications to the given channel
+-- name: fancy-name
+-- irc-channels: irc.freenode.org#my-channel
+
+-- Sections to fold in the build output
+folds: constraint-sets
+
 -- Run HLint (needs GHC-8.2.2 job)
 hlint: True
 hlint-yaml: .hlint.yaml
