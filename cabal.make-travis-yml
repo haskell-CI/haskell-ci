@@ -3,11 +3,26 @@
 
 jobs: 2:2
 
+-- travis Caching
+-- cache: True
+
+-- remove cabal noise from test output
+-- cabal-noise: False
+
+-- Run cabal check
+-- cabal-check: True
+
+-- Run HLint (needs GHC-8.2.2 job)
 hlint: True
 hlint-yaml: .hlint.yaml
 
+-- Run doctest (on GHC-8.0+ which support .ghc.environment)
 doctest: True
 doctest-options: --fast
+
+-- Constraint sets
+-- Package will be build with different constraints.
+-- This is useful to check compatibility with older versions of dependencies.
 
 constraint-set deepseq-1.4
   ghc: (>= 7.8 && <7.10) || == 8.2.2
