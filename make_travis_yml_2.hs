@@ -32,6 +32,7 @@ import qualified Data.Foldable as F
 import Data.Function
 import Data.List
 import Data.Maybe
+import Data.Either (partitionEithers)
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Map as M
@@ -65,7 +66,7 @@ import Distribution.Verbosity (Verbosity)
 import Distribution.Compat.ReadP
     ( ReadP, (<++), (+++), between, char, many1, munch1
     , pfail, readP_to_S, readS_to_P, look
-    , satisfy, sepBy1, gather)
+    , satisfy, sepBy, sepBy1, gather)
 
 #ifdef MIN_VERSION_ShellCheck
 import ShellCheck.Checker (checkScript)
@@ -221,136 +222,13 @@ afterPrefix needle haystack
 findMaybe :: (a -> Maybe b) -> [a] -> Maybe b
 findMaybe f = foldr (\a b -> f a <|> b) Nothing
 
-data Options = Options
-    { optNoCache :: !Bool
-    , optCollections :: [String]
-    , optFolds :: Either [String] (Set Fold)
-    , optIrcChannels :: [String]
-    , optProjectName :: Maybe String
-    , optOnlyBranches :: [String]
-    , optOutput :: Maybe FilePath
-    , optRegenerate :: Maybe FilePath
-    , optQuietTests :: !Bool
-    , optNoCheck :: !Bool
-    , optOsx :: [String]
-    , optJobs :: Maybe String
-    , optDoctest :: Maybe String
-    , optHLint :: Maybe FilePath
-    , optConfig :: Maybe FilePath
-    } deriving Show
-
-defOptions :: Options
-defOptions = Options
-    { optNoCache = False
-    , optIrcChannels = []
-    , optCollections = []
-    , optFolds = Right S.empty
-    , optProjectName = Nothing
-    , optOnlyBranches = []
-    , optOutput = Nothing
-    , optRegenerate = Nothing
-    , optQuietTests = False
-    , optNoCheck = False
-    , optOsx = []
-    , optJobs = Nothing
-    , optDoctest = Nothing
-    , optHLint = Nothing
-    , optConfig = Nothing
-    }
-
-data Fold
-    = FoldSDist
-    | FoldUnpack
-    | FoldBuild
-    | FoldBuildInstalled
-    | FoldBuildEverything
-    | FoldTest
-    | FoldHaddock
-    | FoldStackage
-    | FoldCheck
-    | FoldDoctest
-    | FoldHLint
-    | FoldConstraintSets
-  deriving (Eq, Ord, Show, Enum, Bounded)
-
-showFold :: Fold -> String
-showFold = dashise . drop 4 . show
-  where
-    dashise = intercalate "-" . map (map toLower) . split
-
-    split [] = []
-    split xs0 =
-        let (ys, xs1) = span isUpper xs0
-            (zs, xs2) = break isUpper xs1
-        in (ys ++ zs) : split xs2
-
-
-possibleFolds :: [Fold]
-possibleFolds = [minBound .. maxBound]
-
-setFolds
-    :: Maybe String
-    -> Either [String] (Set Fold)
-    -> Either [String] (Set Fold)
-setFolds Nothing val = S.fromList possibleFolds <$ val
-setFolds (Just "all") val = setFolds Nothing val
-setFolds (Just "all-but-test") val = S.delete FoldTest <$> setFolds Nothing val
-setFolds (Just n) val
-    | Just n' <- M.lookup n ps = S.insert n' <$> val
-    | otherwise = case val of
-        Left errs -> Left $ errs ++ err
-        Right _ -> Left err
-    where
-      err = ["illegal fold name: '" ++ n ++ "'"]
-      ps = M.fromList $ map (\x -> (showFold x, x)) possibleFolds
-
-options :: [OptDescr (Options -> Options)]
-options =
-    [ Option [] ["no-cache"]
-      (NoArg $ \opts -> opts { optNoCache = True })
-      "disable Travis caching"
-    , Option [] ["no-cabal-noise"]
-      (NoArg $ \opts -> opts { optQuietTests = True })
-      "remove cabal noise from test output"
-    , Option [] ["no-cabal-check"]
-      (NoArg $ \opts -> opts { optNoCheck = True })
-      "diable cabal check"
-    , Option ['c'] ["collection"]
-      (ReqArg (\arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
-      "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
-    , Option ['f'] ["fold"]
-      (OptArg (\arg opts -> opts { optFolds = setFolds arg (optFolds opts) }) "FOLD")
-      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, all-but-test, " ++ intercalate ", " (map showFold possibleFolds))
-    , Option [] ["irc-channel"]
-      (ReqArg (\arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
-      "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
-    , Option ['n'] ["name"]
-      (ReqArg (\arg opts -> opts { optProjectName = Just arg }) "NAME")
-      "project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
-    , Option ['b'] ["branch"]
-      (ReqArg (\arg opts -> opts { optOnlyBranches = arg : optOnlyBranches opts }) "BRANCH")
-      "enable builds only for specific brances, use multiple times for multiple branches"
-    , Option ['o'] ["output"]
-      (ReqArg (\arg opts -> opts { optOutput = Just arg }) "OUTPUT")
-      "output file (stdout if omitted)"
-    , Option ['r'] ["regenerate"]
-      (OptArg (\arg opts -> opts { optRegenerate = Just $ fromMaybe ".travis.yml" arg }) "INPUTOUTPUT")
-      "regenerate the file using the magic command in output file. Default: .travis.yml"
-    , Option [] ["config"]
-      (OptArg (\arg opts -> opts { optConfig = Just $ fromMaybe "cabal.make-travis-yml" arg }) "CONFIG")
-      "config file, currently used only to specify constraint sets"
-    , Option [] ["osx"]
-      (ReqArg (\arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
-      "generate osx build job with ghc version"
-    , Option ['j'] ["jobs"]
-      (ReqArg (\arg opts -> opts { optJobs = Just arg }) "JOBS")
-      "jobs (N:M - cabal:ghc)"
-    , Option ['d'] ["doctest"]
-      (OptArg (\arg opts -> opts { optDoctest = Just $ maybe "" (' ' :) arg }) "OPTIONS")
-      "Run doctest using .ghc.environment files. You can supply additional doctest options as an optional argument."
-    , Option ['l'] ["hlint"]
-      (OptArg (\arg opts -> opts { optHLint = Just $ fromMaybe "" arg }) "HLINT.YAML")
-      "Run hlint (only on GHC-8.2.2 target). Specify relative path to .hlint.yaml."
+-- | >>> maybeReadP PU.parseTokenQ' "foo"
+-- Just "foo"
+maybeReadP :: ReadP a a -> String -> Maybe a
+maybeReadP p s = listToMaybe $
+    [ x
+    | (x, rest) <- readP_to_S p s
+    , all isSpace rest
     ]
 
 main :: IO ()
@@ -613,7 +491,8 @@ genTravisFromConfigs
     -> Config
     -> (Set Version, [Package])
     -> YamlWriter m ()
-genTravisFromConfigs (argv,opts) xpkgs isCabalProject config (versions, pkgs) = do
+genTravisFromConfigs (argv,opts') xpkgs isCabalProject config (versions, pkgs) = do
+
     folds <- case optFolds opts of
         Left errs -> putStrLnErr $ unlines errs
         Right val -> return val
@@ -782,15 +661,15 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config (versions, pkgs) = 
         ]
 
     -- Cabal jobs
-    case parseJobsM (optJobs opts) of
-        (Just n, _) -> tellStrLns
+    case optJobs opts of
+        Just (Just n, _) -> tellStrLns
             [ sh $ "sed -i.bak 's/^-- jobs:.*/jobs: " ++ show n ++ "/' ${HOME}/.cabal/config"
             ]
         _ -> return ()
 
     -- GHC jobs
-    case parseJobsM (optJobs opts) of
-        (_, Just m) -> tellStrLns
+    case optJobs opts of
+        Just (_, Just m) -> tellStrLns
             [ sh $ "if [ $HCNUMVER -ge 70800 ]; then sed -i.bak 's/-- ghc-options:.*/ghc-options: -j" ++ show m ++ "/' ${HOME}/.cabal/config; fi"
             ]
         _ -> return ()
@@ -823,12 +702,12 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config (versions, pkgs) = 
         ]
 
     -- Install doctest
-    when (isJust $ optDoctest opts) $ tellStrLns
+    when (optDoctest opts) $ tellStrLns
         [ sh "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest; fi"
         ]
 
     -- Install hlint
-    when (isJust $ optHLint opts) $ tellStrLns
+    when (optHLint opts) $ tellStrLns
         [ sh "if [ $HCNUMVER -eq 80202 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint; fi"
         ]
 
@@ -938,20 +817,20 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config (versions, pkgs) = 
 
     tellStrLns [""]
 
-    F.forM_ (optDoctest opts) $ \doctestOptions -> do
+    when (optDoctest opts) $ do
+        let doctestOptions = unwords (optDoctestOptions opts)
         tellStrLns [ comment "doctest" ]
         foldedTellStrLns FoldDoctest "Doctest..." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
                 let args = doctestArgs pkgGpd
                     args' = unwords args
                 unless (null args) $ tellStrLns
-                    [ sh $ "if [ $HCNUMVER -ge 80000 ]; then (cd " ++ pkgName ++ "-* && doctest" ++ doctestOptions ++ " " ++ args' ++ "); fi"
+                    [ sh $ "if [ $HCNUMVER -ge 80000 ]; then (cd " ++ pkgName ++ "-* && doctest " ++ doctestOptions ++ " " ++ args' ++ "); fi"
                     ]
         tellStrLns [ "" ]
 
-    F.forM_ (optHLint opts) $ \hlintYaml -> do
-        let hlintOptions | null hlintYaml = ""
-                         | otherwise      = " -h ${ROOTDIR}/" ++ hlintYaml
+    when (optHLint opts) $ do
+        let hlintOptions = maybe "" (" -h ${ROOTDIR}/" ++) (optHLintYaml opts)
         tellStrLns [ comment "hlint" ]
         foldedTellStrLns FoldHLint "HLint.." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
@@ -1011,6 +890,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config (versions, pkgs) = 
 
     return ()
   where
+    opts = optionsWithConfig config opts'
+
     hasTests   = F.any (\Pkg{pkgGpd} -> not . null $ condTestSuites pkgGpd) pkgs
     hasLibrary = F.any (\Pkg{pkgGpd} -> isJust $ condLibrary pkgGpd) pkgs
 
@@ -1130,13 +1011,11 @@ collToGhcVer cid = case simpleParse cid of
 -- (Nothing,Nothing)
 --
 parseJobs :: String -> (Maybe Int, Maybe Int)
-parseJobs input = case filter (null . snd) $ readP_to_S jobsP input of
-    [(r, "")] -> r
-    _         -> (Nothing, Nothing)
-  where
-    jobsP :: ReadP r (Maybe Int, Maybe Int)
-    jobsP = nm <++ m <++ n <++ return (Nothing, Nothing)
+parseJobs = fromMaybe (Nothing, Nothing) . maybeReadP parseJobsQ
 
+parseJobsQ :: ReadP r (Maybe Int, Maybe Int)
+parseJobsQ = nm <++ m <++ n <++ return (Nothing, Nothing)
+  where
     nm = do
       x <- parseInt
       _ <- char ':'
@@ -1151,9 +1030,6 @@ parseJobs input = case filter (null . snd) $ readP_to_S jobsP input of
     n = do
       x <- parseInt
       return (Just x, Nothing)
-
-parseJobsM :: Maybe String -> (Maybe Int, Maybe Int)
-parseJobsM = maybe (Nothing, Nothing) parseJobs
 
 -------------------------------------------------------------------------------
 -- Project file
@@ -1181,16 +1057,250 @@ legacyProjectConfigFieldDescrs =
     ]
 
 -------------------------------------------------------------------------------
+-- Options
+-------------------------------------------------------------------------------
+
+data Options = Options
+    { optNoCache :: !Bool
+    , optCollections :: [String]
+    , optFolds :: Either [String] (Set Fold)
+    , optIrcChannels :: [String]
+    , optProjectName :: Maybe String
+    , optOnlyBranches :: [String]
+    , optOutput :: Maybe FilePath
+    , optRegenerate :: Maybe FilePath
+    , optQuietTests :: !Bool
+    , optNoCheck :: !Bool
+    , optOsx :: [String]
+    , optJobs :: Maybe (Maybe Int, Maybe Int)
+    , optDoctest :: !Bool
+    , optDoctestOptions :: [String]
+    , optHLint :: !Bool
+    , optHLintYaml :: Maybe FilePath
+    , optConfig :: Maybe FilePath
+    } deriving Show
+
+defOptions :: Options
+defOptions = Options
+    { optNoCache = False
+    , optIrcChannels = []
+    , optCollections = []
+    , optFolds = Right S.empty
+    , optProjectName = Nothing
+    , optOnlyBranches = []
+    , optOutput = Nothing
+    , optRegenerate = Nothing
+    , optQuietTests = False
+    , optNoCheck = False
+    , optOsx = []
+    , optJobs = Nothing
+    , optDoctest = False
+    , optDoctestOptions = []
+    , optHLint = False
+    , optHLintYaml = Nothing
+    , optConfig = Nothing
+    }
+
+options :: [OptDescr (Options -> Options)]
+options =
+    [ Option [] ["no-cache"]
+      (NoArg $ \opts -> opts { optNoCache = True })
+      "disable Travis caching"
+    , Option [] ["no-cabal-noise"]
+      (NoArg $ \opts -> opts { optQuietTests = True })
+      "remove cabal noise from test output"
+    , Option [] ["no-cabal-check"]
+      (NoArg $ \opts -> opts { optNoCheck = True })
+      "diable cabal check"
+    , Option ['c'] ["collection"]
+      (ReqArg (\arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
+      "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
+    , Option ['f'] ["fold"]
+      (OptArg (\arg opts -> opts { optFolds = setFolds arg (optFolds opts) }) "FOLD")
+      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, all-but-test, " ++ intercalate ", " (map showFold possibleFolds))
+    , Option [] ["irc-channel"]
+      (ReqArg (\arg opts -> opts { optIrcChannels = arg : optIrcChannels opts }) "HOST#CHANNEL")
+      "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
+    , Option ['n'] ["name"]
+      (ReqArg (\arg opts -> opts { optProjectName = Just arg }) "NAME")
+      "project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
+    , Option ['b'] ["branch"]
+      (ReqArg (\arg opts -> opts { optOnlyBranches = arg : optOnlyBranches opts }) "BRANCH")
+      "enable builds only for specific brances, use multiple times for multiple branches"
+    , Option ['o'] ["output"]
+      (ReqArg (\arg opts -> opts { optOutput = Just arg }) "OUTPUT")
+      "output file (stdout if omitted)"
+    , Option ['r'] ["regenerate"]
+      (OptArg (\arg opts -> opts { optRegenerate = Just $ fromMaybe ".travis.yml" arg }) "INPUTOUTPUT")
+      "regenerate the file using the magic command in output file. Default: .travis.yml"
+    , Option [] ["config"]
+      (OptArg (\arg opts -> opts { optConfig = Just $ fromMaybe "cabal.make-travis-yml" arg }) "CONFIG")
+      "config file, currently used only to specify constraint sets"
+    , Option [] ["osx"]
+      (ReqArg (\arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
+      "generate osx build job with ghc version"
+    , Option ['j'] ["jobs"]
+      (ReqArg (\arg opts -> opts { optJobs = Just $ parseJobs arg }) "JOBS")
+      "jobs (N:M - cabal:ghc)"
+    , Option ['d'] ["doctest"]
+      (NoArg $ \opts -> opts { optDoctest = True })
+      "Run doctest using .ghc.environment files."
+    , Option [] ["doctest-options"]
+      (ReqArg (\arg opts -> opts { optDoctestOptions = parseDoctestOptions arg }) "OPTIONS")
+      "Additional doctest options."
+    , Option ['l'] ["hlint"]
+      (NoArg $ \opts -> opts { optHLint = True })
+      "Run hlint (only on GHC-8.2.2 target)"
+    , Option [] ["hlint-yaml"]
+      (ReqArg (\arg opts -> opts { optHLintYaml = Just arg }) "HLINT.YAML")
+      "Relative path to .hlint.yaml."
+    ]
+
+parseDoctestOptions :: String -> [String]
+parseDoctestOptions = fromMaybe [] . maybeReadP
+    (sepBy PU.parseTokenQ' (munch1 isSpace))
+
+-------------------------------------------------------------------------------
+-- Fold
+-------------------------------------------------------------------------------
+
+data Fold
+    = FoldSDist
+    | FoldUnpack
+    | FoldBuild
+    | FoldBuildInstalled
+    | FoldBuildEverything
+    | FoldTest
+    | FoldHaddock
+    | FoldStackage
+    | FoldCheck
+    | FoldDoctest
+    | FoldHLint
+    | FoldConstraintSets
+  deriving (Eq, Ord, Show, Enum, Bounded)
+
+showFold :: Fold -> String
+showFold = dashise . drop 4 . show
+  where
+    dashise = intercalate "-" . map (map toLower) . split
+
+    split [] = []
+    split xs0 =
+        let (ys, xs1) = span isUpper xs0
+            (zs, xs2) = break isUpper xs1
+        in (ys ++ zs) : split xs2
+
+possibleFolds :: [Fold]
+possibleFolds = [minBound .. maxBound]
+
+setFolds
+    :: Maybe String
+    -> Either [String] (Set Fold)
+    -> Either [String] (Set Fold)
+setFolds Nothing val = S.fromList possibleFolds <$ val
+setFolds (Just "all") val = setFolds Nothing val
+setFolds (Just "all-but-test") val = S.delete FoldTest <$> setFolds Nothing val
+setFolds (Just n) val
+    | Just n' <- M.lookup n ps = S.insert n' <$> val
+    | otherwise = case val of
+        Left errs -> Left $ errs ++ err
+        Right _ -> Left err
+    where
+      err = ["illegal fold name: '" ++ n ++ "'"]
+      ps = M.fromList $ map (\x -> (showFold x, x)) possibleFolds
+
+-------------------------------------------------------------------------------
 -- Config file
 -------------------------------------------------------------------------------
 
-newtype Config = Config
-    { cfgConstraintSets :: [ConstraintSet]
+data Config = Config
+    { cfgHLint          :: !Bool
+    , cfgHLintYaml      :: !(Maybe FilePath)
+    , cfgJobs           :: Maybe (Maybe Int, Maybe Int)
+    , cfgDoctest        :: !Bool
+    , cfgDoctestOptions :: [String]
+    , cfgConstraintSets :: [ConstraintSet]
     }
   deriving (Show)
 
 emptyConfig :: Config
-emptyConfig = Config []
+emptyConfig = Config False Nothing Nothing False [] []
+
+configFieldDescrs :: [PU.FieldDescr Config]
+configFieldDescrs =
+    [ PU.simpleField  "jobs"
+        (error "we don't pretty print")
+        (fmap Just parseJobsQ)
+        cfgJobs
+        (\x cfg -> cfg { cfgJobs = x })
+    , PU.boolField  "hlint"
+        cfgHLint
+        (\b cfg -> cfg { cfgHLint = b })
+    , PU.simpleField "hlint-yaml"
+        (error "we don't pretty print")
+        (fmap Just PU.parseFilePathQ)
+        cfgHLintYaml
+        (\x cfg -> cfg { cfgHLintYaml = x })
+    , PU.boolField  "doctest"
+        cfgDoctest
+        (\b cfg -> cfg { cfgDoctest = b })
+    , PU.simpleField "doctest-options"
+        (error "we don't pretty print")
+        (sepBy PU.parseTokenQ' (munch1 isSpace))
+        cfgDoctestOptions
+        (\x cfg -> cfg { cfgDoctestOptions = cfgDoctestOptions cfg ++ x })
+    ]
+
+readConfigFile :: MonadIO m => FilePath -> YamlWriter m Config
+readConfigFile path = do
+    contents <- liftIO $ readFile path
+    either putStrLnErr return (parseConfigFile path contents)
+
+parseConfigFile :: FilePath -> String -> Either String Config
+parseConfigFile path contents = toEither $ do
+    fields' <- PU.readFields contents
+    let (fields, sections) = partitionEithers (map classify fields')
+    config <- accumFields configFieldDescrs emptyConfig fields
+    go config sections
+  where
+    toEither r = case r of
+        PU.ParseOk _ x -> Right x
+        PU.ParseFailed err -> Left $ case PU.locatedErrorMsg err of
+            (l, msg) -> "ERROR " ++ path ++ ":" ++ show l ++ ": " ++ msg
+
+    classify x@PU.IfBlock {} = Right x
+    classify x@PU.Section {} = Right x
+    classify x@PU.F {}       = Left x
+
+    go :: Config -> [PU.Field] -> PU.ParseResult Config
+    go  cfg [] = return cfg
+    go _cfg (PU.IfBlock {} : _fields) = fail "if conditional found"
+    go  cfg (PU.F {} : fields)        = go cfg fields
+    go  cfg (PU.Section line name arg subfields : fields)
+        | name == "constraint-set" = do
+            cs <- accumFields constraintSetFieldDescrs (emptyConstraintSet arg) subfields
+            let cfg' = cfg { cfgConstraintSets = cfgConstraintSets cfg ++ [cs] }
+            go cfg' fields
+        | otherwise = do
+            PU.warning $ "Unknown section " ++ name ++ " on line " ++ show line
+            go cfg fields
+
+-- | Amend 'Options' with 'Config' fields. 'Options' (i.e. command line arguments)
+-- always override 'Config' settings.
+optionsWithConfig :: Config -> Options -> Options
+optionsWithConfig cfg opts = opts
+    { optJobs           = optJobs opts <|> cfgJobs cfg
+    -- hlint can only be turned on by command line
+    , optHLint          = optHLint opts || cfgHLint cfg
+    , optHLintYaml      = optHLintYaml opts <|> cfgHLintYaml cfg
+    -- doctest can only be turned o n by command-line
+    , optDoctest        = optDoctest opts || cfgDoctest cfg
+    , optDoctestOptions = optDoctestOptions opts <|> cfgDoctestOptions cfg
+    }
+
+-------------------------------------------------------------------------------
+-- ConstraintSet
+-------------------------------------------------------------------------------
 
 data ConstraintSet = ConstraintSet
     { csName        :: String
@@ -1238,34 +1348,6 @@ ghcVersionPredicate = conj . asVersionIntervals
         [x]       -> show (x * 10000)
         [x,y]     -> show (x * 10000 + y * 100)
         (x:y:z:_) -> show (x * 10000 + y * 100 + z)
-
-readConfigFile :: MonadIO m => FilePath -> YamlWriter m Config
-readConfigFile path = do
-    contents <- liftIO $ readFile path
-    either putStrLnErr return (parseConfigFile path contents)
-
-parseConfigFile :: FilePath -> String -> Either String Config
-parseConfigFile path contents = toEither $ do
-    fields <- PU.readFields contents
-    go emptyConfig fields
-  where
-    toEither r = case r of
-        PU.ParseOk _ x -> Right x
-        PU.ParseFailed err -> Left $ case PU.locatedErrorMsg err of
-            (l, msg) -> "ERROR " ++ path ++ ":" ++ show l ++ ": " ++ msg
-
-    go :: Config -> [PU.Field] -> PU.ParseResult Config
-    go  cfg [] = return cfg
-    go _cfg (PU.IfBlock {} : _fields) = fail "if conditional found"
-    go  cfg (PU.F {} : fields)        = go cfg fields
-    go  cfg (PU.Section line name arg subfields : fields)
-        | name == "constraint-set" = do
-            cs <- accumFields constraintSetFieldDescrs (emptyConstraintSet arg) subfields
-            let cfg' = cfg { cfgConstraintSets = cfgConstraintSets cfg ++ [cs] }
-            go cfg' fields
-        | otherwise = do
-            PU.warning $ "Unknown section " ++ name ++ " on line " ++ show line
-            go cfg fields
 
 -------------------------------------------------------------------------------
 -- From Cabal

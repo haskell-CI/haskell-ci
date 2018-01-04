@@ -1,3 +1,14 @@
+-- Most settings can be given as command line arguments
+-- Config file is convinient if you maintain large amount of packages
+
+jobs: 2:2
+
+hlint: True
+hlint-yaml: .hlint.yaml
+
+doctest: True
+doctest-options: --fast
+
 constraint-set deepseq-1.4
   ghc: (>= 7.8 && <7.10) || == 8.2.2
   constraints: deepseq ==1.4.*
