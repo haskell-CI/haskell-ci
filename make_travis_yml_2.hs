@@ -397,10 +397,11 @@ runYamlWriter mfp m = do
     case result of
         Failure (unlines -> errors) -> hPutStr stderr errors >> exitFailure
         Success (unlines -> warnings) (unlines -> contents) -> do
+            contents' <- evaluate (force contents)
             hPutStr stderr warnings
             case mfp of
-                Nothing -> putStr contents
-                Just fp -> writeFile fp contents
+                Nothing -> putStr contents'
+                Just fp -> writeFile fp contents'
 
 ghcMajVer :: Version -> (Int,Int)
 ghcMajVer v
