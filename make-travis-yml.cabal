@@ -64,6 +64,11 @@ source-repository head
 library
   exposed-modules:     MakeTravisYml
   ghc-options:         -Wall
+  if impl(ghc >= 8.0)
+    ghc-options:
+      -Wcompat
+      -Wnoncanonical-monad-instances
+      -Wnoncanonical-monadfail-instances
   hs-source-dirs:      src
   other-extensions:    CPP, ViewPatterns, NamedFieldPuns
   build-depends:       base  >=4.7  && <4.11

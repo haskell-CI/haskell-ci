@@ -32,7 +32,6 @@ import qualified Data.Foldable as F
 import Data.Function
 import Data.List
 import Data.Maybe
-import Data.Monoid (Monoid(..), (<>))
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Map as M
@@ -76,6 +75,13 @@ import qualified ShellCheck.Formatter.TTY as SC.TTY
 
 import Data.Functor.Identity (Identity (..))
 import System.IO.Unsafe (unsafePerformIO)
+#endif
+
+#if MIN_VERSION_base(4,9,0)
+import Data.Monoid (Monoid(..))
+import Data.Semigroup (Semigroup (..))
+#else
+import Data.Monoid (Monoid(..), (<>))
 #endif
 
 #if !(MIN_VERSION_Cabal(2,0,0))
@@ -139,11 +145,20 @@ data MakeTravisOutput
 
 instance Monoid MakeTravisOutput where
     mempty = Success [] []
-    Failure err1 `mappend` Failure err2 = Failure $ err1 `mappend` err2
-    Failure err1 `mappend` Success err2 _ = Failure $ err1 `mappend` err2
-    Success err1 _ `mappend` Failure err2 = Failure $ err1 `mappend` err2
-    Success l1 o1 `mappend` Success l2 o2 =
-        Success (mappend l1 l2) (mappend o1 o2)
+#if MIN_VERSION_base(4,9,0)
+    mappend = (<>)
+
+instance Semigroup MakeTravisOutput where
+    Failure err1   <> Failure err2   = Failure $ err1 <> err2
+    Failure err1   <> Success err2 _ = Failure $ err1 <> err2
+    Success err1 _ <> Failure err2   = Failure $ err1 <> err2
+    Success l1 o1  <> Success l2 o2  = Success (mappend l1 l2) (mappend o1 o2)
+#else
+    Failure err1   `mappend` Failure err2   = Failure $ err1 `mappend` err2
+    Failure err1   `mappend` Success err2 _ = Failure $ err1 `mappend` err2
+    Success err1 _ `mappend` Failure err2   = Failure $ err1 `mappend` err2
+    Success l1 o1  `mappend` Success l2 o2  = Success (mappend l1 l2) (mappend o1 o2)
+#endif
 
 -- MaybeT is used to preserve the short-circuiting semantics of 'putStrLnErr'.
 type YamlWriter m a = MaybeT (WriterT MakeTravisOutput m) a
