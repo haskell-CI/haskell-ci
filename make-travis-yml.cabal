@@ -37,6 +37,7 @@ tested-with:
   GHC == 8.2.2,
   GHC == 8.4.1
 extra-source-files:
+  fixtures/cabal.make-travis-yml
   fixtures/make-travis-yml.cabal
   fixtures/make-travis-yml.cabal.stderr
   fixtures/make-travis-yml.cabal.travis.yml
@@ -63,6 +64,11 @@ source-repository head
 library
   exposed-modules:     MakeTravisYml
   ghc-options:         -Wall
+  if impl(ghc >= 8.0)
+    ghc-options:
+      -Wcompat
+      -Wnoncanonical-monad-instances
+      -Wnoncanonical-monadfail-instances
   hs-source-dirs:      src
   other-extensions:    CPP, ViewPatterns, NamedFieldPuns
   build-depends:       base  >=4.7  && <4.11
@@ -75,7 +81,7 @@ library
   default-language:    Haskell2010
 
   -- ShellCheck. Would need newer transformers for older GHC
-  if impl(ghc >= 7.10)
+  if impl(ghc >= 7.10 && <8.3)
     build-depends: ShellCheck == 0.4.6
 
 executable make-travis-yml

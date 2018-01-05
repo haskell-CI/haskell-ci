@@ -1,0 +1,45 @@
+-- Most settings can be given as command line arguments
+-- Config file is convinient if you maintain large amount of packages
+
+jobs: 2:2
+
+-- travis Caching
+-- cache: True
+
+-- remove cabal noise from test output
+-- cabal-noise: False
+
+-- Run cabal check
+-- cabal-check: True
+
+-- Install dependencies in a separate step
+-- If your project has inplace packages, you want to disable this.
+-- install-dependencies-step: True
+
+-- Build only these branches
+branches: master
+
+-- Enable IRC notifications to the given channel
+-- name: fancy-name
+-- irc-channels: irc.freenode.org#my-channel
+
+-- Sections to fold in the build output
+folds: constraint-sets
+
+-- Run HLint (needs GHC-8.2.2 job)
+hlint: True
+hlint-yaml: .hlint.yaml
+-- hlint-version: ==2.0.*
+
+-- Run doctest (on GHC-8.0+ which support .ghc.environment)
+doctest: True
+doctest-options: --fast
+-- doctest-version: ==0.13.*
+
+-- Constraint sets
+-- Package will be build with different constraints.
+-- This is useful to check compatibility with older versions of dependencies.
+
+constraint-set deepseq-1.4
+  ghc: (>= 7.8 && <7.10) || == 8.2.2
+  constraints: deepseq ==1.4.*

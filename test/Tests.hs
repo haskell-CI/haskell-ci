@@ -1,8 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module Main (main) where
 
-import MakeTravisYml
-    (travisFromConfigFile, MakeTravisOutput(..), Options (..), defOptions, options)
+import MakeTravisYml hiding (main)
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Exception (ErrorCall(..), throwIO, try)
@@ -53,15 +52,10 @@ fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
     (argv, opts, xpkgs) <- makeTravisFlags
     let genConfig = travisFromConfigFile (argv, opts) fp xpkgs
-    normalise <$> execWriterT (runMaybeT genConfig)
+    execWriterT (runMaybeT genConfig)
   where
     outputRef = addExtension fp "travis.yml"
     errorRef = addExtension fp "stderr"
-
-    -- Avoid issues with multiline errors invalidating the output
-    normalise :: MakeTravisOutput -> MakeTravisOutput
-    normalise (Failure errs) = Failure . lines . unlines $ errs
-    normalise other = other
 
     referenceArgv :: Bool -> IO (Maybe [String])
     referenceArgv refExists
@@ -74,16 +68,11 @@ fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
         case result of
             Nothing -> throwIO (ErrorCall "No REGENDATA in result file.")
             Just argv -> do
-                (opts, _fp, xpkgs) <- parseOpts argv
+                (opts, _argv, _fp, xpkgs) <- parseOpts argv
                 return (argv, opts, xpkgs)
 
-parseOpts :: [String] -> IO (Options, FilePath, [String])
-parseOpts argv = case getOpt Permute options argv of
-    (opts,cabfn:xpkgs,[]) -> return (foldl (flip id) defOptions opts,cabfn,xpkgs)
-    (_,_,[]) -> dieCli ["expected .cabal or cabal.project file as first non-option argument\n"]
-    (_,_,errs) -> dieCli errs
-  where
-    dieCli errs = hPutStrLn stderr (unlines errs) >> exitFailure
+parseOpts :: [String] -> IO (Options, [String], FilePath, [String])
+parseOpts = parseOptsNoCommands
 
 cabalGoldenTest
     :: TestName
@@ -91,10 +80,14 @@ cabalGoldenTest
     -> FilePath
     -> IO MakeTravisOutput
     -> TestTree
-cabalGoldenTest name outRef errRef act = goldenTest name readGolden act cmp upd
+cabalGoldenTest name outRef errRef act = goldenTest name readGolden act' cmp upd
   where
     readData :: FilePath -> IO [String]
     readData fp = lines . BS8.unpack <$> BS.readFile fp
+
+    act' = flip fmap act $ \r -> case r of
+        Success ws x -> Success (map formatDiagnostic ws) x
+        Failure errs -> Failure (map formatDiagnostic errs)
 
     readGolden = do
         refExists <- doesFileExist outRef

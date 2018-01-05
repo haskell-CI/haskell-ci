@@ -49,6 +49,8 @@
 
 # Ignore some builtin hints
 - ignore: {name: Use String}
+- ignore: {name: Use fewer imports}
+- ignore: {name: Use lambda-case}
 - ignore: {name: Use infix} # isPrefixOf
 - ignore: {name: Redundant $}
 - ignore: {name: Redundant do}
