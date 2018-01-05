@@ -16,6 +16,13 @@ jobs: 2:2
 -- If your project has inplace packages, you want to disable this.
 -- install-dependencies-step: True
 
+-- --no-tests --no-benchmarks build is useful to verify that package
+-- builds when less constrained
+-- no-tests-no-bench: True
+
+-- Options for local packages
+local-ghc-options: -Werror
+
 -- Build only these branches
 branches: master
 

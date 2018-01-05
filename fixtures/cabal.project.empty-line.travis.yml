@@ -109,6 +109,10 @@ install:
       cabal new-update head.hackage -v
     fi
   - grep -Ev -- '^\s*--' ${HOME}/.cabal/config | grep -Ev '^\s*$'
+  - "printf 'packages: \"servant\" \"servant-client\" \"servant-docs\" \"servant-server\"\\n' > cabal.project"
+  - "echo 'constraints: foundatiion >= 0.14' >> cabal.project"
+  - "echo 'allow-newer: servant-js:servant, servant-js:servant-foreign' >> cabal.project"
+  - cat cabal.project
   - if [ -f "servant/configure.ac" ]; then
       (cd "servant" && autoreconf -i);
     fi
@@ -150,7 +154,7 @@ script:
 
   # build & run tests, build benchmarks
   - cabal new-build -w ${HC} ${TEST} ${BENCH} all
-  - if [ "x$TEST" = "x--enable-tests" ]; then cabal new-test -w ${HC} ${TEST} all; fi
+  - if [ "x$TEST" = "x--enable-tests" ]; then cabal new-test -w ${HC} ${TEST} ${BENCH} all; fi
 
   # cabal check
   - (cd servant-* && cabal check)

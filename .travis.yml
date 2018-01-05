@@ -93,6 +93,8 @@ install:
   - if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest --constraint='doctest ==0.13.*'; fi
   - if [ $HCNUMVER -eq 80202 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint --constraint='hlint ==2.0.*'; fi
   - "printf 'packages: \".\"\\n' > cabal.project"
+  - echo 'package make-travis-yml' >> cabal.project
+  - "echo '  ghc-options: -Werror' >> cabal.project"
   - cat cabal.project
   - if [ -f "./configure.ac" ]; then
       (cd "." && autoreconf -i);
@@ -112,6 +114,8 @@ script:
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
   - "printf 'packages: make-travis-yml-*/*.cabal\\n' > cabal.project"
+  - echo 'package make-travis-yml' >> cabal.project
+  - "echo '  ghc-options: -Werror' >> cabal.project"
   - cat cabal.project
   # this builds all libraries and executables (without tests/benchmarks)
   - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all
@@ -121,7 +125,7 @@ script:
 
   # build & run tests, build benchmarks
   - cabal new-build -w ${HC} ${TEST} ${BENCH} all
-  - if [ "x$TEST" = "x--enable-tests" ]; then cabal new-test -w ${HC} ${TEST} all; fi
+  - if [ "x$TEST" = "x--enable-tests" ]; then cabal new-test -w ${HC} ${TEST} ${BENCH} all; fi
 
   # doctest
   - if [ $HCNUMVER -ge 80000 ]; then (cd make-travis-yml-* && doctest --fast src); fi
