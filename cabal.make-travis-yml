@@ -25,10 +25,12 @@ folds: constraint-sets
 -- Run HLint (needs GHC-8.2.2 job)
 hlint: True
 hlint-yaml: .hlint.yaml
+-- hlint-version: ==2.0.*
 
 -- Run doctest (on GHC-8.0+ which support .ghc.environment)
 doctest: True
 doctest-options: --fast
+-- doctest-version: ==0.13.*
 
 -- Constraint sets
 -- Package will be build with different constraints.

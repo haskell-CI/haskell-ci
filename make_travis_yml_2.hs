@@ -104,8 +104,36 @@ versionNumbers (Version vn _) = vn
 
 #endif
 
+-------------------------------------------------------------------------------
+-- Hardcoded values
+-------------------------------------------------------------------------------
+
+knownGhcVersions :: [Version]
+knownGhcVersions = fmap mkVersion
+    [ [7,0,1],  [7,0,2], [7,0,3], [7,0,4]
+    , [7,2,1],  [7,2,2]
+    , [7,4,1],  [7,4,2]
+    , [7,6,1],  [7,6,2], [7,6,3]
+    , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
+    , [7,10,1], [7,10,2], [7,10,3]
+    , [8,0,1], [8,0,2]
+    , [8,2,1], [8,2,2]
+    , [8,4,1]
+    , [8,5] -- HEAD
+    ]
+
 ghcAlpha :: Maybe Version
 ghcAlpha = Just $ mkVersion [8,4,1]
+
+defaultHLintVersion :: VersionRange
+defaultHLintVersion = withinVersion (mkVersion [2,0])
+
+defaultDoctestVersion :: VersionRange
+defaultDoctestVersion = withinVersion (mkVersion [0,13])
+
+-------------------------------------------------------------------------------
+-- Script
+-------------------------------------------------------------------------------
 
 -- |  Encode shell command to be YAML safe and (optionally) ShellCheck it.
 sh :: String -> String
@@ -498,19 +526,7 @@ configFromCabalFile opts cabalFile = do
 
     return (pkg, S.fromList testedGhcVersions)
   where
-    knownGhcVersions :: [Version]
-    knownGhcVersions = fmap mkVersion
-                       [ [7,0,1],  [7,0,2], [7,0,3], [7,0,4]
-                       , [7,2,1],  [7,2,2]
-                       , [7,4,1],  [7,4,2]
-                       , [7,6,1],  [7,6,2], [7,6,3]
-                       , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
-                       , [7,10,1], [7,10,2], [7,10,3]
-                       , [8,0,1], [8,0,2]
-                       , [8,2,1], [8,2,2]
-                       , [8,4,1]
-                       , [8,5] -- HEAD
-                       ]
+
 
     lastStableGhcVers :: [Version]
     lastStableGhcVers = nubBy ((==) `on` ghcMajVer) $ filter (not . isGhcHead) $ sortBy (flip compare) knownGhcVersions
@@ -737,13 +753,19 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config' (versions, pkgs) =
         ]
 
     -- Install doctest
+    let doctestVersionConstraint
+            | isAnyVersion (cfgDoctestVersion config) = ""
+            | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion config) ++ "'"
     when (cfgDoctest config) $ tellStrLns
-        [ sh "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest; fi"
+        [ sh $ "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest" ++ doctestVersionConstraint ++ "; fi"
         ]
 
     -- Install hlint
+    let hlintVersionConstraint
+            | isAnyVersion (cfgHLintVersion config) = ""
+            | otherwise = " --constraint='hlint " ++ display (cfgHLintVersion config) ++ "'"
     when (cfgHLint config) $ tellStrLns
-        [ sh "if [ $HCNUMVER -eq 80202 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint; fi"
+        [ sh $ "if [ $HCNUMVER -eq 80202 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
         ]
 
     -- create cabal.project file
@@ -1033,6 +1055,7 @@ collToGhcVer cid = case simpleParse cid of
 --
 -- * N:M - N ghcs (cabal -j), M threads (ghc -j)
 --
+-- >>> let parseJobs = maybeReadP parseJobsQ
 -- >>> parseJobs "2:2"
 -- Just (Just 2,Just 2)
 --
@@ -1045,9 +1068,6 @@ collToGhcVer cid = case simpleParse cid of
 -- >>> parseJobs "garbage"
 -- Nothing
 --
-parseJobs :: String -> Maybe (Maybe Int, Maybe Int)
-parseJobs = maybeReadP parseJobsQ
-
 parseJobsQ :: ReadP r (Maybe Int, Maybe Int)
 parseJobsQ = nm <++ m <++ n <++ return (Nothing, Nothing)
   where
@@ -1152,17 +1172,13 @@ options =
       (ReqArg (success' $ \arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
       "generate osx build job with ghc version"
     , Option ['j'] ["jobs"]
-      (flip ReqArg "JOBS" $ \arg -> case parseJobs arg of
-          Nothing -> Failure [Error $ "cannot parse --jobs argument: " ++ arg ++ "\n"]
-          Just jobs -> successCM $ \cfg -> cfg { cfgJobs = jobs })
+      (reqArgReadP parseJobsQ (\jobs cfg -> cfg { cfgJobs = jobs }) "JOBS")
       "jobs (N:M - cabal:ghc)"
     , Option ['d'] ["doctest"]
       (NoArg $ successCM $ \cfg -> cfg { cfgDoctest = True })
       "Run doctest using .ghc.environment files."
     , Option [] ["doctest-options"]
-      (flip ReqArg "OPTIONS" $ \arg -> case parseDoctestOptions arg of
-          Nothing -> Failure [Error $ "cannot parse --doctest-options argument: " ++ arg ++ "\n"]
-          Just xs -> successCM $ \cfg -> cfg { cfgDoctestOptions = xs })
+      (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgDoctestOptions = xs }) "OPTIONS")
       "Additional doctest options."
     , Option ['l'] ["hlint"]
       (NoArg $ successCM $ \cfg -> cfg { cfgHLint = True })
@@ -1170,6 +1186,9 @@ options =
     , Option [] ["hlint-yaml"]
       (ReqArg (successCM' $ \arg cfg -> cfg { cfgHLintYaml = Just arg }) "HLINT.YAML")
       "Relative path to .hlint.yaml."
+    , Option [] ["hlint-version"]
+      (reqArgReadP parse (\arg cfg -> cfg { cfgHLintVersion = arg }) "VERSION")
+      "HLint version range"
     ]
   where
     overCM f opts = opts
@@ -1181,9 +1200,10 @@ options =
     successCM = success . overCM
     successCM' f arg = successCM (f arg)
 
-parseDoctestOptions :: String -> Maybe [String]
-parseDoctestOptions = maybeReadP
-    (sepBy PU.parseTokenQ' (munch1 isSpace))
+    reqArgReadP :: ReadP a a -> (a -> Config -> Config) -> String -> ArgDescr (Result Diagnostic (Options -> Options))
+    reqArgReadP p f n = flip ReqArg n $ \arg -> case maybeReadP  p arg of
+        Nothing -> Failure [Error $  "cannot parse: " ++ arg ]
+        Just x  -> successCM' f x
 
 -------------------------------------------------------------------------------
 -- Result
@@ -1266,9 +1286,11 @@ parseFoldQ = do
 data Config = Config
     { cfgHLint          :: !Bool
     , cfgHLintYaml      :: !(Maybe FilePath)
+    , cfgHLintVersion   :: !VersionRange
     , cfgJobs           :: (Maybe Int, Maybe Int)
     , cfgDoctest        :: !Bool
     , cfgDoctestOptions :: [String]
+    , cfgDoctestVersion :: !VersionRange
     , cfgConstraintSets :: [ConstraintSet]
     , cfgCache          :: !Bool
     , cfgCheck          :: !Bool
@@ -1284,9 +1306,11 @@ emptyConfig :: Config
 emptyConfig = Config
     { cfgHLint          = False
     , cfgHLintYaml      = Nothing
+    , cfgHLintVersion   = defaultHLintVersion
     , cfgJobs           = (Nothing, Nothing)
     , cfgDoctest        = False
     , cfgDoctestOptions = []
+    , cfgDoctestVersion = defaultDoctestVersion
     , cfgConstraintSets = []
     , cfgCache          = True
     , cfgCheck          = True
@@ -1312,14 +1336,24 @@ configFieldDescrs =
         (fmap Just PU.parseFilePathQ)
         cfgHLintYaml
         (\x cfg -> cfg { cfgHLintYaml = x })
+    , PU.simpleField "hlint-version"
+        (error "we don't pretty print")
+        parse
+        cfgHLintVersion
+        (\x cfg -> cfg { cfgHLintVersion = x })
     , PU.boolField  "doctest"
         cfgDoctest
         (\b cfg -> cfg { cfgDoctest = b })
     , PU.simpleField "doctest-options"
         (error "we don't pretty print")
-        (sepBy PU.parseTokenQ' (munch1 isSpace))
+        parseOptsQ
         cfgDoctestOptions
         (\x cfg -> cfg { cfgDoctestOptions = cfgDoctestOptions cfg ++ x })
+    , PU.simpleField "doctest-version"
+        (error "we don't pretty print")
+        parse
+        cfgDoctestVersion
+        (\x cfg -> cfg { cfgDoctestVersion = x })
     , PU.boolField  "cache"
         cfgCache
         (\b cfg -> cfg { cfgCache = b })
@@ -1350,6 +1384,9 @@ configFieldDescrs =
         (\cfg -> [\_ -> cfgFolds cfg])
         (\x cfg -> cfg { cfgFolds = foldl' (flip id) (cfgFolds cfg) x })
     ]
+
+parseOptsQ :: ReadP r [String]
+parseOptsQ = sepBy PU.parseTokenQ' (munch1 isSpace)
 
 readConfigFile :: MonadIO m => FilePath -> YamlWriter m Config
 readConfigFile path = do
