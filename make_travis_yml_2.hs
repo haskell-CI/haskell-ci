@@ -849,7 +849,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     tellStrLns [""]
 
-    foldedTellStrLns FoldBuildInstalled
+    when (cfgInstalled config) $ foldedTellStrLns FoldBuildInstalled
         "Building with installed constraints for package in global-db..." folds $ tellStrLns
         [ comment "Build with installed constraints for packages in global-db"
         -- SC2046: Quote this to prevent word splitting.
@@ -1211,6 +1211,9 @@ options =
     , Option [] ["no-no-tests-no-bench"]
       (NoArg $ successCM $ \cfg -> cfg { cfgNoTestsNoBench = False })
       "Don't build with --no-tests --no-benchmarks"
+    , Option [] ["no-installed"]
+      (NoArg $ successCM $ \cfg -> cfg { cfgInstalled = False })
+      "Don't build with 'installed' constraints"
     , Option ['c'] ["collection"]
       (ReqArg (success' $ \arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
@@ -1368,6 +1371,7 @@ data Config = Config
     , cfgCheck           :: !Bool
     , cfgNoise           :: !Bool
     , cfgNoTestsNoBench  :: !Bool
+    , cfgInstalled       :: !Bool
     , cfgInstallDeps     :: !Bool
     , cfgOnlyBranches    :: [String]
     , cfgIrcChannels     :: [String]
@@ -1391,6 +1395,7 @@ emptyConfig = Config
     , cfgCheck           = True
     , cfgNoise           = True
     , cfgNoTestsNoBench  = True
+    , cfgInstalled       = True
     , cfgInstallDeps     = True
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
@@ -1451,6 +1456,9 @@ configFieldDescrs =
     , PU.boolField  "no-tests-no-benchmarks"
         cfgNoTestsNoBench
         (\b cfg -> cfg { cfgNoTestsNoBench = b })
+    , PU.boolField  "build-with-installed-step"
+        cfgInstalled
+        (\b cfg -> cfg { cfgInstalled = b })
     , PU.listField  "irc-channels"
         (error "we don't pretty print")
         PU.parseTokenQ

@@ -20,6 +20,10 @@ jobs: 2:2
 -- builds when less constrained
 -- no-tests-no-bench: True
 
+-- --constraint='<boot-packages> installed' is useful to verivy that
+-- there is a valid build-plan with GHC-bundled versions of libraries
+-- build-with-installed-step: True
+
 -- Options for local packages
 local-ghc-options: -Werror
 
