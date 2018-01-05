@@ -4,6 +4,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 #if !defined(MIN_VERSION_Cabal)
 -- As a heuristic, if the macro isn't defined, be pessimistic and
@@ -34,6 +36,7 @@ import Control.Exception (evaluate)
 import Control.Monad (void, when, unless, filterM, liftM, liftM2, forM_, mzero, foldM)
 import Data.Char (isSpace, isUpper, toLower)
 import qualified Data.Foldable as F
+import qualified Data.Traversable as T
 import Data.Function
 import Data.List
 import Data.Maybe
@@ -385,21 +388,23 @@ travisFromConfigFile
     -> YamlWriter m ()
 travisFromConfigFile args@(_, opts) path xpkgs = do
     cabalFiles <- getCabalFiles
-    pkgs <- mapM (configFromCabalFile opts) cabalFiles
-    config <- maybe (return emptyConfig) readConfigFile (optConfig opts)
-    checkVersions pkgs >>= genTravisFromConfigs args xpkgs isCabalProject config
+    pkgs <- T.mapM (configFromCabalFile opts) cabalFiles
+    config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
+    (ghcs, prj) <- checkVersions pkgs
+    let config = optConfigMorphism opts config'
+    genTravisFromConfigs args xpkgs isCabalProject config prj ghcs
   where
     checkVersions
         :: MonadIO m
-        => [(Package, Set Version)]
-        -> YamlWriter m (Set Version, [Package])
-    checkVersions [] = putStrLnErr "Error reading cabal file(s)!"
-    checkVersions cfgs = do
-        let (errors, names) = foldl' collectConfig mempty cfgs
+        => Project (Package, Set Version)
+        -> YamlWriter m (Set Version, Project Package)
+    checkVersions prj | null (prjPackages prj) = putStrLnErr "Error reading cabal file(s)!"
+    checkVersions prj = do
+        let (errors, names) = F.foldl' collectConfig mempty prj
         putStrLnErrs errors
-        return (allVersions, names)
+        return (allVersions, prj { prjPackages = names })
       where
-        allVersions = S.unions $ map snd cfgs
+        allVersions = F.foldMap snd prj
 
         collectConfig
             :: ([String], [Package])
@@ -422,13 +427,13 @@ travisFromConfigFile args@(_, opts) path xpkgs = do
         | "cabal.project" `isPrefixOf` takeFileName path = Just path
         | otherwise = Nothing
 
-    getCabalFiles :: MonadIO m => YamlWriter m [FilePath]
+    getCabalFiles :: MonadIO m => YamlWriter m (Project FilePath)
     getCabalFiles
-        | isNothing isCabalProject = return [path]
+        | isNothing isCabalProject = return (Project [path] Nothing Nothing)
         | otherwise = do
             contents <- liftIO $ readFile path
             pkgs <- either putStrLnErr return $ parseProjectFile path contents
-            concat `liftM` mapM findProjectPackage pkgs
+            overPrjPackages concat `liftM` T.mapM findProjectPackage pkgs
 
     rootdir = takeDirectory path
 
@@ -526,9 +531,6 @@ configFromCabalFile opts cabalFile = do
 
     return (pkg, S.fromList testedGhcVersions)
   where
-
-
-    lastStableGhcVers :: [Version]
     lastStableGhcVers = nubBy ((==) `on` ghcMajVer) $ filter (not . isGhcHead) $ sortBy (flip compare) knownGhcVersions
 
     isTwoDigitGhcVersion :: VersionRange -> Maybe Version
@@ -543,9 +545,10 @@ genTravisFromConfigs
     -> [String]
     -> Maybe FilePath
     -> Config
-    -> (Set Version, [Package])
+    -> Project Package
+    -> Set Version
     -> YamlWriter m ()
-genTravisFromConfigs (argv,opts) xpkgs isCabalProject config' (versions, pkgs) = do
+genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPackages = pkgs } versions = do
     let folds = cfgFolds config
 
     putStrLnInfo $
@@ -798,9 +801,16 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config' (versions, pkgs) =
 
     tellStrLns
         [ sh $ "rm -f cabal.project.freeze"
-        , sh $ "cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
+        ]
+
+    -- Install dependencies
+    when (cfgInstallDeps config) $ tellStrLns
+        [ sh $ "cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
         , sh $ "cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
-        , sh $ "rm -rf " ++ quotedRmPaths
+        ]
+
+    tellStrLns
+        [ sh $ "rm -rf " ++ quotedRmPaths
         , sh $  "DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)"
         ]
 
@@ -947,17 +957,28 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config' (versions, pkgs) =
 
     return ()
   where
-    config = optConfigMorphism opts config'
-
     hasTests   = F.any (\Pkg{pkgGpd} -> not . null $ condTestSuites pkgGpd) pkgs
     hasLibrary = F.any (\Pkg{pkgGpd} -> isJust $ condLibrary pkgGpd) pkgs
 
     headGhcVers = S.filter isGhcHead versions
 
-    generateCabalProject dist = tellStrLns
-        [ sh $ "printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project"
-        , sh $ "cat cabal.project"
-        ]
+    generateCabalProject dist = do
+        tellStrLns
+            [ sh $ "printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project"
+            ]
+        F.forM_ (prjConstraints prj) $ \xs -> do
+            let s = concat (lines xs)
+            tellStrLns
+                [ sh $ "echo 'constraints: " ++ s ++ "' >> cabal.project"
+                ]
+        F.forM_ (prjAllowNewer prj) $ \xs -> do
+            let s = concat (lines xs)
+            tellStrLns
+                [ sh $ "echo 'allow-newer: " ++ s ++ "' >> cabal.project"
+                ]
+        tellStrLns
+            [ sh $ "cat cabal.project"
+            ]
       where
         cabalPaths
             | dist      = quotedPaths $ \Pkg{pkgName} -> pkgName ++ "-*/*.cabal"
@@ -1090,26 +1111,58 @@ parseJobsQ = nm <++ m <++ n <++ return (Nothing, Nothing)
 -- Project file
 -------------------------------------------------------------------------------
 
+data Project a = Project
+    { prjPackages    :: [a]
+    , prjConstraints :: Maybe String
+    , prjAllowNewer  :: Maybe String
+    }
+  deriving (Show, Functor, F.Foldable, T.Traversable)
+
+overPrjPackages :: ([a] -> [b]) -> Project a -> Project b
+overPrjPackages f prj = prj { prjPackages = f (prjPackages prj) }
+
+emptyProject :: Project [a]
+emptyProject = Project [] Nothing Nothing
+
 -- | Parse project file. Extracts only @packages@ field.
 --
--- >>> parseProjectFile "cabal.project" "packages: foo bar/*.cabal"
+-- >>> fmap prjPackages $ parseProjectFile "cabal.project" "packages: foo bar/*.cabal"
 -- Right ["foo","bar/*.cabal"]
 --
-parseProjectFile :: FilePath -> String -> Either String [String]
+parseProjectFile :: FilePath -> String -> Either String (Project String)
 parseProjectFile path contents =
-    case PU.parseFields legacyProjectConfigFieldDescrs [] contents of
+    case PU.parseFields legacyProjectConfigFieldDescrs emptyProject contents of
         PU.ParseOk _ x -> Right x
         PU.ParseFailed err -> Left $ case PU.locatedErrorMsg err of
             (l, msg) -> "ERROR " ++ path ++ ":" ++ show l ++ ": " ++ msg
 
-legacyProjectConfigFieldDescrs :: [PU.FieldDescr [String]]
+legacyProjectConfigFieldDescrs :: [PU.FieldDescr (Project String)]
 legacyProjectConfigFieldDescrs =
     [ PU.listField "packages"
         (error "we don't pretty print") -- pretty
         parsePackageLocationTokenQ -- parse
-        id           -- getter
-        const        -- setter
+        prjPackages
+        (\x prj -> prj { prjPackages = x })
+    , PU.simpleField "constraints"
+        (error "we don't pretty print") -- pretty
+        (fmap Just PU.parseFreeText)
+        prjConstraints
+        (\x prj -> prj { prjConstraints = maybeAlt2 commaConcat (prjConstraints prj) x })
+    , PU.simpleField "allow-newer"
+        (error "we don't pretty print") -- pretty
+        (fmap Just PU.parseFreeText)
+        prjAllowNewer
+        (\x prj -> prj { prjAllowNewer = maybeAlt2 commaConcat (prjAllowNewer prj) x })
     ]
+  where
+    maybeAlt2 _ Nothing  x        = x
+    maybeAlt2 _ x        Nothing  = x
+    maybeAlt2 f (Just x) (Just y) = Just (f x y)
+
+    commaConcat x y
+        | all isSpace x = y
+        | all isSpace y = x
+        | otherwise     = x ++ ", " ++ y
 
 -------------------------------------------------------------------------------
 -- Options
@@ -1143,6 +1196,9 @@ options =
     , Option [] ["no-cabal-check"]
       (NoArg $ successCM $ \cfg -> cfg { cfgCheck = False })
       "Disable cabal check"
+    , Option [] ["no-install-dependencies"]
+      (NoArg $ successCM $ \cfg -> cfg { cfgInstallDeps = False })
+      "Disable installing dependencies in a seperate step"
     , Option ['c'] ["collection"]
       (ReqArg (success' $ \arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
@@ -1295,6 +1351,7 @@ data Config = Config
     , cfgCache          :: !Bool
     , cfgCheck          :: !Bool
     , cfgNoise          :: !Bool
+    , cfgInstallDeps    :: !Bool
     , cfgOnlyBranches   :: [String]
     , cfgIrcChannels    :: [String]
     , cfgProjectName    :: Maybe String
@@ -1315,6 +1372,7 @@ emptyConfig = Config
     , cfgCache          = True
     , cfgCheck          = True
     , cfgNoise          = True
+    , cfgInstallDeps    = True
     , cfgOnlyBranches   = []
     , cfgIrcChannels    = []
     , cfgProjectName    = Nothing
@@ -1363,6 +1421,9 @@ configFieldDescrs =
     , PU.boolField  "cabal-check"
         cfgCheck
         (\b cfg -> cfg { cfgCheck = b })
+    , PU.boolField  "install-dependencies-step"
+        cfgInstallDeps
+        (\b cfg -> cfg { cfgInstallDeps = b })
     , PU.listField  "irc-channels"
         (error "we don't pretty print")
         PU.parseTokenQ

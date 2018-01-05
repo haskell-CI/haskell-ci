@@ -139,6 +139,8 @@ script:
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
   - "printf 'packages: servant-*/*.cabal servant-client-*/*.cabal servant-docs-*/*.cabal servant-server-*/*.cabal\\n' > cabal.project"
+  - "echo 'constraints: foundatiion >= 0.14' >> cabal.project"
+  - "echo 'allow-newer: servant-js:servant, servant-js:servant-foreign' >> cabal.project"
   - cat cabal.project
   # this builds all libraries and executables (without tests/benchmarks)
   - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all

@@ -12,6 +12,10 @@ jobs: 2:2
 -- Run cabal check
 -- cabal-check: True
 
+-- Install dependencies in a separate step
+-- If your project has inplace packages, you want to disable this.
+-- install-dependencies-step: True
+
 -- Build only these branches
 branches: master
 
