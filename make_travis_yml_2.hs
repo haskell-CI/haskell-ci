@@ -925,7 +925,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         foldedTellStrLns FoldHaddock "Haddock..." folds $ tellStrLns
             [ comment "haddock"
             , sh "rm -rf ./dist-newstyle"
-            , sh "if $HADDOCK; then cabal new-haddock -w ${HC} --disable-tests --disable-benchmarks all; else echo \"Skipping haddock generation\";fi"
+            , sh "if $HADDOCK; then cabal new-haddock -w ${HC} ${TEST} ${BENCH} all; else echo \"Skipping haddock generation\";fi"
             , ""
             ]
 
