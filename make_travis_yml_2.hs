@@ -291,8 +291,26 @@ parseOpts argv = case argv of
         case findArgv ls of
             Nothing     -> dieCli [Error $ "expected REGENDATA line in " ++ fp ++ "\n"]
             Just argv'' -> parseOpts argv''
+    [cmd] | cmd `isPrefixOf` "list-ghc" -> do
+        putStrLn $ "Supported GHC versions:"
+        forM_ groupedVersions $ \(v, vs) -> do
+            putStr $ prettyMajVersion v ++ ": "
+            putStrLn $ intercalate ", " (map display vs)
+        exitSuccess
     _ -> parseOptsNoCommands argv
   where
+    groupedVersions :: [(Version, [Version])]
+    groupedVersions = map (\vs@(v:_) -> (v, vs))
+                    . map (reverse . sort)
+                    . groupBy ((==) `on` ghcMajVer)
+                    $ sort knownGhcVersions
+
+    prettyMajVersion :: Version -> String
+    prettyMajVersion v
+        | Just v == ghcAlpha = "alpha"
+        | isGhcHead v = "head"
+        | otherwise = case ghcMajVer v of (x,y) -> show x ++ "." ++ show y
+
     findArgv :: [String] -> Maybe [String]
     findArgv ls = do
         l <- findMaybe (afterInfix "REGENDATA") ls
@@ -327,6 +345,7 @@ dieCli errs = hPutStrLn stderr (usageMsg errs) >> exitFailure
         , ""
         , "Available commands:"
         , "    regenerate [TRAVIS.YAML]  Regenerate the file using the magic command in it. Default .travis.yml"
+        , "    list-ghc                  List GHC versions supported by this version of make-travis-yml"
         , ""
         , "Available options:"
         ]
