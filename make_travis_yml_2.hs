@@ -251,7 +251,7 @@ foldedTellStrLns' label pfx prettyLabel labels output
 afterInfix :: Eq a => [a] -> [a] -> Maybe [a]
 afterInfix needle haystack = findMaybe (afterPrefix needle) (tails haystack)
 
--- | 
+-- |
 --
 -- >>> afterPrefix "FOO" "FOOBAR"
 -- Just "BAR"
@@ -261,7 +261,7 @@ afterPrefix needle haystack
     | needle `isPrefixOf` haystack = Just (drop (length needle) haystack)
     | otherwise                    = Nothing
 
--- | 
+-- |
 --
 -- >>> findMaybe readMaybe ["foo", "1", "bar"] :: Maybe Int
 -- Just 1
@@ -772,7 +772,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         ]
 
     -- create cabal.project file
-    when (isNothing isCabalProject) $ generateCabalProject False
+    generateCabalProject False
 
     let pkgFilter = intercalate " | " $ map (wrap.pkgName) pkgs
         wrap s = "grep -Fv \"" ++ s ++ " ==\""
@@ -804,10 +804,13 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         ]
 
     -- Install dependencies
-    when (cfgInstallDeps config) $ tellStrLns
-        [ sh $ "cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
-        , sh $ "cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
-        ]
+    when (cfgInstallDeps config) $ do
+        tellStrLns
+            [ sh $ "cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
+            ]
+        when (cfgNoTestsNoBench config) $ tellStrLns
+            [ sh $ "cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
+            ]
 
     tellStrLns
         [ sh $ "rm -rf " ++ quotedRmPaths
@@ -839,14 +842,14 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             ]
         generateCabalProject True
 
-    foldedTellStrLns FoldBuild "Building..." folds $ tellStrLns
+    when (cfgNoTestsNoBench config) $ foldedTellStrLns FoldBuild "Building..." folds $ tellStrLns
         [ comment "this builds all libraries and executables (without tests/benchmarks)"
         , sh "cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
         ]
 
     tellStrLns [""]
 
-    foldedTellStrLns FoldBuildInstalled
+    when (cfgInstalled config) $ foldedTellStrLns FoldBuildInstalled
         "Building with installed constraints for package in global-db..." folds $ tellStrLns
         [ comment "Build with installed constraints for packages in global-db"
         -- SC2046: Quote this to prevent word splitting.
@@ -874,7 +877,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
                 , if cfgNoise config
                      then ""
                      else "-vnormal+nowrap+markoutput "
-                , "new-test -w ${HC} ${TEST} all"
+                , "new-test -w ${HC} ${TEST} ${BENCH} all"
                 , if cfgNoise config
                      then ""
                      else " | sed '/^-----BEGIN CABAL OUTPUT-----$/,/^-----END CABAL OUTPUT-----$/d'"
@@ -885,7 +888,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
     tellStrLns [""]
 
     when (cfgDoctest config) $ do
-        let doctestOptions = unwords (cfgDoctestOptions config)
+        let doctestOptions = unwords $ map (show . PU.showToken) $ cfgDoctestOptions config
         tellStrLns [ comment "doctest" ]
         foldedTellStrLns FoldDoctest "Doctest..." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
@@ -945,7 +948,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             , "      grep ' collection-id' cabal.project.freeze;"
             , "      rm -rf dist-newstyle/;"
             , "      cabal new-build -w ${HC} ${TEST} ${BENCH} all || break;"
-            , "      if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} all || break; fi;"
+            , "      if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} ${BENCH} all || break; fi;"
             , "    done"
             , ""
             ]
@@ -975,6 +978,12 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             let s = concat (lines xs)
             tellStrLns
                 [ sh $ "echo 'allow-newer: " ++ s ++ "' >> cabal.project"
+                ]
+        unless (null (cfgLocalGhcOptions config)) $ forM_ pkgs $ \Pkg{pkgName} -> do
+            let s = unwords $ map (show . PU.showToken) $ cfgLocalGhcOptions config
+            tellStrLns
+                [ sh $ "echo 'package " ++ pkgName ++ "' >> cabal.project"
+                , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
                 ]
         tellStrLns
             [ sh $ "cat cabal.project"
@@ -1199,6 +1208,12 @@ options =
     , Option [] ["no-install-dependencies"]
       (NoArg $ successCM $ \cfg -> cfg { cfgInstallDeps = False })
       "Disable installing dependencies in a seperate step"
+    , Option [] ["no-no-tests-no-bench"]
+      (NoArg $ successCM $ \cfg -> cfg { cfgNoTestsNoBench = False })
+      "Don't build with --no-tests --no-benchmarks"
+    , Option [] ["no-installed"]
+      (NoArg $ successCM $ \cfg -> cfg { cfgInstalled = False })
+      "Don't build with 'installed' constraints"
     , Option ['c'] ["collection"]
       (ReqArg (success' $ \arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
       "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
@@ -1230,6 +1245,9 @@ options =
     , Option ['j'] ["jobs"]
       (reqArgReadP parseJobsQ (\jobs cfg -> cfg { cfgJobs = jobs }) "JOBS")
       "jobs (N:M - cabal:ghc)"
+    , Option [] ["local-ghc-options"]
+      (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgLocalGhcOptions = xs }) "OPTIONS")
+      "--ghc-options for local packages"
     , Option ['d'] ["doctest"]
       (NoArg $ successCM $ \cfg -> cfg { cfgDoctest = True })
       "Run doctest using .ghc.environment files."
@@ -1340,43 +1358,49 @@ parseFoldQ = do
 -------------------------------------------------------------------------------
 
 data Config = Config
-    { cfgHLint          :: !Bool
-    , cfgHLintYaml      :: !(Maybe FilePath)
-    , cfgHLintVersion   :: !VersionRange
-    , cfgJobs           :: (Maybe Int, Maybe Int)
-    , cfgDoctest        :: !Bool
-    , cfgDoctestOptions :: [String]
-    , cfgDoctestVersion :: !VersionRange
-    , cfgConstraintSets :: [ConstraintSet]
-    , cfgCache          :: !Bool
-    , cfgCheck          :: !Bool
-    , cfgNoise          :: !Bool
-    , cfgInstallDeps    :: !Bool
-    , cfgOnlyBranches   :: [String]
-    , cfgIrcChannels    :: [String]
-    , cfgProjectName    :: Maybe String
-    , cfgFolds          :: Set Fold
+    { cfgHLint           :: !Bool
+    , cfgHLintYaml       :: !(Maybe FilePath)
+    , cfgHLintVersion    :: !VersionRange
+    , cfgJobs            :: (Maybe Int, Maybe Int)
+    , cfgDoctest         :: !Bool
+    , cfgDoctestOptions  :: [String]
+    , cfgDoctestVersion  :: !VersionRange
+    , cfgLocalGhcOptions :: [String]
+    , cfgConstraintSets  :: [ConstraintSet]
+    , cfgCache           :: !Bool
+    , cfgCheck           :: !Bool
+    , cfgNoise           :: !Bool
+    , cfgNoTestsNoBench  :: !Bool
+    , cfgInstalled       :: !Bool
+    , cfgInstallDeps     :: !Bool
+    , cfgOnlyBranches    :: [String]
+    , cfgIrcChannels     :: [String]
+    , cfgProjectName     :: Maybe String
+    , cfgFolds           :: Set Fold
     }
   deriving (Show)
 
 emptyConfig :: Config
 emptyConfig = Config
-    { cfgHLint          = False
-    , cfgHLintYaml      = Nothing
-    , cfgHLintVersion   = defaultHLintVersion
-    , cfgJobs           = (Nothing, Nothing)
-    , cfgDoctest        = False
-    , cfgDoctestOptions = []
-    , cfgDoctestVersion = defaultDoctestVersion
-    , cfgConstraintSets = []
-    , cfgCache          = True
-    , cfgCheck          = True
-    , cfgNoise          = True
-    , cfgInstallDeps    = True
-    , cfgOnlyBranches   = []
-    , cfgIrcChannels    = []
-    , cfgProjectName    = Nothing
-    , cfgFolds          = S.empty
+    { cfgHLint           = False
+    , cfgHLintYaml       = Nothing
+    , cfgHLintVersion    = defaultHLintVersion
+    , cfgJobs            = (Nothing, Nothing)
+    , cfgDoctest         = False
+    , cfgDoctestOptions  = []
+    , cfgDoctestVersion  = defaultDoctestVersion
+    , cfgLocalGhcOptions = []
+    , cfgConstraintSets  = []
+    , cfgCache           = True
+    , cfgCheck           = True
+    , cfgNoise           = True
+    , cfgNoTestsNoBench  = True
+    , cfgInstalled       = True
+    , cfgInstallDeps     = True
+    , cfgOnlyBranches    = []
+    , cfgIrcChannels     = []
+    , cfgProjectName     = Nothing
+    , cfgFolds           = S.empty
     }
 
 configFieldDescrs :: [PU.FieldDescr Config]
@@ -1412,6 +1436,11 @@ configFieldDescrs =
         parse
         cfgDoctestVersion
         (\x cfg -> cfg { cfgDoctestVersion = x })
+    , PU.simpleField "local-ghc-options"
+        (error "we don't pretty print")
+        parseOptsQ
+        cfgLocalGhcOptions
+        (\x cfg -> cfg { cfgLocalGhcOptions = cfgLocalGhcOptions cfg ++ x })
     , PU.boolField  "cache"
         cfgCache
         (\b cfg -> cfg { cfgCache = b })
@@ -1424,6 +1453,12 @@ configFieldDescrs =
     , PU.boolField  "install-dependencies-step"
         cfgInstallDeps
         (\b cfg -> cfg { cfgInstallDeps = b })
+    , PU.boolField  "no-tests-no-benchmarks"
+        cfgNoTestsNoBench
+        (\b cfg -> cfg { cfgNoTestsNoBench = b })
+    , PU.boolField  "build-with-installed-step"
+        cfgInstalled
+        (\b cfg -> cfg { cfgInstalled = b })
     , PU.listField  "irc-channels"
         (error "we don't pretty print")
         PU.parseTokenQ
