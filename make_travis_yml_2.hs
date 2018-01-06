@@ -873,14 +873,14 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
     when hasTests $
         foldedTellStrLns FoldTest "Testing..." folds $ tellStrLns
             [ sh $ mconcat
-                [ "if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal "
+                [ "if [ \"x$TEST\" = \"x--enable-tests\" ]; then "
                 , if cfgNoise config
-                     then ""
-                     else "-vnormal+nowrap+markoutput "
+                     then "cabal "
+                     else "(set -o pipefail; cabal -vnormal+nowrap+markoutput "
                 , "new-test -w ${HC} ${TEST} ${BENCH} all"
                 , if cfgNoise config
                      then ""
-                     else " | sed '/^-----BEGIN CABAL OUTPUT-----$/,/^-----END CABAL OUTPUT-----$/d'"
+                     else " 2>&1 | sed '/^-----BEGIN CABAL OUTPUT-----$/,/^-----END CABAL OUTPUT-----$/d' )"
                 , "; fi"
                 ]
             ]
