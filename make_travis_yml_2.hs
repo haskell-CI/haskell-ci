@@ -624,7 +624,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         , "  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/01-index.tar"
         , "  - rm -fv $HOME/.cabal/packages/hackage.haskell.org/01-index.tar.idx"
         , ""
-        , "  - rm -fv $HOME/.cabal/packages/head.hackage" -- if we cache, it will break builds.
+        , "  - rm -rfv $HOME/.cabal/packages/head.hackage" -- if we cache, it will break builds.
         , ""
         ]
 
