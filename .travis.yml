@@ -28,7 +28,7 @@ before_cache:
   - rm -fv $HOME/.cabal/packages/hackage.haskell.org/01-index.tar
   - rm -fv $HOME/.cabal/packages/hackage.haskell.org/01-index.tar.idx
 
-  - rm -fv $HOME/.cabal/packages/head.hackage
+  - rm -rfv $HOME/.cabal/packages/head.hackage
 
 matrix:
   include:
