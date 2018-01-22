@@ -82,7 +82,7 @@ library
 
   -- ShellCheck. Would need newer transformers for older GHC
   if impl(ghc >= 7.10 && <8.3)
-    build-depends: ShellCheck == 0.4.6
+    build-depends: ShellCheck == 0.4.7
 
 executable make-travis-yml
   main-is:             Main.hs

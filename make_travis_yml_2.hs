@@ -82,8 +82,6 @@ import ShellCheck.Checker (checkScript)
 import qualified ShellCheck.Interface as SC
 import qualified ShellCheck.Formatter.Format as SC
 import qualified ShellCheck.Formatter.TTY as SC.TTY
-
-import Data.Functor.Identity (Identity (..))
 import System.IO.Unsafe (unsafePerformIO)
 #endif
 
@@ -150,17 +148,18 @@ sh' :: [Integer] -> String -> String
 #ifndef MIN_VERSION_ShellCheck
 sh' _ = shImpl
 #else
-sh' excl cmd = case checkScript iface spec of
-    Identity res@(SC.CheckResult _ comments)
-        | null comments -> shImpl cmd
-        -- this is ugly use of unsafePerformIO
-        -- but whole ShellCheck here is a little like `traceShow` anyway.
-        | otherwise     -> unsafePerformIO $ do
-            SC.onResult scFormatter res cmd
-            fail "ShellCheck!"
+sh' excl cmd = unsafePerformIO $ do
+  res <- checkScript iface spec
+  case res of
+    (SC.CheckResult _ []) -> return (shImpl cmd)
+    _                     -> SC.onResult scFormatter res iface >> fail "ShellCheck!"
   where
     iface = SC.SystemInterface $ \n -> return $ Left $ "cannot read file: " ++ n
-    spec  = SC.CheckSpec "stdin" cmd excl (Just SC.Sh)
+    spec  = SC.emptyCheckSpec { SC.csFilename = "stdin"
+                              , SC.csScript = cmd
+                              , SC.csExcludedWarnings = excl
+                              , SC.csShellTypeOverride = Just SC.Sh
+                              }
 
 scFormatter :: SC.Formatter
 scFormatter = unsafePerformIO (SC.TTY.format (SC.FormatterOptions SC.ColorAlways))
