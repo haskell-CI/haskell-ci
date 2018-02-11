@@ -300,7 +300,7 @@ parseOpts argv = case argv of
     _ -> parseOptsNoCommands argv
   where
     groupedVersions :: [(Version, [Version])]
-    groupedVersions = map ((\vs -> (head vs, vs)) . reverse . sort)
+    groupedVersions = map ((\vs -> (head vs, vs)) . sortBy (flip compare))
                     . groupBy ((==) `on` ghcMajVer)
                     $ sort knownGhcVersions
 
