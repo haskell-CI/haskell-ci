@@ -126,7 +126,7 @@ install:
   - rm -f cabal.project.freeze
   - cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project.messy" --dep -j2 all
   - cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file="cabal.project.messy" --dep -j2 all
-  - rm -rf "servant"/.ghc.environment.* "servant-client"/.ghc.environment.* "servant-docs"/.ghc.environment.* "servant-server"/.ghc.environment.* "servant"/dist "servant-client"/dist "servant-docs"/dist "servant-server"/dist
+  - rm -rf .ghc.environment.* "servant"/dist "servant-client"/dist "servant-docs"/dist "servant-server"/dist
   - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)
 
 # Here starts the actual work to be performed for the package under test;

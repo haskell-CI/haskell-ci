@@ -812,7 +812,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         ]
 
     let quotedRmPaths =
-          quotedPaths (\Pkg{pkgDir} -> pkgDir ++ "/.ghc.environment.*")
+          ".ghc.environment.*"
           ++ " " ++
           quotedPaths (\Pkg{pkgDir} -> pkgDir ++ "/dist")
 
