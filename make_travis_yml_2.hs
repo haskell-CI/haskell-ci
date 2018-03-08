@@ -127,10 +127,10 @@ ghcAlpha :: Maybe Version
 ghcAlpha = Nothing -- there is no alpha -- Just $ mkVersion [8,4,1]
 
 defaultHLintVersion :: VersionRange
-defaultHLintVersion = withinVersion (mkVersion [2,0])
+defaultHLintVersion = withinVersion (mkVersion [2,1])
 
 defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = withinVersion (mkVersion [0,13])
+defaultDoctestVersion = withinVersion (mkVersion [0,14])
 
 -------------------------------------------------------------------------------
 -- Script
