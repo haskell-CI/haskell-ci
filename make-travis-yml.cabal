@@ -61,6 +61,10 @@ source-repository head
   type: git
   location: https://github.com/hvr/multi-ghc-travis.git
 
+flag ShellCheck
+  default: True
+  manual: True
+
 library
   exposed-modules:     MakeTravisYml
   ghc-options:         -Wall
@@ -81,7 +85,7 @@ library
   default-language:    Haskell2010
 
   -- ShellCheck. Would need newer transformers for older GHC
-  if impl(ghc >= 7.10 && <8.3)
+  if flag(ShellCheck) && impl(ghc >= 7.10 && <8.3)
     build-depends: ShellCheck == 0.4.7
 
 executable make-travis-yml

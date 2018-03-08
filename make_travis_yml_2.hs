@@ -124,7 +124,7 @@ knownGhcVersions = fmap mkVersion
     ]
 
 ghcAlpha :: Maybe Version
-ghcAlpha = Just $ mkVersion [8,4,1]
+ghcAlpha = Nothing -- there is no alpha -- Just $ mkVersion [8,4,1]
 
 defaultHLintVersion :: VersionRange
 defaultHLintVersion = withinVersion (mkVersion [2,0])
