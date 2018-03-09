@@ -72,8 +72,8 @@ install:
   - "sed -i.bak 's/^-- jobs:.*/jobs: 2/' ${HOME}/.cabal/config"
   - "if [ $HCNUMVER -ge 70800 ]; then sed -i.bak 's/-- ghc-options:.*/ghc-options: -j2/' ${HOME}/.cabal/config; fi"
   - grep -Ev -- '^\s*--' ${HOME}/.cabal/config | grep -Ev '^\s*$'
-  - if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest --constraint='doctest ==0.13.*'; fi
-  - if [ $HCNUMVER -eq 80202 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint --constraint='hlint ==2.0.*'; fi
+  - if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest --constraint='doctest ==0.14.*'; fi
+  - if [ $HCNUMVER -eq 80202 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint --constraint='hlint ==2.1.*'; fi
   - "printf 'packages: \".\"\\n' > cabal.project"
   - echo 'package make-travis-yml' >> cabal.project
   - "echo '  ghc-options: -Werror' >> cabal.project"
