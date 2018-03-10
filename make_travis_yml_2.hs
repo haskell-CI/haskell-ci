@@ -66,7 +66,9 @@ import qualified Distribution.PackageDescription as PD
 import qualified Distribution.ParseUtils as PU
 import Distribution.Text
 import Distribution.Version
-#if MIN_VERSION_Cabal(2,0,0)
+#if MIN_VERSION_Cabal(2,2,0)
+import Distribution.PackageDescription.Parsec (readGenericPackageDescription)
+#elif MIN_VERSION_Cabal(2,0,0)
 import Distribution.PackageDescription.Parse (readGenericPackageDescription)
 #else
 import Distribution.PackageDescription.Parse (readPackageDescription)
