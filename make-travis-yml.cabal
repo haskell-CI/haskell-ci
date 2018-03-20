@@ -75,7 +75,7 @@ library
       -Wnoncanonical-monadfail-instances
   hs-source-dirs:      src
   other-extensions:    CPP, ViewPatterns, NamedFieldPuns
-  build-depends:       base  >=4.7  && <4.11
+  build-depends:       base  >=4.7  && <4.12
                      , Cabal >=1.10 && <2.1
                      , containers >=0.4 && <0.6
                      , directory >=1.1 && <1.4
