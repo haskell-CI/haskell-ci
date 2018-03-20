@@ -104,7 +104,9 @@ test-suite golden
                      , filepath
                      , directory
                      , bytestring
-                     , tasty >= 0.11.3 && <0.12
+                     , tasty >= 0.11.3 && <1.1
                      , tasty-golden >=2.3.1.1 && <2.4
                      , Diff >=0.3.4 && <0.4
   default-language:    Haskell2010
+  if impl(ghc >= 8.4)
+    build-depends: tasty >= 1.0
