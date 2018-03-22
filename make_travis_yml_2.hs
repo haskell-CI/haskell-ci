@@ -30,7 +30,7 @@ module MakeTravisYml (
     travisFromConfigFile, MakeTravisOutput, Options (..), defOptions, options,
     ) where
 
-import Control.Applicative ((<$>),(<|>), pure)
+import Control.Applicative ((<|>))
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad (void, when, unless, filterM, liftM, liftM2, forM_, mzero, foldM)
@@ -40,7 +40,7 @@ import qualified Data.Traversable as T
 import Data.Function
 import Data.List
 import Data.Maybe
-import Data.Monoid (Monoid (..), Endo (..))
+import Data.Monoid as M (Monoid (..), Endo (..))
 import Data.Either (partitionEithers)
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -66,7 +66,9 @@ import qualified Distribution.PackageDescription as PD
 import qualified Distribution.ParseUtils as PU
 import Distribution.Text
 import Distribution.Version
-#if MIN_VERSION_Cabal(2,0,0)
+#if MIN_VERSION_Cabal(2,2,0)
+import Distribution.PackageDescription.Parsec (readGenericPackageDescription)
+#elif MIN_VERSION_Cabal(2,0,0)
 import Distribution.PackageDescription.Parse (readGenericPackageDescription)
 #else
 import Distribution.PackageDescription.Parse (readPackageDescription)
@@ -434,7 +436,7 @@ travisFromConfigFile args@(_, opts) path xpkgs = do
             diff = symDiff testWith allVersions
             missingVersions = map dispGhcVersion $ S.toList diff
             errors | S.null diff = []
-                   | otherwise = pure $ mconcat
+                   | otherwise = return $ mconcat
                         [ pkgName pkg
                         , " is missing tested-with annotations for: "
                         ] ++ intercalate "," missingVersions
@@ -1308,7 +1310,8 @@ data Result e a
 success :: a -> Result e a
 success = Success []
 
-instance Monoid a => Monoid (Result e a) where
+-- Qualified usage of Monoid to avoid redundant import warning on older GHCs.
+instance M.Monoid a => M.Monoid (Result e a) where
     mempty = success mempty
 #if MIN_VERSION_base(4,9,0)
     mappend = (<>)
@@ -1763,7 +1766,7 @@ expandRelGlob root glob0 = liftIO $ go glob0 ""
       subdirs <- filterM (\subdir -> doesDirectoryExist
                                        (root </> dir </> subdir))
                $ filter (matchGlob glob) entries
-      concat <$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
+      fmap concat $ mapM (\subdir -> go globPath (dir </> subdir)) subdirs
 
     go GlobDirTrailing dir = return [dir]
 
