@@ -56,6 +56,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Writer
 import Text.Read (readMaybe)
+import Prelude
 
 import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.Package hiding (Package, pkgName)
