@@ -1,4 +1,4 @@
-Multiple [GHC](http://haskell.org/ghc) Versions for [Travis-CI](https://travis-ci.org)
+Multiple [GHC](http://haskell.org/ghc) Versions for [Travis-CI](https://travis-ci.org) [![Build](https://img.shields.io/travis/haskell-CI/haskell-ci.svg)](https://travis-ci.org/haskell-CI/haskell-ci)
 ============================================================
 
 The purpose of this document is to describe how to set up the [`.travis.yml` script](http://about.travis-ci.org/docs/user/build-configuration/) in order to build and test your [cabalized](http://www.haskell.org/cabal) Haskell package with multiple [GHC](http://haskell.org/ghc) configurations.
