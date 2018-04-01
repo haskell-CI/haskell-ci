@@ -28,7 +28,7 @@ main :: IO ()
 main = do
     setCurrentDirectory "fixtures/"
     defaultMain $ testGroup "fixtures"
-        [ fixtureGoldenTest "make-travis-yml.cabal"
+        [ fixtureGoldenTest "haskell-ci.cabal"
         , fixtureGoldenTest "cabal.project.empty-line"
         , fixtureGoldenTest "cabal.project.fail-versions"
         , fixtureGoldenTest "cabal.project.messy"
