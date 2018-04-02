@@ -76,13 +76,15 @@ library
       -Wnoncanonical-monadfail-instances
   hs-source-dirs:      src
   other-extensions:    CPP, ViewPatterns, NamedFieldPuns
-  build-depends:       base  >=4.7  && <4.11
-                     , Cabal >=1.10 && <2.1
-                     , containers >=0.4 && <0.6
-                     , directory >=1.1 && <1.4
-                     , filepath >=1.2 && <1.5
-                     , transformers >= 0.3 && <0.6
-                     , deepseq >=1.3 && <1.5
+  build-depends:       base         >= 4.7  && < 4.12
+                     , Cabal      ( >= 1.10 && < 1.25 )
+                                 || == 2.0.*
+                                 || == 2.2.*
+                     , containers   >= 0.4  && < 0.6
+                     , directory    >= 1.1  && < 1.4
+                     , filepath     >= 1.2  && < 1.5
+                     , transformers >= 0.3  && < 0.6
+                     , deepseq      >= 1.3  && < 1.5
   default-language:    Haskell2010
 
   -- ShellCheck. Would need newer transformers for older GHC
@@ -99,13 +101,16 @@ test-suite golden
   type:                exitcode-stdio-1.0
   main-is:             Tests.hs
   hs-source-dirs:      test
-  build-depends:       base
-                     , haskell-ci
-                     , transformers
-                     , filepath
-                     , directory
+  build-depends:       haskell-ci
+                       -- inherited constraints via lib:haskell-ci
+                     , base
                      , bytestring
-                     , tasty >= 0.11.3 && <0.12
-                     , tasty-golden >=2.3.1.1 && <2.4
-                     , Diff >=0.3.4 && <0.4
+                     , directory
+                     , filepath
+                     , transformers
+                       -- dependencies needing explicit constraints
+                     , tasty        == 1.0.*
+                     , tasty-golden >= 2.3.1.1  && < 2.4
+                     , Diff         >= 0.3.4    && < 0.4
+
   default-language:    Haskell2010
