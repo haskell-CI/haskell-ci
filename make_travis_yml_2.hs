@@ -30,7 +30,7 @@ module MakeTravisYml (
     travisFromConfigFile, MakeTravisOutput, Options (..), defOptions, options,
     ) where
 
-import Control.Applicative ((<$>),(<|>), pure)
+import Control.Applicative as App ((<$>),(<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import Control.Monad (void, when, unless, filterM, liftM, liftM2, forM_, mzero, foldM)
@@ -40,7 +40,7 @@ import qualified Data.Traversable as T
 import Data.Function
 import Data.List
 import Data.Maybe
-import Data.Monoid (Monoid (..), Endo (..))
+import Data.Monoid as Mon (Monoid (..), Endo (..))
 import Data.Either (partitionEithers)
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -268,7 +268,7 @@ afterPrefix needle haystack
 -- Just 1
 --
 findMaybe :: (a -> Maybe b) -> [a] -> Maybe b
-findMaybe f = foldr (\a b -> f a <|> b) Nothing
+findMaybe f = foldr (\a b -> f a App.<|> b) Nothing
 
 -- | >>> maybeReadP PU.parseTokenQ' "foo"
 -- Just "foo"
@@ -436,7 +436,7 @@ travisFromConfigFile args@(_, opts) path xpkgs = do
             diff = symDiff testWith allVersions
             missingVersions = map dispGhcVersion $ S.toList diff
             errors | S.null diff = []
-                   | otherwise = pure $ mconcat
+                   | otherwise = App.pure $ mconcat
                         [ pkgName pkg
                         , " is missing tested-with annotations for: "
                         ] ++ intercalate "," missingVersions
@@ -1310,7 +1310,7 @@ data Result e a
 success :: a -> Result e a
 success = Success []
 
-instance Monoid a => Monoid (Result e a) where
+instance Monoid a => Mon.Monoid (Result e a) where
     mempty = success mempty
 #if MIN_VERSION_base(4,9,0)
     mappend = (<>)
@@ -1765,7 +1765,7 @@ expandRelGlob root glob0 = liftIO $ go glob0 ""
       subdirs <- filterM (\subdir -> doesDirectoryExist
                                        (root </> dir </> subdir))
                $ filter (matchGlob glob) entries
-      concat <$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
+      concat App.<$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
 
     go GlobDirTrailing dir = return [dir]
 
