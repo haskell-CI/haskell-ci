@@ -907,7 +907,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
     tellStrLns [""]
 
     when (cfgDoctest config) $ do
-        let doctestOptions = unwords $ map (show . PU.showToken) $ cfgDoctestOptions config
+        let doctestOptions = unwords $ cfgDoctestOptions config
         tellStrLns [ comment "doctest" ]
         foldedTellStrLns FoldDoctest "Doctest..." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
