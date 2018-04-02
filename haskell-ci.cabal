@@ -38,10 +38,10 @@ tested-with:
   GHC == 8.2.2,
   GHC == 8.4.1
 extra-source-files:
-  fixtures/cabal.make-travis-yml
-  fixtures/make-travis-yml.cabal
-  fixtures/make-travis-yml.cabal.stderr
-  fixtures/make-travis-yml.cabal.travis.yml
+  fixtures/cabal.haskell-ci
+  fixtures/haskell-ci.cabal
+  fixtures/haskell-ci.cabal.stderr
+  fixtures/haskell-ci.cabal.travis.yml
   fixtures/cabal.project.empty-line
   fixtures/cabal.project.empty-line.stderr
   fixtures/cabal.project.empty-line.travis.yml
