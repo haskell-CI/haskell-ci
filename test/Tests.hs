@@ -23,6 +23,7 @@ import Text.Read (readMaybe)
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import qualified System.Console.ANSI as ANSI
 
 main :: IO ()
 main = do
@@ -115,11 +116,30 @@ cabalGoldenTest name outRef errRef act = goldenTest name readGolden act' cmp upd
     cmp (Success warnings _) (Failure err) = return . Just . unlines $
         [ "Expected success:" ] ++ warnings ++ ["\n\nFound failure:"] ++ err
 
-    diff x y = unlines $ concatMap f (getGroupedDiff x y)
-    f (First xs)  = map (cons3 '-') xs
-    f (Second ys) = map (cons3 '+') ys
-    -- we print unchanged lines too. It shouldn't be a problem while we have
-    -- reasonably small examples
-    f (Both xs _) = map (cons3 ' ') xs
+    diff x y =
+        ansiReset -- reset tasty's red color
+        ++ unlines (concatMap f (getGroupedDiff x y))
+
+    f (First xs)  = map (withAnsiRed . cons3 '-') xs
+    f (Second ys) = map (withAnsiGreen . cons3 '+') ys
+    -- we print unchanged lines too.
+    -- we trim the contents a little.
+    f (Both xs _) = map (cons3 ' ') (shorten xs)
+
     -- we add three characters, so the changed lines are easier to spot
     cons3 c cs = c : c : c : ' ' : cs
+
+    ansiReset = ANSI.setSGRCode [ ANSI.SetColor ANSI.Foreground ANSI.Dull ANSI.White] -- default color: gray
+    ansiRed   = ANSI.setSGRCode [ ANSI.SetColor ANSI.Foreground ANSI.Vivid ANSI.Red]
+    ansiGreen = ANSI.setSGRCode [ ANSI.SetColor ANSI.Foreground ANSI.Vivid ANSI.Green]
+
+    withAnsiRed s   = ansiRed ++ s ++ ansiReset
+    withAnsiGreen s = ansiGreen ++ s ++ ansiReset
+
+    -- for large thunks make ellipsis in between
+    shorten xs
+        | l < 15    = xs
+        | otherwise = as ++ ["..."] ++ drop (l - 10) bs
+      where
+        l = length xs
+        (as, bs) = splitAt 5 xs

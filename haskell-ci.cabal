@@ -36,7 +36,7 @@ tested-with:
   GHC == 7.10.3,
   GHC == 8.0.2,
   GHC == 8.2.2,
-  GHC == 8.4.1
+  GHC == 8.4.2
 extra-source-files:
   fixtures/cabal.haskell-ci
   fixtures/haskell-ci.cabal
@@ -109,8 +109,9 @@ test-suite golden
                      , filepath
                      , transformers
                        -- dependencies needing explicit constraints
-                     , tasty        == 1.0.*
-                     , tasty-golden >= 2.3.1.1  && < 2.4
-                     , Diff         >= 0.3.4    && < 0.4
+                     , tasty         == 1.0.*
+                     , tasty-golden  >= 2.3.1.1  && < 2.4
+                     , ansi-terminal >= 0.8.0.2  && <0.9
+                     , Diff          >= 0.3.4    && < 0.4
 
   default-language:    Haskell2010
