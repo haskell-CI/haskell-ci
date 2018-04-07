@@ -50,10 +50,10 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
     ```bash
     $ # You run the following command from your project's directory, even
     $ # though it references the script from the `multi-ghc-travis` project
-    $ path/to/multi-ghc-travis/make_travis_yml.hs your-project.cabal > .travis.yml
+    $ path/to/multi-ghc-travis/make_travis_yml_2.hs your-project.cabal > .travis.yml
     ```
     
-    The `make_travis_yml.hs` script looks at the `Tested-With` line in your
+    The `make_travis_yml_2.hs` script looks at the `Tested-With` line in your
     `*.cabal` file and generates a Travis build that tests each compiler
     version you listed in parallel.
 
@@ -171,7 +171,7 @@ before_install:
 
 #### Caching dependencies & `.travis.yml` script generator
 
-There's also [a `runghc` script](./make_travis_yml.hs) provided in this repository to automate the generation of such a `.travis.yml` script based on the `tested-with:` property of your `.cabal` file. Moreover, the generated script contains a simple caching logic which allows to cache build-dependencies between builds (as long as the install-plan doesn't change by e.g. new packages being available from Hackage).
+There's also [a `runghc` script](./make_travis_yml_2.hs) provided in this repository to automate the generation of such a `.travis.yml` script based on the `tested-with:` property of your `.cabal` file. Moreover, the generated script contains a simple caching logic which allows to cache build-dependencies between builds (as long as the install-plan doesn't change by e.g. new packages being available from Hackage).
 
 The top-level `tested-with:` field has a similiar syntax to the `build-depends:` field but with compilers instead of packages. The script contains a list of known GHC versions and emits entries for all matching versions. Here are a few examples:
 
