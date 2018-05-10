@@ -12,7 +12,7 @@
 /.hpc
 /.hsenv
 /.cabal-sandbox
-/cabal.sandbox.config
+cabal.sandbox.config
 *.prof
 *.aux
 *.hp
