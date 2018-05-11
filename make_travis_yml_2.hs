@@ -1279,6 +1279,9 @@ options =
     , Option [] ["doctest-options"]
       (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgDoctestOptions = xs }) "OPTIONS")
       "Additional doctest options."
+    , Option [] ["doctest-version"]
+      (reqArgReadP parse (\arg cfg -> cfg { cfgDoctestVersion = arg }) "VERSION")
+      "Doctest version range"
     , Option ['l'] ["hlint"]
       (NoArg $ successCM $ \cfg -> cfg { cfgHLint = True })
       "Run hlint (only on GHC-8.2.2 target)"
@@ -1288,6 +1291,9 @@ options =
     , Option [] ["hlint-version"]
       (reqArgReadP parse (\arg cfg -> cfg { cfgHLintVersion = arg }) "VERSION")
       "HLint version range"
+    , Option [] ["cabal-install-version"]
+      (reqArgReadP parse (\arg cfg -> cfg { cfgCabalInstallVersion = Just arg }) "VERSION")
+      "cabal-install version for all jobs, overrides default"
     ]
   where
     overCM f opts = opts
@@ -1383,7 +1389,8 @@ parseFoldQ = do
 -------------------------------------------------------------------------------
 
 data Config = Config
-    { cfgHLint           :: !Bool
+    { cfgCabalInstallVersion :: Maybe Version
+    , cfgHLint           :: !Bool
     , cfgHLintYaml       :: !(Maybe FilePath)
     , cfgHLintVersion    :: !VersionRange
     , cfgJobs            :: (Maybe Int, Maybe Int)
@@ -1408,7 +1415,8 @@ data Config = Config
 
 emptyConfig :: Config
 emptyConfig = Config
-    { cfgHLint           = False
+    { cfgCabalInstallVersion = Nothing
+    , cfgHLint           = False
     , cfgHLintYaml       = Nothing
     , cfgHLintVersion    = defaultHLintVersion
     , cfgJobs            = (Nothing, Nothing)
@@ -1463,6 +1471,11 @@ configFieldDescrs =
         parse
         cfgDoctestVersion
         (\x cfg -> cfg { cfgDoctestVersion = x })
+    , PU.simpleField "cabal-install-version"
+        (error "we don't pretty print")
+        (fmap Just parse)
+        cfgCabalInstallVersion
+        (\x cfg -> cfg { cfgCabalInstallVersion = x })
     , PU.simpleField "local-ghc-options"
         (error "we don't pretty print")
         parseOptsQ
