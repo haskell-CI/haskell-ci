@@ -680,16 +680,18 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
                 [ "      os: osx"
                 ]
 
-    F.forM_ versions $ tellJob False
-    F.forM_ osxVersions $ tellJob True . Just
+    -- newer GHC first, -head last (which is great).
+    -- Alpha release would go first though.
+    F.forM_ (reverse $ S.toList versions) $ tellJob False
+    F.forM_ (reverse $ S.toList osxVersions) $ tellJob True . Just
 
     unless (S.null headGhcVers) $ do
         tellStrLn ""
         tellStrLn "  allow_failures:"
 
-    F.forM_ headGhcVers $ \gv -> do
-        let gvs = dispGhcVersion gv
-        tellStrLn $ concat [ "    - compiler: \"ghc-", gvs, "\"" ]
+        F.forM_ headGhcVers $ \gv -> do
+            let gvs = dispGhcVersion gv
+            tellStrLn $ concat [ "    - compiler: \"ghc-", gvs, "\"" ]
 
     tellStrLns
         [ ""
