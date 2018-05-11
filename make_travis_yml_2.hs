@@ -960,6 +960,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
     forM_ constraintSets $ \cs -> do
         let name = csName cs
         let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
+        tellStrLns [ comment  "Constraint set " ++ name ]
         foldedTellStrLns' FoldConstraintSets name ("Constraint set " ++ name) folds $ tellStrLns
             [ sh' [2086] $ "if " ++ ghcVersionPredicate (csGhcVersions cs) ++ "; then cabal new-build -w ${HC} --disable-tests --disable-benchmarks" ++ constraintFlags ++ " all; else echo skipping...; fi"
             , ""
