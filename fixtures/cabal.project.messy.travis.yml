@@ -164,5 +164,5 @@ script:
   - rm -rf ./dist-newstyle
   - if $HADDOCK; then cabal new-haddock -w ${HC} ${TEST} ${BENCH} all; else echo "Skipping haddock generation";fi
 
-# REGENDATA ["cabal.project.messy"]
+# REGENDATA ["--ghc-head","cabal.project.messy"]
 # EOF
