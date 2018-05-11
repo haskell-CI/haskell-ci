@@ -661,7 +661,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     let tellJob :: Monad m => Bool -> Maybe Version -> YamlWriter m ()
         tellJob osx gv = do
-            let cvs = dispGhcVersion (lookupCabVer =<< gv)
+            let cvs = dispGhcVersion $ cfgCabalInstallVersion config <|> (lookupCabVer =<< gv)
                 gvs = dispGhcVersion gv
 
                 xpkgs' = concatMap (',':) xpkgs
