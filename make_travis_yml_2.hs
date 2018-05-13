@@ -119,9 +119,9 @@ knownGhcVersions = fmap mkVersion
     , [7,6,1],  [7,6,2], [7,6,3]
     , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
     , [7,10,1], [7,10,2], [7,10,3]
-    , [8,0,1], [8,0,2]
-    , [8,2,1], [8,2,2]
-    , [8,4,1], [8,4,2]
+    , [8,0,1],  [8,0,2]
+    , [8,2,1],  [8,2,2]
+    , [8,4,1],  [8,4,2]
     ]
 
 ghcAlpha :: Maybe Version
@@ -129,15 +129,15 @@ ghcAlpha = Nothing -- there is no alpha -- Just $ mkVersion [8,4,1]
 
 cabalVerMap :: [((Int, Int), Maybe Version)]
 cabalVerMap = fmap (fmap (fmap mkVersion))
-    [ ((7, 0), Nothing) -- Use HEAD for everything.
-    , ((7, 2), Nothing)
-    , ((7, 4), Nothing)
-    , ((7, 6), Nothing)
-    , ((7, 8), Nothing)
-    , ((7,10), Nothing)
-    , ((8, 0), Nothing)
-    , ((8, 2), Nothing)
-    , ((8, 4), Nothing)
+    [ ((7, 0), Just [2,2]) -- Use 2.2 for everything.
+    , ((7, 2), Just [2,2])
+    , ((7, 4), Just [2,2])
+    , ((7, 6), Just [2,2])
+    , ((7, 8), Just [2,2])
+    , ((7,10), Just [2,2])
+    , ((8, 0), Just [2,2])
+    , ((8, 2), Just [2,2])
+    , ((8, 4), Just [2,2])
     ]
 
 defaultHLintVersion :: VersionRange
@@ -1294,6 +1294,9 @@ options =
     , Option [] ["cabal-install-version"]
       (reqArgReadP parse (\arg cfg -> cfg { cfgCabalInstallVersion = Just arg }) "VERSION")
       "cabal-install version for all jobs, overrides default"
+    , Option [] ["cabal-install-head"]
+      (NoArg $ successCM $ \cfg -> cfg { cfgCabalInstallVersion = Nothing })
+      "Use cabal-install-head for all jobs, overrides default"
     ]
   where
     overCM f opts = opts
