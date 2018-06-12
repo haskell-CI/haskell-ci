@@ -109,7 +109,7 @@ test-suite golden
                      , filepath
                      , transformers
                        -- dependencies needing explicit constraints
-                     , tasty         == 1.0.*
+                     , tasty         >= 1.0      && < 1.2
                      , tasty-golden  >= 2.3.1.1  && < 2.4
                      , ansi-terminal >= 0.8.0.2  && <0.9
                      , Diff          >= 0.3.4    && < 0.4
