@@ -732,7 +732,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         , sh "BENCH=${BENCH---enable-benchmarks}"
         , sh "TEST=${TEST---enable-tests}"
         , sh "HADDOCK=${HADDOCK-true}"
-        , sh "INSTALLED=${INSTALLED-true}"
+        , sh "UNCONSTRAINED=${UNCONSTRAINED-true}"
+        , sh "NOINSTALLEDCONSTRAINTS=${NOINSTALLEDCONSTRAINTS-false}"
         , sh "GHCHEAD=${GHCHEAD-false}"
         ]
 
@@ -763,9 +764,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         [ "  # Overlay Hackage Package Index for GHC HEAD: https://github.com/hvr/head.hackage"
         , "  - |"
         , "    if $GHCHEAD; then"
-        --  See: https://ghc.haskell.org/trac/ghc/wiki/Commentary/Libraries/VersionHistory
-        --  other packages don't have major bumps GHC-8.2.2 -> GHC-8.4.1 (2018-01-03)
-        , "      sed -i.bak 's/-- allow-newer:.*/allow-newer: *:base, *:template-haskell, *:ghc, *:Cabal/' ${HOME}/.cabal/config"
+        , "      sed -i 's/-- allow-newer: .*/allow-newer: *:base/' ${HOME}/.cabal/config"
+        , "      for pkg in $($HCPKG list --simple-output); do pkg=$(echo $pkg | sed 's/-[^-]*$//'); sed -i \"s/allow-newer: /allow-newer: *:$pkg, /\" ${HOME}/.cabal/config; done"
         , ""
         , "      echo 'repository head.hackage'                                                        >> ${HOME}/.cabal/config"
         , "      echo '   url: http://head.hackage.haskell.org/'                                       >> ${HOME}/.cabal/config"
@@ -774,6 +774,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         , "      echo '              2e8555dde16ebd8df076f1a8ef13b8f14c66bad8eafefd7d9e37d0ed711821fb' >> ${HOME}/.cabal/config"
         , "      echo '              8f79fd2389ab2967354407ec852cbe73f2e8635793ac446d09461ffb99527f6e' >> ${HOME}/.cabal/config"
         , "      echo '   key-threshold: 3'                                                            >> ${HOME}/.cabal.config"
+        , ""
+        , "      grep -Ev -- '^\\s*--' ${HOME}/.cabal/config | grep -Ev '^\\s*$'"
         , ""
         , "      cabal new-update head.hackage -v"
         , "    fi"
@@ -797,7 +799,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             | isAnyVersion (cfgHLintVersion config) = ""
             | otherwise = " --constraint='hlint " ++ display (cfgHLintVersion config) ++ "'"
     when (cfgHLint config) $ tellStrLns
-        [ sh $ "if [ $HCNUMVER -eq 80202 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
+        [ sh $ "if [ $HCNUMVER -eq 80403 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
         ]
 
     -- create cabal.project file
@@ -878,19 +880,6 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     tellStrLns [""]
 
-    when (cfgInstalled config) $ foldedTellStrLns FoldBuildInstalled
-        "Building with installed constraints for package in global-db..." folds $ tellStrLns
-        [ comment "Build with installed constraints for packages in global-db"
-        -- SC2046: Quote this to prevent word splitting.
-        -- here we split on purpose!
-        , sh' [2046, 2086] $ unwords
-            [ "if $INSTALLED;"
-            , "then echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks $(${HCPKG} list --global --simple-output --names-only | sed 's/\\([a-zA-Z0-9-]\\{1,\\}\\) */--constraint=\"\\1 installed\" /g') all | sh;"
-            , "else echo \"Not building with installed constraints\"; fi"
-            ]
-        ]
-
-    tellStrLns [""]
 
     foldedTellStrLns FoldBuildEverything
         "Building with tests and benchmarks..." folds $ tellStrLns
@@ -937,7 +926,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
                 let args = doctestArgs pkgGpd
                     args' = unwords args
                 unless (null args) $ tellStrLns
-                    [ sh $ "if [ $HCNUMVER -eq 80202 ]; then (cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ "); fi"
+                    [ sh $ "if [ $HCNUMVER -eq 80403 ]; then (cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ "); fi"
                     ]
         tellStrLns [ "" ]
 
@@ -958,16 +947,6 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             , ""
             ]
 
-    let constraintSets = cfgConstraintSets config
-    forM_ constraintSets $ \cs -> do
-        let name = csName cs
-        let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
-        tellStrLns [ comment  "Constraint set " ++ name ]
-        foldedTellStrLns' FoldConstraintSets name ("Constraint set " ++ name) folds $ tellStrLns
-            [ sh' [2086] $ "if " ++ ghcVersionPredicate (csGhcVersions cs) ++ "; then cabal new-build -w ${HC} --disable-tests --disable-benchmarks" ++ constraintFlags ++ " all; else echo skipping...; fi"
-            , ""
-            ]
-
     unless (null colls) $
         foldedTellStrLns FoldStackage "Stackage builds..." folds $ tellStrLns
             [ "  # try building & testing for package collections"
@@ -982,6 +961,39 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             , "    done"
             , ""
             ]
+
+    -- Have to build last, as we remove cabal.project.local
+    when (cfgUnconstrainted config) $ foldedTellStrLns FoldBuildInstalled
+        "Building without installed constraints for packages in global-db..." folds $ tellStrLns
+        [ comment "Build without installed constraints for packages in global-db"
+        -- SC2046: Quote this to prevent word splitting.
+        -- here we split on purpose!
+        , sh' [2046, 2086] $ unwords
+            [ "if $UNCONSTRAINED;"
+            , "then rm -f cabal.project.local; echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks all;"
+            , "else echo \"Not building without installed constraints\"; fi"
+            ]
+        , ""
+        ]
+
+    -- and now, as we don't have cabal.project.local;
+    -- we can test with other constraint sets
+    let constraintSets = cfgConstraintSets config
+    unless (null constraintSets) $ do
+        tellStrLns
+            [ comment "Constraint sets"
+            , sh "rm -rf cabal.project.local"
+            , ""
+            ]
+        forM_ constraintSets $ \cs -> do
+            let name = csName cs
+            let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
+            tellStrLns [ comment  "Constraint set " ++ name ]
+            foldedTellStrLns' FoldConstraintSets name ("Constraint set " ++ name) folds $ tellStrLns
+                [ sh' [2086] $ "if " ++ ghcVersionPredicate (csGhcVersions cs) ++ "; then cabal new-build -w ${HC} --disable-tests --disable-benchmarks" ++ constraintFlags ++ " all; else echo skipping...; fi"
+                , ""
+                ]
+        tellStrLns [""]
 
     tellStrLns
         [ "# REGENDATA " ++ show argv
@@ -1016,8 +1028,19 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
                 [ sh $ "echo 'package " ++ pkgName ++ "' >> cabal.project"
                 , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
                 ]
+        -- also write cabal.project.local file with
+        -- @
+        -- constraints: base installed
+        -- constraints: array installed
+        -- ...
         tellStrLns
-            [ sh $ "cat cabal.project"
+            [ sh $ "touch cabal.project.local"
+            , sh $ "if ! $NOINSTALLEDCONSTRAINTS; then for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/^/constraints: /' | sed 's/-[^-]*$/ installed/' >> cabal.project.local; done; fi"
+            ]
+
+        tellStrLns
+            [ sh $ "cat cabal.project || true"
+            , sh $ "cat cabal.project.local || true"
             ]
       where
         cabalPaths
@@ -1233,9 +1256,9 @@ options =
     , Option [] ["no-no-tests-no-bench"]
       (NoArg $ successCM $ \cfg -> cfg { cfgNoTestsNoBench = False })
       "Don't build with --no-tests --no-benchmarks"
-    , Option [] ["no-installed"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgInstalled = False })
-      "Don't build with 'installed' constraints"
+    , Option [] ["no-unconstrained"]
+      (NoArg $ successCM $ \cfg -> cfg { cfgUnconstrainted = False })
+      "Build also without 'installed' constraints"
     , Option [] ["ghc-head"]
       (NoArg $ successCM $ \cfg -> cfg { cfgGhcHead = True })
       "Build also with ghc-head"
@@ -1406,7 +1429,7 @@ data Config = Config
     , cfgCheck           :: !Bool
     , cfgNoise           :: !Bool
     , cfgNoTestsNoBench  :: !Bool
-    , cfgInstalled       :: !Bool
+    , cfgUnconstrainted  :: !Bool
     , cfgInstallDeps     :: !Bool
     , cfgOnlyBranches    :: [String]
     , cfgIrcChannels     :: [String]
@@ -1432,7 +1455,7 @@ emptyConfig = Config
     , cfgCheck           = True
     , cfgNoise           = True
     , cfgNoTestsNoBench  = True
-    , cfgInstalled       = True
+    , cfgUnconstrainted  = True
     , cfgInstallDeps     = True
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
@@ -1499,9 +1522,9 @@ configFieldDescrs =
     , PU.boolField  "no-tests-no-benchmarks"
         cfgNoTestsNoBench
         (\b cfg -> cfg { cfgNoTestsNoBench = b })
-    , PU.boolField  "build-with-installed-step"
-        cfgInstalled
-        (\b cfg -> cfg { cfgInstalled = b })
+    , PU.boolField  "unconstrained-step"
+        cfgUnconstrainted
+        (\b cfg -> cfg { cfgUnconstrainted = b })
     , PU.listField  "irc-channels"
         (error "we don't pretty print")
         PU.parseTokenQ
@@ -1734,8 +1757,7 @@ parseFilePathGlobRel =
       <++ asFile globpieces
   where
     asDir  glob = do dirSep
-                     globs <- parseFilePathGlobRel
-                     return (GlobDir glob globs)
+                     GlobDir glob <$> parseFilePathGlobRel
     asTDir glob = do dirSep
                      return (GlobDir glob GlobDirTrailing)
     asFile glob = return (GlobFile glob)

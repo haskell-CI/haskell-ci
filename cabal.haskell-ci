@@ -20,9 +20,10 @@ jobs: 2:2
 -- builds when less constrained
 -- no-tests-no-bench: True
 
--- --constraint='<boot-packages> installed' is useful to verivy that
--- there is a valid build-plan with GHC-bundled versions of libraries
--- build-with-installed-step: True
+-- By default `installed` constraints are used for packages
+-- in global db. Unconstrained step is a build without them.
+-- Note: solver might or might not pick newer versions.
+-- unconstrained-step: True
 
 -- Options for local packages
 local-ghc-options: -Werror
