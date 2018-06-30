@@ -122,10 +122,12 @@ knownGhcVersions = fmap mkVersion
     , [8,0,1],  [8,0,2]
     , [8,2,1],  [8,2,2]
     , [8,4,1],  [8,4,2], [8,4,3]
+    , [8,6,1]
     ]
 
 ghcAlpha :: Maybe Version
-ghcAlpha = Nothing -- there is no alpha -- Just $ mkVersion [8,4,1]
+-- ghcAlpha = Nothing
+ghcAlpha = Just (mkVersion [8,6,1]) 
 
 cabalVerMap :: [((Int, Int), Maybe Version)]
 cabalVerMap = fmap (fmap (fmap mkVersion))
@@ -144,7 +146,7 @@ defaultHLintVersion :: VersionRange
 defaultHLintVersion = withinVersion (mkVersion [2,1])
 
 defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = withinVersion (mkVersion [0,15])
+defaultDoctestVersion = withinVersion (mkVersion [0,16])
 
 -------------------------------------------------------------------------------
 -- Script
