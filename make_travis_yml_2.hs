@@ -127,7 +127,7 @@ knownGhcVersions = fmap mkVersion
 
 ghcAlpha :: Maybe Version
 -- ghcAlpha = Nothing
-ghcAlpha = Just (mkVersion [8,6,1]) 
+ghcAlpha = Just (mkVersion [8,6,1])
 
 cabalVerMap :: [((Int, Int), Maybe Version)]
 cabalVerMap = fmap (fmap (fmap mkVersion))
@@ -1041,14 +1041,25 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
                 [ sh $ "echo 'package " ++ pkgName ++ "' >> cabal.project"
                 , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
                 ]
+
         -- also write cabal.project.local file with
         -- @
         -- constraints: base installed
         -- constraints: array installed
         -- ...
+        --
+        -- omitting any local package names
         tellStrLns
             [ sh $ "touch cabal.project.local"
-            , sh $ "if ! $NOINSTALLEDCONSTRAINTS; then for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/^/constraints: /' | sed 's/-[^-]*$/ installed/' >> cabal.project.local; done; fi"
+            , sh $ unwords
+                [ "if ! $NOINSTALLEDCONSTRAINTS; then"
+                , "for pkg in $($HCPKG list --simple-output); do"
+                , "echo $pkg"
+                , concatMap (\Pkg{pkgName} -> " | grep -vw -- " ++ pkgName) pkgs
+                , "| sed 's/^/constraints: /'"
+                , "| sed 's/-[^-]*$/ installed/'"
+                , ">> cabal.project.local; done; fi"
+                ]
             ]
 
         tellStrLns

@@ -126,7 +126,7 @@ install:
   - "echo 'constraints: foundatiion >= 0.14' >> cabal.project"
   - "echo 'allow-newer: servant-js:servant, servant-js:servant-foreign' >> cabal.project"
   - touch cabal.project.local
-  - "if ! $NOINSTALLEDCONSTRAINTS; then for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/^/constraints: /' | sed 's/-[^-]*$/ installed/' >> cabal.project.local; done; fi"
+  - "if ! $NOINSTALLEDCONSTRAINTS; then for pkg in $($HCPKG list --simple-output); do echo $pkg  | grep -vw -- servant | grep -vw -- servant-client | grep -vw -- servant-docs | grep -vw -- servant-server | sed 's/^/constraints: /' | sed 's/-[^-]*$/ installed/' >> cabal.project.local; done; fi"
   - cat cabal.project || true
   - cat cabal.project.local || true
   - if [ -f "servant/configure.ac" ]; then
@@ -162,7 +162,7 @@ script:
   - "echo 'constraints: foundatiion >= 0.14' >> cabal.project"
   - "echo 'allow-newer: servant-js:servant, servant-js:servant-foreign' >> cabal.project"
   - touch cabal.project.local
-  - "if ! $NOINSTALLEDCONSTRAINTS; then for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/^/constraints: /' | sed 's/-[^-]*$/ installed/' >> cabal.project.local; done; fi"
+  - "if ! $NOINSTALLEDCONSTRAINTS; then for pkg in $($HCPKG list --simple-output); do echo $pkg  | grep -vw -- servant | grep -vw -- servant-client | grep -vw -- servant-docs | grep -vw -- servant-server | sed 's/^/constraints: /' | sed 's/-[^-]*$/ installed/' >> cabal.project.local; done; fi"
   - cat cabal.project || true
   - cat cabal.project.local || true
   # this builds all libraries and executables (without tests/benchmarks)
