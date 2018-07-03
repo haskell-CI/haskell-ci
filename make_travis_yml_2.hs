@@ -923,7 +923,15 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         tellStrLns [ "" ]
 
     when (cfgHLint config) $ do
-        let hlintOptions = maybe "" (" -h ${ROOTDIR}/" ++) (cfgHLintYaml config) ++ unwords (cfgHLintOptions config)
+        let "" <+> ys = ys
+            xs <+> "" = xs
+            xs <+> ys = xs ++ " " ++ ys
+
+            prependSpace "" = ""
+            prependSpace xs = " " ++ xs
+
+        let hlintOptions = prependSpace $ maybe "" ("-h ${ROOTDIR}/" ++) (cfgHLintYaml config) <+> unwords (cfgHLintOptions config)
+
         tellStrLns [ comment "hlint" ]
         foldedTellStrLns FoldHLint "HLint.." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
