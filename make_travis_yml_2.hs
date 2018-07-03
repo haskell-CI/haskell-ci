@@ -77,7 +77,7 @@ import Distribution.Verbosity (Verbosity)
 import Distribution.Compat.ReadP
     ( ReadP, (<++), (+++), between, char, many1, munch1
     , pfail, readP_to_S, readS_to_P, look
-    , satisfy, sepBy, sepBy1, gather)
+    , satisfy, sepBy, sepBy1, gather, munch, skipSpaces)
 
 #ifdef MIN_VERSION_ShellCheck
 import ShellCheck.Checker (checkScript)
@@ -672,7 +672,9 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
             tellStrLns
                 [ "    - compiler: \"ghc-" <> gvs <> "\""
-                , if | previewGHC gv -> "      env: GHCHEAD=true"
+                , if | Just e <- gv >>= \v -> M.lookup v (cfgEnv config)
+                                     -> "      env: " ++ e
+                     | previewGHC gv -> "      env: GHCHEAD=true"
                      | null colls'   -> "    # env: TEST=--disable-tests BENCH=--disable-benchmarks"
                      | otherwise     -> "      env: 'COLLECTIONS=" ++ intercalate "," colls' ++ "'"
                 , "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-" <> cvs <> ",ghc-" <> gvs <> xpkgs' <> "], sources: [hvr-ghc]}}"
@@ -687,11 +689,12 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
     F.forM_ (reverse $ S.toList versions) $ tellJob False
     F.forM_ (reverse $ S.toList osxVersions) $ tellJob True . Just
 
-    unless (S.null headGhcVers) $ do
+    let allowFailures = headGhcVers `S.union` S.map Just (cfgAllowFailures config)
+    unless (S.null allowFailures) $ do
         tellStrLn ""
         tellStrLn "  allow_failures:"
 
-        F.forM_ headGhcVers $ \gv -> do
+        F.forM_ allowFailures $ \gv -> do
             let gvs = dispGhcVersion gv
             tellStrLn $ concat [ "    - compiler: \"ghc-", gvs, "\"" ]
 
@@ -920,7 +923,15 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         tellStrLns [ "" ]
 
     when (cfgHLint config) $ do
-        let hlintOptions = maybe "" (" -h ${ROOTDIR}/" ++) (cfgHLintYaml config)
+        let "" <+> ys = ys
+            xs <+> "" = xs
+            xs <+> ys = xs ++ " " ++ ys
+
+            prependSpace "" = ""
+            prependSpace xs = " " ++ xs
+
+        let hlintOptions = prependSpace $ maybe "" ("-h ${ROOTDIR}/" ++) (cfgHLintYaml config) <+> unwords (cfgHLintOptions config)
+
         tellStrLns [ comment "hlint" ]
         foldedTellStrLns FoldHLint "HLint.." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
@@ -1309,10 +1320,13 @@ options =
       "Doctest version range"
     , Option ['l'] ["hlint"]
       (NoArg $ successCM $ \cfg -> cfg { cfgHLint = True })
-      "Run hlint (only on GHC-8.2.2 target)"
+      "Run hlint (only on GHC-8.4.3 target)"
     , Option [] ["hlint-yaml"]
       (ReqArg (successCM' $ \arg cfg -> cfg { cfgHLintYaml = Just arg }) "HLINT.YAML")
       "Relative path to .hlint.yaml."
+    , Option [] ["hlint-options"]
+      (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgHLintOptions = xs }) "OPTIONS")
+      "Additional hlint options."
     , Option [] ["hlint-version"]
       (reqArgReadP parse (\arg cfg -> cfg { cfgHLintVersion = arg }) "VERSION")
       "HLint version range"
@@ -1322,6 +1336,12 @@ options =
     , Option [] ["cabal-install-head"]
       (NoArg $ successCM $ \cfg -> cfg { cfgCabalInstallVersion = Nothing })
       "Use cabal-install-head for all jobs, overrides default"
+    , Option [] ["env"]
+      (reqArgReadP envP (\(k, v) cfg -> cfg { cfgEnv = M.insert k v (cfgEnv cfg) }) "ENVDECL")
+      "Environment (e.g. `8.0.2:HADDOCK=false`)"
+    , Option [] ["allow-failure"]
+      (reqArgReadP parse (\arg cfg -> cfg { cfgAllowFailures = S.insert arg (cfgAllowFailures cfg) }) "GHCVERSION")
+      "Allow failures of particular GHC version"
     ]
   where
     overCM f opts = opts
@@ -1337,6 +1357,15 @@ options =
     reqArgReadP p f n = flip ReqArg n $ \arg -> case maybeReadP  p arg of
         Nothing -> Failure [Error $  "cannot parse: " ++ arg ]
         Just x  -> successCM' f x
+
+    envP :: ReadP r (Version, String)
+    envP = do
+        ghc <- parse
+        skipSpaces
+        _ <- char ':'
+        skipSpaces
+        v <- munch (const True)
+        return (ghc, v)
 
 -------------------------------------------------------------------------------
 -- Result
@@ -1421,6 +1450,7 @@ data Config = Config
     , cfgHLint           :: !Bool
     , cfgHLintYaml       :: !(Maybe FilePath)
     , cfgHLintVersion    :: !VersionRange
+    , cfgHLintOptions    :: [String]
     , cfgJobs            :: (Maybe Int, Maybe Int)
     , cfgDoctest         :: !Bool
     , cfgDoctestOptions  :: [String]
@@ -1438,6 +1468,8 @@ data Config = Config
     , cfgProjectName     :: Maybe String
     , cfgFolds           :: Set Fold
     , cfgGhcHead         :: !Bool
+    , cfgEnv             :: M.Map Version String
+    , cfgAllowFailures   :: S.Set Version
     }
   deriving (Show)
 
@@ -1447,6 +1479,7 @@ emptyConfig = Config
     , cfgHLint           = False
     , cfgHLintYaml       = Nothing
     , cfgHLintVersion    = defaultHLintVersion
+    , cfgHLintOptions    = []
     , cfgJobs            = (Nothing, Nothing)
     , cfgDoctest         = False
     , cfgDoctestOptions  = []
@@ -1464,6 +1497,8 @@ emptyConfig = Config
     , cfgProjectName     = Nothing
     , cfgFolds           = S.empty
     , cfgGhcHead         = False
+    , cfgEnv             = M.empty
+    , cfgAllowFailures   = S.empty
     }
 
 configFieldDescrs :: [PU.FieldDescr Config]
@@ -1486,6 +1521,7 @@ configFieldDescrs =
         parse
         cfgHLintVersion
         (\x cfg -> cfg { cfgHLintVersion = x })
+    -- TODO: hlint-options
     , PU.boolField  "doctest"
         cfgDoctest
         (\b cfg -> cfg { cfgDoctest = b })
@@ -1550,6 +1586,7 @@ configFieldDescrs =
     , PU.boolField "ghc-head"
         cfgGhcHead
         (\b cfg -> cfg { cfgGhcHead = b })
+    -- , PU.simpleField "env" -- TODO
     ]
 
 parseOptsQ :: ReadP r [String]
