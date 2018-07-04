@@ -412,10 +412,10 @@ travisFromConfigFile
     -> YamlWriter m ()
 travisFromConfigFile args@(_, opts) path xpkgs = do
     cabalFiles <- getCabalFiles
-    pkgs <- T.mapM (configFromCabalFile opts) cabalFiles
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
-    (ghcs, prj) <- checkVersions pkgs
     let config = optConfigMorphism opts config'
+    pkgs <- T.mapM (configFromCabalFile config opts) cabalFiles
+    (ghcs, prj) <- checkVersions pkgs
     genTravisFromConfigs args xpkgs isCabalProject config prj ghcs
   where
     checkVersions
@@ -495,8 +495,8 @@ travisFromConfigFile args@(_, opts) path xpkgs = do
             Just x  -> return (Just x)
 
 configFromCabalFile
-    :: MonadIO m => Options -> FilePath -> YamlWriter m (Package, Set Version)
-configFromCabalFile opts cabalFile = do
+    :: MonadIO m => Config ->  Options -> FilePath -> YamlWriter m (Package, Set Version)
+configFromCabalFile cfg opts cabalFile = do
     gpd <- liftIO $ readGenericPackageDescription maxBound cabalFile
 
     let compilers = testedWith $ packageDescription gpd
@@ -538,7 +538,11 @@ configFromCabalFile opts cabalFile = do
                      ++ intercalate ", " (map display unknownGhcVers) ++ "\n"
                      ++ "Known GHC versions: " ++ intercalate ", " (map display knownGhcVersions))
 
-    let testedGhcVersions = filter (`withinRange` ghcVerConstrs') knownGhcVersions
+    let knownGhcVersions'
+            | cfgLastInSeries cfg = filterLastMajor knownGhcVersions
+            | otherwise           = knownGhcVersions
+
+    let testedGhcVersions = filter (`withinRange` ghcVerConstrs') knownGhcVersions'
 
     when (null testedGhcVersions) $ do
         putStrLnErr "no known GHC version is allowed by the 'tested-with' specification"
@@ -566,6 +570,8 @@ configFromCabalFile opts cabalFile = do
       where
         t v | [_,_] <- versionNumbers v = Just v
         t _                             = Nothing
+
+    filterLastMajor = map maximum . groupBy ((==) `on` ghcMajVer)
 
 genTravisFromConfigs
     :: Monad m
@@ -1353,6 +1359,9 @@ options =
     , Option [] ["allow-failure"]
       (reqArgReadP parse (\arg cfg -> cfg { cfgAllowFailures = S.insert arg (cfgAllowFailures cfg) }) "GHCVERSION")
       "Allow failures of particular GHC version"
+    , Option [] ["last-in-series"]
+      (NoArg $ successCM $ \cfg -> cfg { cfgLastInSeries = True })
+      "[Discouraged] Assume there are only GHCs last in major series: 8.0.* will match only 8.2.2"
     ]
   where
     overCM f opts = opts
@@ -1481,6 +1490,7 @@ data Config = Config
     , cfgGhcHead         :: !Bool
     , cfgEnv             :: M.Map Version String
     , cfgAllowFailures   :: S.Set Version
+    , cfgLastInSeries    :: !Bool
     }
   deriving (Show)
 
@@ -1510,6 +1520,7 @@ emptyConfig = Config
     , cfgGhcHead         = False
     , cfgEnv             = M.empty
     , cfgAllowFailures   = S.empty
+    , cfgLastInSeries    = False
     }
 
 configFieldDescrs :: [PU.FieldDescr Config]
