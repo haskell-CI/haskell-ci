@@ -796,7 +796,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             | isAnyVersion (cfgDoctestVersion config) = ""
             | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion config) ++ "'"
     when (cfgDoctest config) $ tellStrLns
-        [ sh $ "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin doctest" ++ doctestVersionConstraint ++ "; fi"
+        [ sh $ "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest" ++ doctestVersionConstraint ++ "; fi"
         ]
 
     -- Install hlint
@@ -804,7 +804,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             | isAnyVersion (cfgHLintVersion config) = ""
             | otherwise = " --constraint='hlint " ++ display (cfgHLintVersion config) ++ "'"
     when (cfgHLint config) $ tellStrLns
-        [ sh $ "if [ $HCNUMVER -eq 80403 ]; then cabal new-install -w ${HC} --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
+        [ sh $ "if [ $HCNUMVER -eq 80403 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
         ]
 
     -- create cabal.project file
