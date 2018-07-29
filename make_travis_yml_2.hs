@@ -16,7 +16,7 @@
 -- | New-style @.travis.yml@ script generator using cabal 1.24's nix-style
 -- tech-preview facilities.
 --
--- See also <https://github.com/hvr/multi-ghc-travis>
+-- See also <https://github.com/haskell-CI/haskell-ci>
 --
 -- NB: This code deliberately avoids relying on non-standard packages and
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
@@ -601,7 +601,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         , "#"
         , "#   runghc make_travis_yml_2.hs " ++ unwords [ "'" ++ a ++ "'" | a <- argv ]
         , "#"
-        , "# For more information, see https://github.com/hvr/multi-ghc-travis"
+        , "# For more information, see https://github.com/haskell-CI/haskell-ci"
         , "#"
         , "language: c"
         , "sudo: false"

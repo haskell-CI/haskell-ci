@@ -2,7 +2,7 @@
 #
 #   runghc make_travis_yml_2.hs '--ghc-head' 'cabal.project.messy'
 #
-# For more information, see https://github.com/hvr/multi-ghc-travis
+# For more information, see https://github.com/haskell-CI/haskell-ci
 #
 language: c
 sudo: false

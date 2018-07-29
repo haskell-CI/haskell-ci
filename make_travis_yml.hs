@@ -2,17 +2,18 @@
 
 -- NB: This code deliberately avoids relying on non-standard packages
 
-import Control.Monad
-import Data.List
-import System.Environment
-import System.Exit
-import System.IO
+import           Control.Monad
+import           Data.List
+import           System.Environment
+import           System.Exit
+import           System.IO
 
-import Distribution.PackageDescription.Parse (readPackageDescription)
-import Distribution.PackageDescription (packageDescription, testedWith)
-import Distribution.Compiler (CompilerFlavor(..))
-import Distribution.Version
-import Distribution.Text
+import           Distribution.Compiler                 (CompilerFlavor (..))
+import           Distribution.PackageDescription       (packageDescription,
+                                                        testedWith)
+import           Distribution.PackageDescription.Parse (readPackageDescription)
+import           Distribution.Text
+import           Distribution.Version
 
 putStrLnErr :: String -> IO ()
 putStrLnErr m = hPutStrLn stderr ("*ERROR* " ++ m) >> exitFailure
@@ -70,7 +71,7 @@ genTravisFromCabalFile fn xpkgs = do
     ----------------------------------------------------------------------------
     -- travis.yml generation starts here
 
-    putStrLn "# This file has been generated -- see https://github.com/hvr/multi-ghc-travis"
+    putStrLn "# This file has been generated -- see https://github.com/haskell-CI/haskell-ci"
     putStrLn "language: c"
     putStrLn "sudo: false"
     putStrLn ""

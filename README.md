@@ -26,9 +26,15 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
 * Step 1: Clone this project in any directory
 
     ```bash
-    $ git clone https://github.com/hvr/multi-ghc-travis.git
+    $ git clone https://github.com/haskell-CI/haskell-ci.git
     ```
-    
+
+  or
+
+    ```bash
+    cabal get -s haskell-ci
+    ```
+
 * Step 2: Change directories to your project:
 
     ```bash
@@ -50,8 +56,8 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
 
     ```bash
     $ # You run the following command from your project's directory, even
-    $ # though it references the script from the `multi-ghc-travis` project
-    $ path/to/multi-ghc-travis/make_travis_yml.hs your-project.cabal > .travis.yml
+    $ # though it references the script from the `haskell-ci` project
+    $ path/to/haskell-ci/make_travis_yml.hs your-project.cabal > .travis.yml
     ```
     
     The `make_travis_yml.hs` script looks at the `Tested-With` line in your
