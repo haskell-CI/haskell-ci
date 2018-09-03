@@ -77,14 +77,15 @@ library
       -Wnoncanonical-monadfail-instances
   hs-source-dirs:      src
   other-extensions:    CPP, ViewPatterns, NamedFieldPuns
-  build-depends:       base         >= 4.7  && < 4.12
+  build-depends:       base         >= 4.7  && < 4.13
                      , Cabal        == 1.18.*
                                  || == 1.20.*
                                  || == 1.22.*
                                  || == 1.24.*
                                  || == 2.0.*
                                  || == 2.2.*
-                     , containers   >= 0.4  && < 0.6
+                                 || == 2.4.*
+                     , containers   >= 0.4  && < 0.7
                      , directory    >= 1.1  && < 1.4
                      , filepath     >= 1.2  && < 1.5
                      , transformers >= 0.3  && < 0.6
