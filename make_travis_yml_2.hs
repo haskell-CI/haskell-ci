@@ -131,15 +131,16 @@ ghcAlpha = Nothing
 
 cabalVerMap :: [((Int, Int), Maybe Version)]
 cabalVerMap = fmap (fmap (fmap mkVersion))
-    [ ((7, 0), Just [2,2]) -- Use 2.2 for everything.
-    , ((7, 2), Just [2,2])
-    , ((7, 4), Just [2,2])
-    , ((7, 6), Just [2,2])
-    , ((7, 8), Just [2,2])
-    , ((7,10), Just [2,2])
-    , ((8, 0), Just [2,2])
-    , ((8, 2), Just [2,2])
-    , ((8, 4), Just [2,2])
+    [ ((7, 0), Just [2,4]) -- Use 2.4 for everything.
+    , ((7, 2), Just [2,4])
+    , ((7, 4), Just [2,4])
+    , ((7, 6), Just [2,4])
+    , ((7, 8), Just [2,4])
+    , ((7,10), Just [2,4])
+    , ((8, 0), Just [2,4])
+    , ((8, 2), Just [2,4])
+    , ((8, 4), Just [2,4])
+    , ((8, 6), Just [2,4])
     ]
 
 defaultHLintVersion :: VersionRange
@@ -795,6 +796,12 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
     -- Output cabal.config
     tellStrLns
         [ sh "grep -Ev -- '^\\s*--' ${HOME}/.cabal/config | grep -Ev '^\\s*$'"
+        ]
+
+    -- Initialise store
+    -- https://github.com/haskell/cabal/issues/5516
+    when (cfgDoctest config || cfgHLint config) $ tellStrLns
+        [ sh "(cd /tmp && echo '' | cabal new-repl -w ${HC} --build-dep fail)"
         ]
 
     -- Install doctest
