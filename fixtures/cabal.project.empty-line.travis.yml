@@ -150,11 +150,8 @@ install:
 # any command which exits with a non-zero exit code causes the build to fail.
 script:
   # test that source-distributions can be generated
-  - (cd "servant" && cabal sdist)
-  - (cd "servant-client" && cabal sdist)
-  - (cd "servant-docs" && cabal sdist)
-  - (cd "servant-server" && cabal sdist)
-  - mv "servant"/dist/servant-*.tar.gz "servant-client"/dist/servant-client-*.tar.gz "servant-docs"/dist/servant-docs-*.tar.gz "servant-server"/dist/servant-server-*.tar.gz ${DISTDIR}/
+  - cabal new-sdist all
+  - mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
   - "printf 'packages: servant-*/*.cabal servant-client-*/*.cabal servant-docs-*/*.cabal servant-server-*/*.cabal\\n' > cabal.project"
