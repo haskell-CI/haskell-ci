@@ -875,8 +875,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         ]
 
     foldedTellStrLns FoldSDist "Packaging..." folds $ do
-        tellStrLns
-            [ sh $ "cabal new-sdist all"
+        forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
+            [ sh $ "(cd \"" ++ pkgDir ++ "\" && cabal new-sdist)"
             ]
 
     let tarFiles = "dist-newstyle" </> "sdist" </> "*.tar.gz"
