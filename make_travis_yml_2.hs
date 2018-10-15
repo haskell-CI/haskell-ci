@@ -876,6 +876,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     foldedTellStrLns FoldSDist "Packaging..." folds $ do
         forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
+            -- Why not just perform a single `cabal new-sdist all`?
+            -- See haskell/cabal#5586.
             [ sh $ "(cd \"" ++ pkgDir ++ "\" && cabal new-sdist)"
             ]
 
