@@ -1,5 +1,5 @@
 -- Most settings can be given as command line arguments
--- Config file is convinient if you maintain large amount of packages
+-- Config file is convenient if you maintain large amount of packages
 
 jobs: 2:2
 
