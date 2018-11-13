@@ -962,7 +962,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
                 let args = doctestArgs pkgGpd
                     args' = unwords args
                 unless (null args) $ tellStrLns
-                    [ sh $ "if [ $HCNUMVER -eq 80403 ]; then (cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ "); fi"
+                    [ sh $ "if [ $HCNUMVER -eq 80603 ]; then (cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ "); fi"
                     ]
         tellStrLns [ "" ]
 
