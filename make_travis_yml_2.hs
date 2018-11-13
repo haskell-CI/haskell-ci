@@ -817,7 +817,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             | isAnyVersion (cfgHLintVersion config) = ""
             | otherwise = " --constraint='hlint " ++ display (cfgHLintVersion config) ++ "'"
     when (cfgHLint config) $ tellStrLns
-        [ sh $ "if [ $HCNUMVER -eq 80403 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
+        [ sh $ "if [ $HCNUMVER -eq 80603 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
         ]
 
     -- create cabal.project file
@@ -951,7 +951,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
                 let args = doctestArgs pkgGpd
                     args' = unwords args
                 unless (null args) $ tellStrLns
-                    [ sh $ "if [ $HCNUMVER -eq 80403 ]; then (cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ "); fi"
+                    [ sh $ "if [ $HCNUMVER -eq 80603 ]; then (cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ "); fi"
                     ]
         tellStrLns [ "" ]
 

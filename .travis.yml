@@ -78,7 +78,7 @@ install:
   - grep -Ev -- '^\s*--' ${HOME}/.cabal/config | grep -Ev '^\s*$'
   - (cd /tmp && echo '' | cabal new-repl -w ${HC} --build-dep fail)
   - if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest --constraint='doctest ==0.16.*'; fi
-  - if [ $HCNUMVER -eq 80403 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint --constraint='hlint ==2.1.*'; fi
+  - if [ $HCNUMVER -eq 80603 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint --constraint='hlint ==2.1.*'; fi
   - "printf 'packages: \".\"\\n' > cabal.project"
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - echo 'package haskell-ci' >> cabal.project
@@ -123,7 +123,7 @@ script:
   - if [ $HCNUMVER -ge 80000 ]; then (cd haskell-ci-* && doctest --fast src); fi
 
   # hlint
-  - if [ $HCNUMVER -eq 80403 ]; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml src); fi
+  - if [ $HCNUMVER -eq 80603 ]; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml src); fi
 
   # cabal check
   - (cd haskell-ci-* && cabal check)
