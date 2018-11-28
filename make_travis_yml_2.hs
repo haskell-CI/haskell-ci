@@ -1035,6 +1035,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
     generateCabalProject dist = do
         tellStrLns
             [ sh $ "printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project"
+            , sh $ "printf 'write-ghc-environment-files: always' >> cabal.project"
             ]
         F.forM_ (prjConstraints prj) $ \xs -> do
             let s = concat (lines xs)

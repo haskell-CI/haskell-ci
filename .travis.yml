@@ -80,6 +80,7 @@ install:
   - if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest --constraint='doctest ==0.16.*'; fi
   - if [ $HCNUMVER -eq 80403 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint --constraint='hlint ==2.1.*'; fi
   - "printf 'packages: \".\"\\n' > cabal.project"
+  - "printf 'write-ghc-environment-files: always' >> cabal.project"
   - echo 'package haskell-ci' >> cabal.project
   - "echo '  ghc-options: -Werror' >> cabal.project"
   - touch cabal.project.local
@@ -104,6 +105,7 @@ script:
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
   - "printf 'packages: haskell-ci-*/*.cabal\\n' > cabal.project"
+  - "printf 'write-ghc-environment-files: always' >> cabal.project"
   - echo 'package haskell-ci' >> cabal.project
   - "echo '  ghc-options: -Werror' >> cabal.project"
   - touch cabal.project.local

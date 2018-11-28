@@ -128,6 +128,7 @@ install:
     fi
   - grep -Ev -- '^\s*--' ${HOME}/.cabal/config | grep -Ev '^\s*$'
   - "printf 'packages: \"servant\" \"servant-client\" \"servant-docs\" \"servant-server\"\\n' > cabal.project"
+  - "printf 'write-ghc-environment-files: always' >> cabal.project"
   - "echo 'constraints: foundatiion >= 0.14' >> cabal.project"
   - "echo 'allow-newer: servant-js:servant, servant-js:servant-foreign' >> cabal.project"
   - touch cabal.project.local
@@ -161,6 +162,7 @@ script:
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
   - "printf 'packages: servant-*/*.cabal servant-client-*/*.cabal servant-docs-*/*.cabal servant-server-*/*.cabal\\n' > cabal.project"
+  - "printf 'write-ghc-environment-files: always' >> cabal.project"
   - "echo 'constraints: foundatiion >= 0.14' >> cabal.project"
   - "echo 'allow-newer: servant-js:servant, servant-js:servant-foreign' >> cabal.project"
   - touch cabal.project.local
