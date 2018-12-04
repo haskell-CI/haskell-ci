@@ -167,9 +167,9 @@ sh' _ = shImpl
 #else
 sh' excl cmd = unsafePerformIO $ do
   res <- checkScript iface spec
-  case res of
-    (SC.CheckResult _ []) -> return (shImpl cmd)
-    _                     -> SC.onResult scFormatter res iface >> fail "ShellCheck!"
+  if null (SC.crComments res)
+     then return (shImpl cmd)
+     else SC.onResult scFormatter res iface >> fail "ShellCheck!"
   where
     iface = SC.SystemInterface $ \n -> return $ Left $ "cannot read file: " ++ n
     spec  = SC.emptyCheckSpec { SC.csFilename = "stdin"
@@ -179,7 +179,7 @@ sh' excl cmd = unsafePerformIO $ do
                               }
 
 scFormatter :: SC.Formatter
-scFormatter = unsafePerformIO (SC.TTY.format (SC.FormatterOptions SC.ColorAlways))
+scFormatter = unsafePerformIO (SC.TTY.format (SC.newFormatterOptions { SC.foColorOption = SC.ColorAlways }))
 #endif
 
 -- Non-ShellCheck version of sh'

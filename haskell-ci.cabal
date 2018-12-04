@@ -93,8 +93,8 @@ library
   default-language:    Haskell2010
 
   -- ShellCheck. Would need newer transformers for older GHC
-  if flag(ShellCheck) && impl(ghc >= 7.10 && <8.5)
-    build-depends: ShellCheck == 0.5.0
+  if flag(ShellCheck) && impl(ghc >= 7.10 && <8.7)
+    build-depends: ShellCheck == 0.6.0
 
 executable make-travis-yml
   main-is:             Main.hs
