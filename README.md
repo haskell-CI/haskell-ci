@@ -14,7 +14,7 @@ At time of writing [Travis-CI](https://travis-ci.org/) has [support for building
  - GHC 8.0.1, GHC 8.0.2
  - GHC 8.2.1, GHC 8.2.2
  - GHC 8.4.1, GHC 8.4.2, GHC 8.4.3, GHC 8.4.4
- - GHC 8.6.1, GHC 8.6.2 *(pre-release snapshot)*
+ - GHC 8.6.1, GHC 8.6.2, GHC 8.6.3
  - GHC HEAD.
 
 Each GHC version is provided in a separate `ghc-<version>` `.deb` package installing into `/opt/ghc/<version>` (thus allowing to be installed at the same time if needed) published in a [PPA](https://launchpad.net/~hvr/+archive/ghc). The easiest way to "activate" a particular GHC version is to prepend its `bin`-folder to the `$PATH` environment variable (see example in next section).
@@ -132,6 +132,8 @@ Note that `/opt/ghc/bin` also contains a default symlink for `cabal`, so it's en
 | `cabal-install-1.22` | `/opt/cabal/1.22/bin/cabal`
 | `cabal-install-1.24` | `/opt/cabal/1.24/bin/cabal`
 | `cabal-install-2.0`  | `/opt/cabal/2.0/bin/cabal`
+| `cabal-install-2.2`  | `/opt/cabal/2.2/bin/cabal`
+| `cabal-install-2.4`  | `/opt/cabal/2.4/bin/cabal`
 | `cabal-install-head` | `/opt/cabal/head/bin/cabal`
 | `alex-3.1.3`         | `/opt/alex/3.1.3/bin/alex`
 | `alex-3.1.4`         | `/opt/alex/3.1.4/bin/alex`
