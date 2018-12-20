@@ -157,9 +157,6 @@ The following `.travis.yml` snippet shows the different `matrix` and
 ```yaml
 language: c
 
-# explicitly request container-based infrastructure
-sudo: false
-
 matrix:
   include:
     - env: CABALVER=1.16 GHCVER=7.6.3

@@ -73,7 +73,6 @@ genTravisFromCabalFile fn xpkgs = do
 
     putStrLn "# This file has been generated -- see https://github.com/haskell-CI/haskell-ci"
     putStrLn "language: c"
-    putStrLn "sudo: false"
     putStrLn ""
     putStrLn "cache:"
     putStrLn "  directories:"
