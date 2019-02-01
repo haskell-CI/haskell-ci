@@ -302,6 +302,15 @@ main = do
 
 parseOpts :: [String] -> IO (Options, [String], FilePath, [String])
 parseOpts argv = case argv of
+    -- travis is default command
+    --
+    -- we also simply check `isPrefixOf` as so far one char is enough to disambiguate
+    -- - travis
+    -- - regenerate
+    -- - list-ghc
+    --
+    (cmd : argv') | cmd `isPrefixOf` "travis" -> do
+        parseOptsNoCommands argv'
     (cmd : argv') | cmd `isPrefixOf` "regenerate" -> do
         let fp = fromMaybe  ".travis.yml" $ listToMaybe argv'
         ls <- fmap lines (readFile fp >>= evaluate . force) -- strict IO
