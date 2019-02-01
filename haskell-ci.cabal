@@ -37,7 +37,7 @@ tested-with:
   GHC == 8.0.2,
   GHC == 8.2.2,
   GHC == 8.4.4,
-  GHC == 8.6.1
+  GHC == 8.6.3
 extra-source-files:
   fixtures/cabal.haskell-ci
   fixtures/haskell-ci.cabal
@@ -68,7 +68,9 @@ flag ShellCheck
   manual: True
 
 library
-  exposed-modules:     MakeTravisYml
+  exposed-modules:
+    MakeTravisYml
+    Glob
   ghc-options:         -Wall
   if impl(ghc >= 8.0)
     ghc-options:
@@ -96,7 +98,7 @@ library
   if flag(ShellCheck) && impl(ghc >= 7.10 && <8.7)
     build-depends: ShellCheck == 0.6.0
 
-executable make-travis-yml
+executable haskell-ci
   main-is:             Main.hs
   ghc-options:         -Wall
   build-depends:       base, haskell-ci
