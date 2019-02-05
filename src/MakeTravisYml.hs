@@ -808,12 +808,6 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         [ sh "grep -Ev -- '^\\s*--' ${HOME}/.cabal/config | grep -Ev '^\\s*$'"
         ]
 
-    -- Initialise store
-    -- https://github.com/haskell/cabal/issues/5516
-    when (cfgDoctest config || cfgHLint config) $ tellStrLns
-        [ sh "(cd /tmp && echo '' | cabal new-repl -w ${HC} --build-dep fail)"
-        ]
-
     -- Install doctest
     let doctestVersionConstraint
             | isAnyVersion (cfgDoctestVersion config) = ""
