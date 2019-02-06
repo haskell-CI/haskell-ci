@@ -617,6 +617,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         , "language: c"
         , "sudo: false"
         , ""
+        , "dist: xenial"
+        , ""
         , "git:"
         , "  submodules: false  # whether to recursively clone submodules"
         , ""
