@@ -23,7 +23,7 @@ jobs: 2:2
 -- By default `installed` constraints are used for packages
 -- in global db. Unconstrained step is a build without them.
 -- Note: solver might or might not pick newer versions.
--- unconstrained-step: True
+unconstrained-step: False
 
 -- Options for local packages
 local-ghc-options: -Werror
@@ -51,6 +51,12 @@ doctest-options: --fast
 -- Constraint sets
 -- Package will be build with different constraints.
 -- This is useful to check compatibility with older versions of dependencies.
+
+-- TODO: make installed constraints configurable
+env: 8.0.2:NOINSTALLEDCONSTRAINTS=true
+env: 8.2.2:NOINSTALLEDCONSTRAINTS=true
+env: 8.4.4:NOINSTALLEDCONSTRAINTS=true
+env: 8.6.3:NOINSTALLEDCONSTRAINTS=true
 
 constraint-set deepseq-1.4
   ghc: (>= 7.8 && <7.10) || == 8.2.2

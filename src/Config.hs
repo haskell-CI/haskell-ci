@@ -1,6 +1,8 @@
+{-# LANGUAGE DeriveGeneric #-}
 module Config where
 
 import Distribution.Version
+import GHC.Generics (Generic)
 
 import qualified Data.Set as S
 import qualified Data.Map as M
@@ -57,7 +59,7 @@ data Config = Config
     , cfgAllowFailures   :: S.Set Version
     , cfgLastInSeries    :: !Bool
     }
-  deriving (Show)
+  deriving (Show, Generic)
 
 emptyConfig :: Config
 emptyConfig = Config
