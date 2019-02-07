@@ -92,6 +92,7 @@ import Data.Semigroup (Semigroup (..))
 import Data.Monoid ((<>))
 #endif
 
+import Config
 import Glob
 
 #if !(MIN_VERSION_Cabal(2,0,0))
@@ -143,12 +144,6 @@ cabalVerMap = fmap (fmap (fmap mkVersion))
     , ((8, 4), Just [2,4])
     , ((8, 6), Just [2,4])
     ]
-
-defaultHLintVersion :: VersionRange
-defaultHLintVersion = withinVersion (mkVersion [2,1])
-
-defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = withinVersion (mkVersion [0,16])
 
 -------------------------------------------------------------------------------
 -- Script
@@ -1432,21 +1427,6 @@ instance Monoid a => Semigroup (Result e a) where
 -- Fold
 -------------------------------------------------------------------------------
 
-data Fold
-    = FoldSDist
-    | FoldUnpack
-    | FoldBuild
-    | FoldBuildInstalled
-    | FoldBuildEverything
-    | FoldTest
-    | FoldHaddock
-    | FoldStackage
-    | FoldCheck
-    | FoldDoctest
-    | FoldHLint
-    | FoldConstraintSets
-  deriving (Eq, Ord, Show, Enum, Bounded)
-
 showFold :: Fold -> String
 showFold = dashise . drop 4 . show
   where
@@ -1476,64 +1456,6 @@ parseFoldQ = do
 -------------------------------------------------------------------------------
 -- Config file
 -------------------------------------------------------------------------------
-
-data Config = Config
-    { cfgCabalInstallVersion :: Maybe Version
-    , cfgHLint           :: !Bool
-    , cfgHLintYaml       :: !(Maybe FilePath)
-    , cfgHLintVersion    :: !VersionRange
-    , cfgHLintOptions    :: [String]
-    , cfgJobs            :: (Maybe Int, Maybe Int)
-    , cfgDoctest         :: !Bool
-    , cfgDoctestOptions  :: [String]
-    , cfgDoctestVersion  :: !VersionRange
-    , cfgLocalGhcOptions :: [String]
-    , cfgConstraintSets  :: [ConstraintSet]
-    , cfgCache           :: !Bool
-    , cfgCheck           :: !Bool
-    , cfgNoise           :: !Bool
-    , cfgNoTestsNoBench  :: !Bool
-    , cfgUnconstrainted  :: !Bool
-    , cfgInstallDeps     :: !Bool
-    , cfgOnlyBranches    :: [String]
-    , cfgIrcChannels     :: [String]
-    , cfgProjectName     :: Maybe String
-    , cfgFolds           :: Set Fold
-    , cfgGhcHead         :: !Bool
-    , cfgEnv             :: M.Map Version String
-    , cfgAllowFailures   :: S.Set Version
-    , cfgLastInSeries    :: !Bool
-    }
-  deriving (Show)
-
-emptyConfig :: Config
-emptyConfig = Config
-    { cfgCabalInstallVersion = Nothing
-    , cfgHLint           = False
-    , cfgHLintYaml       = Nothing
-    , cfgHLintVersion    = defaultHLintVersion
-    , cfgHLintOptions    = []
-    , cfgJobs            = (Nothing, Nothing)
-    , cfgDoctest         = False
-    , cfgDoctestOptions  = []
-    , cfgDoctestVersion  = defaultDoctestVersion
-    , cfgLocalGhcOptions = []
-    , cfgConstraintSets  = []
-    , cfgCache           = True
-    , cfgCheck           = True
-    , cfgNoise           = True
-    , cfgNoTestsNoBench  = True
-    , cfgUnconstrainted  = True
-    , cfgInstallDeps     = True
-    , cfgOnlyBranches    = []
-    , cfgIrcChannels     = []
-    , cfgProjectName     = Nothing
-    , cfgFolds           = S.empty
-    , cfgGhcHead         = False
-    , cfgEnv             = M.empty
-    , cfgAllowFailures   = S.empty
-    , cfgLastInSeries    = False
-    }
 
 configFieldDescrs :: [PU.FieldDescr Config]
 configFieldDescrs =
@@ -1665,16 +1587,6 @@ parseConfigFile path contents = toWriter $ do
 -------------------------------------------------------------------------------
 -- ConstraintSet
 -------------------------------------------------------------------------------
-
-data ConstraintSet = ConstraintSet
-    { csName        :: String
-    , csGhcVersions :: VersionRange
-    , csConstraints :: [String] -- we parse these simply as strings
-    }
-  deriving (Show)
-
-emptyConstraintSet :: String -> ConstraintSet
-emptyConstraintSet n = ConstraintSet n anyVersion []
 
 constraintSetFieldDescrs :: [PU.FieldDescr ConstraintSet]
 constraintSetFieldDescrs =
