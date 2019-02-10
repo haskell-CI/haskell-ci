@@ -1627,9 +1627,6 @@ accumFields fields = foldM setField
 -- From cabal-install
 -------------------------------------------------------------------------------
 
-
---
-
 parseHaskellString :: ReadP r String
 parseHaskellString = readS_to_P reads
 
