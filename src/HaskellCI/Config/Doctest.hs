@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
 module HaskellCI.Config.Doctest where
 
 import Distribution.Version

@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
 module HaskellCI.Config.HLint where
 
 import Distribution.Version

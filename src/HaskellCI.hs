@@ -1,12 +1,8 @@
-{-# LANGUAGE Haskell2010 #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
 
 #if !defined(MIN_VERSION_Cabal)
 -- As a heuristic, if the macro isn't defined, be pessimistic and
@@ -34,8 +30,9 @@ module HaskellCI (
 import Control.Applicative as App ((<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
-import Control.Monad (void, when, unless, liftM, forM_, mzero, foldM, join)
+import Control.Monad (when, unless, liftM, forM_, mzero, foldM, join)
 import Data.Char (isSpace, isUpper, toLower)
+import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import Data.Function
@@ -76,8 +73,8 @@ import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Verbosity (Verbosity)
 #endif
 import Distribution.Compat.ReadP
-    ( ReadP, (<++), (+++), between, char, many1, munch1
-    , readP_to_S, readS_to_P, sepBy, gather, munch, skipSpaces)
+    ( ReadP, (<++), char, munch1
+    , readP_to_S, readS_to_P, sepBy, munch, skipSpaces)
 
 #ifdef MIN_VERSION_ShellCheck
 import ShellCheck.Checker (checkScript)
@@ -101,6 +98,7 @@ import HaskellCI.Config
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.HLint
 import HaskellCI.Glob
+import HaskellCI.Project
 
 #if !(MIN_VERSION_Cabal(2,0,0))
 -- compat helpers for pre-2.0
@@ -473,11 +471,11 @@ travisFromConfigFile args@(_, opts) path xpkgs = do
 
     getCabalFiles :: MonadIO m => YamlWriter m (Project FilePath)
     getCabalFiles
-        | isNothing isCabalProject = return (Project [path] Nothing Nothing)
+        | isNothing isCabalProject = return (Project [path] [] [])
         | otherwise = do
-            contents <- liftIO $ readFile path
+            contents <- liftIO $ BS.readFile path
             pkgs <- either putStrLnErr return $ parseProjectFile path contents
-            overPrjPackages concat `liftM` T.mapM findProjectPackage pkgs
+            over #prjPackages concat `liftM` T.mapM findProjectPackage pkgs
 
     rootdir = takeDirectory path
 
@@ -1233,63 +1231,6 @@ parseJobsQ = nm <++ m <++ n <++ return (Nothing, Nothing)
       return (Just x, Nothing)
 
 -------------------------------------------------------------------------------
--- Project file
--------------------------------------------------------------------------------
-
-data Project a = Project
-    { prjPackages    :: [a]
-    , prjConstraints :: Maybe String
-    , prjAllowNewer  :: Maybe String
-    }
-  deriving (Show, Functor, F.Foldable, T.Traversable)
-
-overPrjPackages :: ([a] -> [b]) -> Project a -> Project b
-overPrjPackages f prj = prj { prjPackages = f (prjPackages prj) }
-
-emptyProject :: Project [a]
-emptyProject = Project [] Nothing Nothing
-
--- | Parse project file. Extracts only @packages@ field.
---
--- >>> fmap prjPackages $ parseProjectFile "cabal.project" "packages: foo bar/*.cabal"
--- Right ["foo","bar/*.cabal"]
---
-parseProjectFile :: FilePath -> String -> Either String (Project String)
-parseProjectFile path contents =
-    case PU.parseFields legacyProjectConfigFieldDescrs emptyProject contents of
-        PU.ParseOk _ x -> Right x
-        PU.ParseFailed err -> Left $ case PU.locatedErrorMsg err of
-            (l, msg) -> "ERROR " ++ path ++ ":" ++ show l ++ ": " ++ msg
-
-legacyProjectConfigFieldDescrs :: [PU.FieldDescr (Project String)]
-legacyProjectConfigFieldDescrs =
-    [ PU.listField "packages"
-        (error "we don't pretty print") -- pretty
-        parsePackageLocationTokenQ -- parse
-        prjPackages
-        (\x prj -> prj { prjPackages = x })
-    , PU.simpleField "constraints"
-        (error "we don't pretty print") -- pretty
-        (fmap Just PU.parseFreeText)
-        prjConstraints
-        (\x prj -> prj { prjConstraints = maybeAlt2 commaConcat (prjConstraints prj) x })
-    , PU.simpleField "allow-newer"
-        (error "we don't pretty print") -- pretty
-        (fmap Just PU.parseFreeText)
-        prjAllowNewer
-        (\x prj -> prj { prjAllowNewer = maybeAlt2 commaConcat (prjAllowNewer prj) x })
-    ]
-  where
-    maybeAlt2 _ Nothing  x        = x
-    maybeAlt2 _ x        Nothing  = x
-    maybeAlt2 f (Just x) (Just y) = Just (f x y)
-
-    commaConcat x y
-        | all isSpace x = y
-        | all isSpace y = x
-        | otherwise     = x ++ ", " ++ y
-
--------------------------------------------------------------------------------
 -- Options
 -------------------------------------------------------------------------------
 
@@ -1686,36 +1627,8 @@ accumFields fields = foldM setField
 -- From cabal-install
 -------------------------------------------------------------------------------
 
--- | This is a bit tricky since it has to cover globs which have embedded @,@
--- chars. But we don't just want to parse strictly as a glob since we want to
--- allow http urls which don't parse as globs, and possibly some
--- system-dependent file paths. So we parse fairly liberally as a token, but
--- we allow @,@ inside matched @{}@ braces.
+
 --
-parsePackageLocationTokenQ :: ReadP r String
-parsePackageLocationTokenQ = parseHaskellString <++ parsePackageLocationToken
-  where
-    parsePackageLocationToken :: ReadP r String
-    parsePackageLocationToken = fmap fst (gather outerTerm)
-      where
-        outerTerm   = alternateEither1 outerToken (braces innerTerm)
-        innerTerm   = alternateEither  innerToken (braces innerTerm)
-        outerToken  = void $ munch1 outerChar
-        innerToken  = void $ munch1 innerChar
-        outerChar c = not (isSpace c || c == '{' || c == '}' || c == ',')
-        innerChar c = not (isSpace c || c == '{' || c == '}')
-        braces      = between (char '{') (char '}')
-
-    alternateEither, alternateEither1,
-      alternatePQs, alternate1PQs, alternateQsP, alternate1QsP
-      :: ReadP r () -> ReadP r () -> ReadP r ()
-
-    alternateEither1 p q = alternate1PQs p q +++ alternate1QsP q p
-    alternateEither  p q = alternateEither1 p q +++ return ()
-    alternate1PQs    p q = p >> alternateQsP q p
-    alternatePQs     p q = alternate1PQs p q +++ return ()
-    alternate1QsP    q p = many1 q >> alternatePQs p q
-    alternateQsP     q p = alternate1QsP q p +++ return ()
 
 parseHaskellString :: ReadP r String
 parseHaskellString = readS_to_P reads
