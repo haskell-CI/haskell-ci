@@ -115,6 +115,13 @@ versionNumbers (Version vn _) = vn
 #endif
 
 -------------------------------------------------------------------------------
+-- Microlens
+-------------------------------------------------------------------------------
+
+view :: Getting a s a -> s -> a
+view l x = x ^. l
+
+-------------------------------------------------------------------------------
 -- Hardcoded values
 -------------------------------------------------------------------------------
 
@@ -811,10 +818,11 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         ]
 
     -- Install doctest
+    let doctestConfig = cfgDoctest config
     let doctestVersionConstraint
-            | isAnyVersion (cfgDoctestVersion config) = ""
-            | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion config) ++ "'"
-    when (cfgDoctest config) $ tellStrLns
+            | isAnyVersion (cfgDoctestVersion doctestConfig) = ""
+            | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion doctestConfig) ++ "'"
+    when (cfgDoctestEnabled doctestConfig) $ tellStrLns
         [ sh $ "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest" ++ doctestVersionConstraint ++ "; fi"
         ]
 
@@ -928,8 +936,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     tellStrLns [""]
 
-    when (cfgDoctest config) $ do
-        let doctestOptions = unwords $ cfgDoctestOptions config
+    when (cfgDoctestEnabled doctestConfig) $ do
+        let doctestOptions = unwords $ cfgDoctestOptions doctestConfig
         tellStrLns [ comment "doctest" ]
         foldedTellStrLns FoldDoctest "Doctest..." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
@@ -1339,13 +1347,13 @@ options =
       (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgLocalGhcOptions = xs }) "OPTIONS")
       "--ghc-options for local packages"
     , Option ['d'] ["doctest"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgDoctest = True })
+      (NoArg $ successCM $ set (#cfgDoctest . #cfgDoctestEnabled) True)
       "Run doctest using .ghc.environment files."
     , Option [] ["doctest-options"]
-      (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgDoctestOptions = xs }) "OPTIONS")
+      (reqArgReadP parseOptsQ (set $ #cfgDoctest . #cfgDoctestOptions) "OPTIONS")
       "Additional doctest options."
     , Option [] ["doctest-version"]
-      (reqArgReadP parse (\arg cfg -> cfg { cfgDoctestVersion = arg }) "VERSION")
+      (reqArgReadP parse (set $ #cfgDoctest . #cfgDoctestVersion) "VERSION")
       "Doctest version range"
     , Option ['l'] ["hlint"]
       (NoArg $ successCM $ \cfg -> cfg { cfgHLint = True })
@@ -1484,18 +1492,18 @@ configFieldDescrs =
         (\x cfg -> cfg { cfgHLintVersion = x })
     -- TODO: hlint-options
     , PU.boolField  "doctest"
-        cfgDoctest
-        (\b cfg -> cfg { cfgDoctest = b })
+        (view $ #cfgDoctest . #cfgDoctestEnabled)
+        (set $ #cfgDoctest . #cfgDoctestEnabled)
     , PU.simpleField "doctest-options"
         (error "we don't pretty print")
         parseOptsQ
-        cfgDoctestOptions
-        (\x cfg -> cfg { cfgDoctestOptions = cfgDoctestOptions cfg ++ x })
+        (view $ #cfgDoctest . #cfgDoctestOptions)
+        (set $ #cfgDoctest . #cfgDoctestOptions)
     , PU.simpleField "doctest-version"
         (error "we don't pretty print")
         parse
-        cfgDoctestVersion
-        (\x cfg -> cfg { cfgDoctestVersion = x })
+        (view $ #cfgDoctest . #cfgDoctestVersion)
+        (set $ #cfgDoctest . #cfgDoctestVersion)
     , PU.simpleField "cabal-install-version"
         (error "we don't pretty print")
         (fmap Just parse)

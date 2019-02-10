@@ -32,6 +32,14 @@ data ConstraintSet = ConstraintSet
 emptyConstraintSet :: String -> ConstraintSet
 emptyConstraintSet n = ConstraintSet n anyVersion []
 
+data DoctestConfig = DoctestConfig
+    { cfgDoctestEnabled  :: !Bool
+    , cfgDoctestOptions  :: [String]
+    , cfgDoctestVersion  :: !VersionRange
+    }
+  deriving (Show, Generic)
+
+-- TODO: split other blocks like DoctestConfig
 data Config = Config
     { cfgCabalInstallVersion :: Maybe Version
     , cfgHLint           :: !Bool
@@ -39,9 +47,7 @@ data Config = Config
     , cfgHLintVersion    :: !VersionRange
     , cfgHLintOptions    :: [String]
     , cfgJobs            :: (Maybe Int, Maybe Int)
-    , cfgDoctest         :: !Bool
-    , cfgDoctestOptions  :: [String]
-    , cfgDoctestVersion  :: !VersionRange
+    , cfgDoctest         :: !DoctestConfig
     , cfgLocalGhcOptions :: [String]
     , cfgConstraintSets  :: [ConstraintSet]
     , cfgCache           :: !Bool
@@ -69,9 +75,11 @@ emptyConfig = Config
     , cfgHLintVersion    = defaultHLintVersion
     , cfgHLintOptions    = []
     , cfgJobs            = (Nothing, Nothing)
-    , cfgDoctest         = False
-    , cfgDoctestOptions  = []
-    , cfgDoctestVersion  = defaultDoctestVersion
+    , cfgDoctest         = DoctestConfig
+        { cfgDoctestEnabled = False
+        , cfgDoctestOptions  = []
+        , cfgDoctestVersion  = defaultDoctestVersion
+        }
     , cfgLocalGhcOptions = []
     , cfgConstraintSets  = []
     , cfgCache           = True
