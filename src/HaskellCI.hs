@@ -622,8 +622,6 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         , "# For more information, see https://github.com/haskell-CI/haskell-ci"
         , "#"
         , "language: c"
-        , "sudo: false"
-        , ""
         , "dist: xenial"
         , ""
         , "git:"
