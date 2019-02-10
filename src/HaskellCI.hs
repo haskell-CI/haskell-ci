@@ -1,12 +1,8 @@
-{-# LANGUAGE Haskell2010 #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
 
 #if !defined(MIN_VERSION_Cabal)
 -- As a heuristic, if the macro isn't defined, be pessimistic and
@@ -101,6 +97,7 @@ import HaskellCI.Config
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.HLint
 import HaskellCI.Glob
+import HaskellCI.Project
 
 #if !(MIN_VERSION_Cabal(2,0,0))
 -- compat helpers for pre-2.0
@@ -477,7 +474,7 @@ travisFromConfigFile args@(_, opts) path xpkgs = do
         | otherwise = do
             contents <- liftIO $ readFile path
             pkgs <- either putStrLnErr return $ parseProjectFile path contents
-            overPrjPackages concat `liftM` T.mapM findProjectPackage pkgs
+            over #prjPackages concat `liftM` T.mapM findProjectPackage pkgs
 
     rootdir = takeDirectory path
 
@@ -1235,19 +1232,6 @@ parseJobsQ = nm <++ m <++ n <++ return (Nothing, Nothing)
 -------------------------------------------------------------------------------
 -- Project file
 -------------------------------------------------------------------------------
-
-data Project a = Project
-    { prjPackages    :: [a]
-    , prjConstraints :: Maybe String
-    , prjAllowNewer  :: Maybe String
-    }
-  deriving (Show, Functor, F.Foldable, T.Traversable)
-
-overPrjPackages :: ([a] -> [b]) -> Project a -> Project b
-overPrjPackages f prj = prj { prjPackages = f (prjPackages prj) }
-
-emptyProject :: Project [a]
-emptyProject = Project [] Nothing Nothing
 
 -- | Parse project file. Extracts only @packages@ field.
 --
