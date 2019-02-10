@@ -1,11 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Config where
+module HaskellCI.Config where
 
 import Distribution.Version
 import GHC.Generics (Generic)
 
 import qualified Data.Set as S
 import qualified Data.Map as M
+
+import HaskellCI.Config.Doctest
+import HaskellCI.Config.HLint
 
 data Fold
     = FoldSDist
@@ -32,16 +35,12 @@ data ConstraintSet = ConstraintSet
 emptyConstraintSet :: String -> ConstraintSet
 emptyConstraintSet n = ConstraintSet n anyVersion []
 
+-- TODO: split other blocks like DoctestConfig
 data Config = Config
     { cfgCabalInstallVersion :: Maybe Version
-    , cfgHLint           :: !Bool
-    , cfgHLintYaml       :: !(Maybe FilePath)
-    , cfgHLintVersion    :: !VersionRange
-    , cfgHLintOptions    :: [String]
     , cfgJobs            :: (Maybe Int, Maybe Int)
-    , cfgDoctest         :: !Bool
-    , cfgDoctestOptions  :: [String]
-    , cfgDoctestVersion  :: !VersionRange
+    , cfgDoctest         :: !DoctestConfig
+    , cfgHLint           :: !HLintConfig
     , cfgLocalGhcOptions :: [String]
     , cfgConstraintSets  :: [ConstraintSet]
     , cfgCache           :: !Bool
@@ -64,14 +63,19 @@ data Config = Config
 emptyConfig :: Config
 emptyConfig = Config
     { cfgCabalInstallVersion = Nothing
-    , cfgHLint           = False
-    , cfgHLintYaml       = Nothing
-    , cfgHLintVersion    = defaultHLintVersion
-    , cfgHLintOptions    = []
     , cfgJobs            = (Nothing, Nothing)
-    , cfgDoctest         = False
-    , cfgDoctestOptions  = []
-    , cfgDoctestVersion  = defaultDoctestVersion
+    , cfgDoctest         = DoctestConfig
+        { cfgDoctestEnabled = False
+        , cfgDoctestOptions = []
+        , cfgDoctestVersion = defaultDoctestVersion
+        }
+    , cfgHLint = HLintConfig
+        { cfgHLintEnabled = False
+        , cfgHLintJob     = HLintJobLatest
+        , cfgHLintYaml    = Nothing
+        , cfgHLintVersion = defaultHLintVersion
+        , cfgHLintOptions = []
+        }
     , cfgLocalGhcOptions = []
     , cfgConstraintSets  = []
     , cfgCache           = True
@@ -90,8 +94,3 @@ emptyConfig = Config
     , cfgLastInSeries    = False
     }
 
-defaultHLintVersion :: VersionRange
-defaultHLintVersion = withinVersion (mkVersion [2,1])
-
-defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = withinVersion (mkVersion [0,16])

@@ -1,4 +1,4 @@
-module Glob where
+module HaskellCI.Glob where
 
 import Control.Applicative as App ((<$>))
 import Control.Monad (void, filterM, liftM2)

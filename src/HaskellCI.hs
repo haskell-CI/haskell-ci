@@ -21,7 +21,7 @@
 --
 -- NB: This code deliberately avoids relying on non-standard packages and
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
-module MakeTravisYml (
+module HaskellCI (
     main,
     -- * for tests
     Result (..),
@@ -97,8 +97,10 @@ import Data.Monoid ((<>))
 import Lens.Micro
 import Data.Generics.Labels () -- IsLabel (->) ...
 
-import Config
-import Glob
+import HaskellCI.Config
+import HaskellCI.Config.Doctest
+import HaskellCI.Config.HLint
+import HaskellCI.Glob
 
 #if !(MIN_VERSION_Cabal(2,0,0))
 -- compat helpers for pre-2.0
@@ -113,6 +115,13 @@ versionNumbers :: Version -> [Int]
 versionNumbers (Version vn _) = vn
 
 #endif
+
+-------------------------------------------------------------------------------
+-- Microlens
+-------------------------------------------------------------------------------
+
+view :: Getting a s a -> s -> a
+view l x = x ^. l
 
 -------------------------------------------------------------------------------
 -- Hardcoded values
@@ -812,18 +821,18 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     -- Install doctest
     let doctestVersionConstraint
-            | isAnyVersion (cfgDoctestVersion config) = ""
-            | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion config) ++ "'"
-    when (cfgDoctest config) $ tellStrLns
+            | isAnyVersion (cfgDoctestVersion doctestConfig) = ""
+            | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion doctestConfig) ++ "'"
+    when (cfgDoctestEnabled doctestConfig) $ tellStrLns
         [ sh $ "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest" ++ doctestVersionConstraint ++ "; fi"
         ]
 
     -- Install hlint
     let hlintVersionConstraint
-            | isAnyVersion (cfgHLintVersion config) = ""
-            | otherwise = " --constraint='hlint " ++ display (cfgHLintVersion config) ++ "'"
-    when (cfgHLint config) $ tellStrLns
-        [ sh $ "if [ $HCNUMVER -eq 80403 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
+            | isAnyVersion (cfgHLintVersion hlintConfig) = ""
+            | otherwise = " --constraint='hlint " ++ display (cfgHLintVersion hlintConfig) ++ "'"
+    when (cfgHLintEnabled hlintConfig) $ tellStrLns
+        [ sh $ "if [ $HCNUMVER -eq " ++ hlintJobVersion versions (cfgHLintJob hlintConfig) ++ " ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
         ]
 
     -- create cabal.project file
@@ -928,8 +937,8 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     tellStrLns [""]
 
-    when (cfgDoctest config) $ do
-        let doctestOptions = unwords $ cfgDoctestOptions config
+    when (cfgDoctestEnabled doctestConfig) $ do
+        let doctestOptions = unwords $ cfgDoctestOptions doctestConfig
         tellStrLns [ comment "doctest" ]
         foldedTellStrLns FoldDoctest "Doctest..." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
@@ -940,7 +949,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
                     ]
         tellStrLns [ "" ]
 
-    when (cfgHLint config) $ do
+    when (cfgHLintEnabled hlintConfig) $ do
         let "" <+> ys = ys
             xs <+> "" = xs
             xs <+> ys = xs ++ " " ++ ys
@@ -948,7 +957,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
             prependSpace "" = ""
             prependSpace xs = " " ++ xs
 
-        let hlintOptions = prependSpace $ maybe "" ("-h ${ROOTDIR}/" ++) (cfgHLintYaml config) <+> unwords (cfgHLintOptions config)
+        let hlintOptions = prependSpace $ maybe "" ("-h ${ROOTDIR}/" ++) (cfgHLintYaml hlintConfig) <+> unwords (cfgHLintOptions hlintConfig)
 
         tellStrLns [ comment "hlint" ]
         foldedTellStrLns FoldHLint "HLint.." folds $ do
@@ -1032,6 +1041,9 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     return ()
   where
+    doctestConfig = cfgDoctest config
+    hlintConfig   = cfgHLint config
+
     hasTests   = F.any (\Pkg{pkgGpd} -> not . null $ condTestSuites pkgGpd) pkgs
     hasLibrary = F.any (\Pkg{pkgGpd} -> isJust $ condLibrary pkgGpd) pkgs
 
@@ -1163,6 +1175,23 @@ collToGhcVer cid = case simpleParse cid of
     | isPrefixOf [6] v -> mkVersion [7,10,3]
     | isPrefixOf [7] v -> mkVersion [8,0,1]
     | otherwise -> error ("unknown collection " ++ show cid)
+
+-------------------------------------------------------------------------------
+-- HLint
+-------------------------------------------------------------------------------
+
+hlintJobVersion :: Set (Maybe Version) -> HLintJob -> String
+hlintJobVersion vs HLintJobLatest = case S.maxView vs of
+    Just (Just v, _) -> ghcVersionToString v
+    _                -> "80603" -- it really doesn't matter, if there are no jobs
+hlintJobVersion _ (HLintJob v)   = ghcVersionToString v
+
+ghcVersionToString :: Version -> String
+ghcVersionToString v =  case versionNumbers v of
+    []        -> "0"
+    [x]       -> show (x * 10000)
+    [x,y]     -> show (x * 10000 + y * 100)
+    (x:y:z:_) -> show (x * 10000 + y * 100 + z)
 
 -------------------------------------------------------------------------------
 -- Jobs
@@ -1339,25 +1368,25 @@ options =
       (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgLocalGhcOptions = xs }) "OPTIONS")
       "--ghc-options for local packages"
     , Option ['d'] ["doctest"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgDoctest = True })
+      (NoArg $ successCM $ set (#cfgDoctest . #cfgDoctestEnabled) True)
       "Run doctest using .ghc.environment files."
     , Option [] ["doctest-options"]
-      (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgDoctestOptions = xs }) "OPTIONS")
+      (reqArgReadP parseOptsQ (set $ #cfgDoctest . #cfgDoctestOptions) "OPTIONS")
       "Additional doctest options."
     , Option [] ["doctest-version"]
-      (reqArgReadP parse (\arg cfg -> cfg { cfgDoctestVersion = arg }) "VERSION")
+      (reqArgReadP parse (set $ #cfgDoctest . #cfgDoctestVersion) "VERSION")
       "Doctest version range"
     , Option ['l'] ["hlint"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgHLint = True })
+      (NoArg $ successCM $ set (#cfgHLint . #cfgHLintEnabled) True)
       "Run hlint (only on GHC-8.4.3 target)"
     , Option [] ["hlint-yaml"]
-      (ReqArg (successCM' $ \arg cfg -> cfg { cfgHLintYaml = Just arg }) "HLINT.YAML")
+      (ReqArg (successCM' $ set (#cfgHLint . #cfgHLintYaml) . Just) "HLINT.YAML")
       "Relative path to .hlint.yaml."
     , Option [] ["hlint-options"]
-      (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgHLintOptions = xs }) "OPTIONS")
+      (reqArgReadP parseOptsQ (set $ #cfgHLint . #cfgHLintOptions) "OPTIONS")
       "Additional hlint options."
     , Option [] ["hlint-version"]
-      (reqArgReadP parse (\arg cfg -> cfg { cfgHLintVersion = arg }) "VERSION")
+      (reqArgReadP parse (set $ #cfgHLint . #cfgHLintVersion) "VERSION")
       "HLint version range"
     , Option [] ["cabal-install-version"]
       (reqArgReadP parse (\arg cfg -> cfg { cfgCabalInstallVersion = Just arg }) "VERSION")
@@ -1470,32 +1499,36 @@ configFieldDescrs =
         cfgJobs
         (\x cfg -> cfg { cfgJobs = x })
     , PU.boolField  "hlint"
-        cfgHLint
-        (\b cfg -> cfg { cfgHLint = b })
+        (view $ #cfgHLint . #cfgHLintEnabled)
+        (set $ #cfgHLint . #cfgHLintEnabled)
     , PU.simpleField "hlint-yaml"
         (error "we don't pretty print")
         (fmap Just PU.parseFilePathQ)
-        cfgHLintYaml
-        (\x cfg -> cfg { cfgHLintYaml = x })
+        (view $ #cfgHLint . #cfgHLintYaml)
+        (set $ #cfgHLint . #cfgHLintYaml)
     , PU.simpleField "hlint-version"
         (error "we don't pretty print")
         parse
-        cfgHLintVersion
-        (\x cfg -> cfg { cfgHLintVersion = x })
-    -- TODO: hlint-options
+        (view $ #cfgHLint . #cfgHLintVersion)
+        (set $ #cfgHLint . #cfgHLintVersion)
+    , PU.simpleField "hlint-options"
+        (error "we don't pretty print")
+        parseOptsQ
+        (view $ #cfgHLint . #cfgHLintOptions)
+        (set $ #cfgHLint . #cfgHLintOptions)
     , PU.boolField  "doctest"
-        cfgDoctest
-        (\b cfg -> cfg { cfgDoctest = b })
+        (view $ #cfgDoctest . #cfgDoctestEnabled)
+        (set $ #cfgDoctest . #cfgDoctestEnabled)
     , PU.simpleField "doctest-options"
         (error "we don't pretty print")
         parseOptsQ
-        cfgDoctestOptions
-        (\x cfg -> cfg { cfgDoctestOptions = cfgDoctestOptions cfg ++ x })
+        (view $ #cfgDoctest . #cfgDoctestOptions)
+        (set $ #cfgDoctest . #cfgDoctestOptions)
     , PU.simpleField "doctest-version"
         (error "we don't pretty print")
         parse
-        cfgDoctestVersion
-        (\x cfg -> cfg { cfgDoctestVersion = x })
+        (view $ #cfgDoctest . #cfgDoctestVersion)
+        (set $ #cfgDoctest . #cfgDoctestVersion)
     , PU.simpleField "cabal-install-version"
         (error "we don't pretty print")
         (fmap Just parse)
@@ -1629,11 +1662,7 @@ ghcVersionPredicate = conj . asVersionIntervals
     upper v InclusiveBound = "[ $HCNUMVER -le " ++ f v ++ " ]"
     upper v ExclusiveBound = "[ $HCNUMVER -lt " ++ f v ++ " ]"
 
-    f v =  case versionNumbers v of
-        []        -> "0"
-        [x]       -> show (x * 10000)
-        [x,y]     -> show (x * 10000 + y * 100)
-        (x:y:z:_) -> show (x * 10000 + y * 100 + z)
+    f = ghcVersionToString
 
 -------------------------------------------------------------------------------
 -- From Cabal
