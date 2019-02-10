@@ -135,7 +135,8 @@ install:
   - "printf 'packages: \"servant\" \"servant-client\" \"servant-docs\" \"servant-server\"\\n' > cabal.project"
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - "echo 'constraints: foundatiion >= 0.14' >> cabal.project"
-  - "echo 'allow-newer: servant-js:servant, servant-js:servant-foreign' >> cabal.project"
+  - "echo 'allow-newer: servant-js:servant' >> cabal.project"
+  - "echo 'allow-newer: servant-js:servant-foreign' >> cabal.project"
   - touch cabal.project.local
   - "if ! $NOINSTALLEDCONSTRAINTS; then for pkg in $($HCPKG list --simple-output); do echo $pkg  | grep -vw -- servant | grep -vw -- servant-client | grep -vw -- servant-docs | grep -vw -- servant-server | sed 's/^/constraints: /' | sed 's/-[^-]*$/ installed/' >> cabal.project.local; done; fi"
   - cat cabal.project || true
@@ -169,7 +170,8 @@ script:
   - "printf 'packages: servant-*/*.cabal servant-client-*/*.cabal servant-docs-*/*.cabal servant-server-*/*.cabal\\n' > cabal.project"
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - "echo 'constraints: foundatiion >= 0.14' >> cabal.project"
-  - "echo 'allow-newer: servant-js:servant, servant-js:servant-foreign' >> cabal.project"
+  - "echo 'allow-newer: servant-js:servant' >> cabal.project"
+  - "echo 'allow-newer: servant-js:servant-foreign' >> cabal.project"
   - touch cabal.project.local
   - "if ! $NOINSTALLEDCONSTRAINTS; then for pkg in $($HCPKG list --simple-output); do echo $pkg  | grep -vw -- servant | grep -vw -- servant-client | grep -vw -- servant-docs | grep -vw -- servant-server | sed 's/^/constraints: /' | sed 's/-[^-]*$/ installed/' >> cabal.project.local; done; fi"
   - cat cabal.project || true

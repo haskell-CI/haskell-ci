@@ -115,10 +115,10 @@ script:
   - if [ "x$TEST" = "x--enable-tests" ]; then cabal new-test -w ${HC} ${TEST} ${BENCH} all; fi
 
   # doctest
-  - if [ $HCNUMVER -ge 80000 ]; then (cd haskell-ci-* && doctest --fast src); fi
+  - if [ $HCNUMVER -ge 80000 ]; then (cd haskell-ci-* && doctest --fast -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src); fi
 
   # hlint
-  - if [ $HCNUMVER -eq 80403 ]; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml src); fi
+  - if [ $HCNUMVER -eq 80403 ]; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src); fi
 
   # cabal check
   - (cd haskell-ci-* && cabal check)

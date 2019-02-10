@@ -12,3 +12,6 @@ test : build
 
 accept : build
 	cabal new-run -w ghc-8.4.4 --enable-tests golden -- --accept
+
+doctest :
+	doctest --fast -XDeriveFunctor -XDeriveFoldable -XDeriveTraversable -XDeriveGeneric src
