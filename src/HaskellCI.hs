@@ -21,7 +21,7 @@
 --
 -- NB: This code deliberately avoids relying on non-standard packages and
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
-module MakeTravisYml (
+module HaskellCI (
     main,
     -- * for tests
     Result (..),
@@ -97,8 +97,8 @@ import Data.Monoid ((<>))
 import Lens.Micro
 import Data.Generics.Labels () -- IsLabel (->) ...
 
-import Config
-import Glob
+import HaskellCI.Config
+import HaskellCI.Glob
 
 #if !(MIN_VERSION_Cabal(2,0,0))
 -- compat helpers for pre-2.0

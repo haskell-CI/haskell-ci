@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-module Config where
+module HaskellCI.Config where
 
 import Distribution.Version
 import GHC.Generics (Generic)

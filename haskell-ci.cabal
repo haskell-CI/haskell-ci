@@ -1,8 +1,7 @@
-cabal-version:       2.2
-name:                haskell-ci
-version:             0.1.0.0
-
-synopsis:            Cabal package script generator for Travis-CI
+cabal-version:      2.2
+name:               haskell-ci
+version:            0.1.0.0
+synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@make-travis-yml@) for [Travis-CI](https://travis-ci.org/) for continuous-integration testing of Haskell Cabal packages.
   .
@@ -22,20 +21,15 @@ description:
   .
   See @make-travis-yml --help@ for more information.
 
-  
-homepage:            http://haskell-ci.rtfd.org/
-bug-reports:         https://github.com/haskell-CI/haskell-ci/issues
-license:             BSD-3-Clause
-license-file:        LICENSE
-author:              Herbert Valerio Riedel, Oleg Grenrus
-maintainer:          hvr@gnu.org
-category:            Development
-build-type:          Simple
-tested-with:
-  GHC == 8.0.2,
-  GHC == 8.2.2,
-  GHC == 8.4.4,
-  GHC == 8.6.3
+homepage:           http://haskell-ci.rtfd.org/
+bug-reports:        https://github.com/haskell-CI/haskell-ci/issues
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Herbert Valerio Riedel, Oleg Grenrus
+maintainer:         hvr@gnu.org
+category:           Development
+build-type:         Simple
+tested-with:        GHC ==8.6.3 || ==8.4.4 || ==8.2.2 || ==8.0.2
 extra-source-files:
   fixtures/cabal.haskell-ci
   fixtures/haskell-ci.cabal
@@ -58,65 +52,76 @@ extra-source-files:
   fixtures/servant/*.cabal
 
 source-repository head
-  type: git
+  type:     git
   location: https://github.com/haskell-CI/haskell-ci.git
 
 flag ShellCheck
   default: True
-  manual: True
+  manual:  True
 
 library
   exposed-modules:
-    MakeTravisYml
-    Config
-    Glob
+    HaskellCI
+    HaskellCI.Config
+    HaskellCI.Glob
+
   ghc-options:
-    -Wall
-    -Wcompat
-    -Wnoncanonical-monad-instances
+    -Wall -Wcompat -Wnoncanonical-monad-instances
     -Wnoncanonical-monadfail-instances
-  hs-source-dirs:      src
-  other-extensions:    CPP, ViewPatterns, NamedFieldPuns, OverloadedLabels
+
+  hs-source-dirs:   src
+  other-extensions:
+    CPP
+    NamedFieldPuns
+    OverloadedLabels
+    ViewPatterns
+
   build-depends:
-    , base         >= 4.7  && < 4.13
-    , Cabal        ^>= 2.4
-    , containers   >= 0.4  && < 0.7
-    , directory    >= 1.1  && < 1.4
-    , filepath     >= 1.2  && < 1.5
-    , transformers >= 0.3  && < 0.6
-    , deepseq      >= 1.3  && < 1.5
+    , base          >=4.7 && <4.13
+    , Cabal         ^>=2.4
+    , containers    >=0.4 && <0.7
+    , deepseq       >=1.3 && <1.5
+    , directory     >=1.1 && <1.4
+    , filepath      >=1.2 && <1.5
+    , transformers  >=0.3 && <0.6
 
   -- other dependencies
   build-depends:
-    , generic-lens ^>=1.1.0.0
-    , microlens    ^>=0.4.10
-  default-language:    Haskell2010
+    , generic-lens  ^>=1.1.0.0
+    , microlens     ^>=0.4.10
+
+  default-language: Haskell2010
 
   -- ShellCheck. Would need newer transformers for older GHC
-  if flag(ShellCheck) && impl(ghc >= 7.10 && <8.7)
-    build-depends: ShellCheck == 0.6.0
+  if (flag(shellcheck) && impl(ghc >=7.10 && <8.7))
+    build-depends: ShellCheck ==0.6.0
 
 executable haskell-ci
-  main-is:             Main.hs
-  ghc-options:         -Wall
-  build-depends:       base, haskell-ci
-  default-language:    Haskell2010
+  main-is:          Main.hs
+  ghc-options:      -Wall
+  hs-source-dirs:   cli
+  build-depends:
+    , base
+    , haskell-ci
+
+  default-language: Haskell2010
 
 test-suite golden
-  type:                exitcode-stdio-1.0
-  main-is:             Tests.hs
-  hs-source-dirs:      test
-  build-depends:       haskell-ci
-                       -- inherited constraints via lib:haskell-ci
-                     , base
-                     , bytestring
-                     , directory
-                     , filepath
-                     , transformers
-                       -- dependencies needing explicit constraints
-                     , tasty         >= 1.0      && < 1.2
-                     , tasty-golden  >= 2.3.1.1  && < 2.4
-                     , ansi-terminal >= 0.8.0.2  && <0.9
-                     , Diff          >= 0.3.4    && < 0.4
+  type:             exitcode-stdio-1.0
+  main-is:          Tests.hs
+  hs-source-dirs:   test
+  build-depends:
+    , ansi-terminal  ^>=0.8.0.2
+    , base
+    , bytestring
+    , Diff           ^>=0.3.4
+    , directory
+    , filepath
+    , haskell-ci
+    , tasty          >=1.0     && <1.2
+    , tasty-golden   ^>=2.3.1.1
+    , transformers
 
-  default-language:    Haskell2010
+  -- inherited constraints via lib:haskell-ci
+  -- dependencies needing explicit constraints
+  default-language: Haskell2010

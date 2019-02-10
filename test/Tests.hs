@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module Main (main) where
 
-import MakeTravisYml hiding (main)
+import HaskellCI hiding (main)
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Exception (ErrorCall(..), throwIO, try)
