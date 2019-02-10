@@ -622,8 +622,6 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         , "# For more information, see https://github.com/haskell-CI/haskell-ci"
         , "#"
         , "language: c"
-        , "sudo: false"
-        , ""
         , "dist: xenial"
         , ""
         , "git:"
@@ -1007,7 +1005,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         -- here we split on purpose!
         , sh' [2046, 2086] $ unwords
             [ "if $UNCONSTRAINED;"
-            , "then rm -f cabal.project.local; echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks all;"
+            , "then rm -f cabal.project.local; cabal new-build -w ${HC} --disable-tests --disable-benchmarks all;"
             , "else echo \"Not building without installed constraints\"; fi"
             ]
         , ""
@@ -1626,9 +1624,6 @@ accumFields fields = foldM setField
 -------------------------------------------------------------------------------
 -- From cabal-install
 -------------------------------------------------------------------------------
-
-
---
 
 parseHaskellString :: ReadP r String
 parseHaskellString = readS_to_P reads

@@ -5,8 +5,6 @@
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
 language: c
-sudo: false
-
 dist: xenial
 
 git:
@@ -187,7 +185,7 @@ script:
   - if $HADDOCK; then cabal new-haddock -w ${HC} ${TEST} ${BENCH} all; else echo "Skipping haddock generation";fi
 
   # Build without installed constraints for packages in global-db
-  - if $UNCONSTRAINED; then rm -f cabal.project.local; echo cabal new-build -w ${HC} --disable-tests --disable-benchmarks all; else echo "Not building without installed constraints"; fi
+  - if $UNCONSTRAINED; then rm -f cabal.project.local; cabal new-build -w ${HC} --disable-tests --disable-benchmarks all; else echo "Not building without installed constraints"; fi
 
 # REGENDATA ["-o","cabal.project.messy.travis.yml","--ghc-head","cabal.project.messy"]
 # EOF

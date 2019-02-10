@@ -4,8 +4,11 @@ build:
 ghcid :
 	ghcid -c 'cabal new-repl'
 
-install : build
-	cp $$(cabal-plan list-bin make-travis-yml) $(HOME)/.local/bin/haskell-ci
+install:
+	cabal new-install haskell-ci:exe:haskell-ci
+
+install-dev : build
+	cp $$(cabal-plan list-bin haskell-ci) $(HOME)/.local/bin/haskell-ci
 
 test : build
 	cabal new-run -w ghc-8.4.4 --enable-tests golden
