@@ -7,6 +7,9 @@ import GHC.Generics (Generic)
 import qualified Data.Set as S
 import qualified Data.Map as M
 
+import HaskellCI.Config.Doctest
+import HaskellCI.Config.HLint
+
 data Fold
     = FoldSDist
     | FoldUnpack
@@ -32,22 +35,12 @@ data ConstraintSet = ConstraintSet
 emptyConstraintSet :: String -> ConstraintSet
 emptyConstraintSet n = ConstraintSet n anyVersion []
 
-data DoctestConfig = DoctestConfig
-    { cfgDoctestEnabled  :: !Bool
-    , cfgDoctestOptions  :: [String]
-    , cfgDoctestVersion  :: !VersionRange
-    }
-  deriving (Show, Generic)
-
 -- TODO: split other blocks like DoctestConfig
 data Config = Config
     { cfgCabalInstallVersion :: Maybe Version
-    , cfgHLint           :: !Bool
-    , cfgHLintYaml       :: !(Maybe FilePath)
-    , cfgHLintVersion    :: !VersionRange
-    , cfgHLintOptions    :: [String]
     , cfgJobs            :: (Maybe Int, Maybe Int)
     , cfgDoctest         :: !DoctestConfig
+    , cfgHLint           :: !HLintConfig
     , cfgLocalGhcOptions :: [String]
     , cfgConstraintSets  :: [ConstraintSet]
     , cfgCache           :: !Bool
@@ -70,15 +63,18 @@ data Config = Config
 emptyConfig :: Config
 emptyConfig = Config
     { cfgCabalInstallVersion = Nothing
-    , cfgHLint           = False
-    , cfgHLintYaml       = Nothing
-    , cfgHLintVersion    = defaultHLintVersion
-    , cfgHLintOptions    = []
     , cfgJobs            = (Nothing, Nothing)
     , cfgDoctest         = DoctestConfig
         { cfgDoctestEnabled = False
-        , cfgDoctestOptions  = []
-        , cfgDoctestVersion  = defaultDoctestVersion
+        , cfgDoctestOptions = []
+        , cfgDoctestVersion = defaultDoctestVersion
+        }
+    , cfgHLint = HLintConfig
+        { cfgHLintEnabled = False
+        , cfgHLintJob     = HLintJobLatest
+        , cfgHLintYaml    = Nothing
+        , cfgHLintVersion = defaultHLintVersion
+        , cfgHLintOptions = []
         }
     , cfgLocalGhcOptions = []
     , cfgConstraintSets  = []
@@ -98,8 +94,3 @@ emptyConfig = Config
     , cfgLastInSeries    = False
     }
 
-defaultHLintVersion :: VersionRange
-defaultHLintVersion = withinVersion (mkVersion [2,1])
-
-defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = withinVersion (mkVersion [0,16])

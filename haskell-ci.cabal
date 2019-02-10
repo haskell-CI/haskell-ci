@@ -63,6 +63,8 @@ library
   exposed-modules:
     HaskellCI
     HaskellCI.Config
+    HaskellCI.Config.Doctest
+    HaskellCI.Config.HLint
     HaskellCI.Glob
 
   ghc-options:
