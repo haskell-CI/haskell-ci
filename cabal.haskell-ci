@@ -21,9 +21,8 @@ jobs: 2:2
 -- no-tests-no-bench: True
 
 -- By default `installed` constraints are used for packages
--- in global db. Unconstrained step is a build without them.
--- Note: solver might or might not pick newer versions.
-unconstrained-step: False
+-- in global db. We can modify which constraints are used.
+installed: +all -Cabal
 
 -- Options for local packages
 local-ghc-options: -Werror

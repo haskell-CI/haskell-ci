@@ -94,6 +94,7 @@ import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
+import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
 import HaskellCI.Extras
 import HaskellCI.GHC
@@ -625,7 +626,6 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , sh "BENCH=${BENCH---enable-benchmarks}"
         , sh "TEST=${TEST---enable-tests}"
         , sh "UNCONSTRAINED=${UNCONSTRAINED-true}"
-        , sh "NOINSTALLEDCONSTRAINTS=${NOINSTALLEDCONSTRAINTS-false}"
         , sh "GHCHEAD=${GHCHEAD-false}"
         ]
 
@@ -957,18 +957,36 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         -- ...
         --
         -- omitting any local package names
-        tellStrLns
-            [ sh $ "touch cabal.project.local"
-            , sh $ unwords
-                [ "if ! $NOINSTALLEDCONSTRAINTS; then"
-                , "for pkg in $($HCPKG list --simple-output); do"
-                , "echo $pkg"
-                , concatMap (\Pkg{pkgName} -> " | grep -vw -- " ++ pkgName) pkgs
-                , "| sed 's/^/constraints: /'"
-                , "| sed 's/-[^-]*$/ installed/'"
-                , ">> cabal.project.local; done; fi"
+        case normaliseInstalled (cfgInstalled config) of
+            InstalledDiff pns -> tellStrLns
+                [ sh $ "touch cabal.project.local"
+                , sh $ unwords
+                    [ "for pkg in $($HCPKG list --simple-output); do"
+                    , "echo $pkg"
+                    , "| sed 's/-[^-]*$//'"
+                    , "| grep -vE -- " ++ re
+                    , "| sed 's/^/constraints: /'"
+                    , "| sed 's/$/ installed/'"
+                    , ">> cabal.project.local; done"
+                    ]
                 ]
-            ]
+              where
+                pns' = S.map unPackageName pns `S.union` foldMap (S.singleton . pkgName) pkgs
+                re = "'^(" ++ intercalate "|" (S.toList pns') ++ ")$'"
+
+            InstalledOnly pns | not (null pns') -> tellStrLns
+                [ sh $ "touch cabal.project.local"
+                , sh' [2043] $ unwords
+                    [ "for pkg in " ++ unwords (S.toList pns') ++ "; do"
+                    , "echo \"constraints: $pkg installed\" >> cabal.project"
+                    , ">> cabal.project.local; done"
+                    ]
+                ]
+              where
+                pns' = S.map unPackageName pns `S.difference` foldMap (S.singleton . pkgName) pkgs
+
+            -- otherwise: nothing
+            _ -> pure ()
 
         tellStrLns
             [ sh $ "cat cabal.project || true"

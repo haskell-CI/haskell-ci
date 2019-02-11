@@ -33,6 +33,7 @@ import           HaskellCI.Config.ConstraintSet
 import           HaskellCI.Config.Doctest
 import           HaskellCI.Config.Folds
 import           HaskellCI.Config.HLint
+import           HaskellCI.Config.Installed
 import           HaskellCI.Config.Jobs
 import           HaskellCI.Newtypes
 import           HaskellCI.ParsecUtils
@@ -48,6 +49,7 @@ data Config = Config
     , cfgNoTestsNoBench      :: !Bool
     , cfgUnconstrainted      :: !Bool
     , cfgInstallDeps         :: !Bool
+    , cfgInstalled           :: [Installed]
     , cfgHaddock             :: !VersionRange
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
@@ -91,6 +93,7 @@ emptyConfig = Config
     , cfgNoise           = True
     , cfgNoTestsNoBench  = True
     , cfgUnconstrainted  = True
+    , cfgInstalled       = []
     , cfgInstallDeps     = True
     , cfgHaddock         = anyVersion
     , cfgOnlyBranches    = []
@@ -122,6 +125,7 @@ configGrammar = Config
     <*> C.booleanFieldDef     "no-tests-no-benchmarks"                                        #cfgNoTestsNoBench True
     <*> C.booleanFieldDef     "unconstrained-step"                                            #cfgUnconstrainted True
     <*> C.booleanFieldDef     "install-dependencies-step"                                     #cfgInstallDeps True
+    <*> C.monoidalFieldAla    "installed"                 (C.alaList C.FSep)                  #cfgInstalled
     <*> C.optionalFieldDef    "haddock"                                                       #cfgHaddock anyVersion
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches
     <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        #cfgIrcChannels
