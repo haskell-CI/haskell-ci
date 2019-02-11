@@ -2,6 +2,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLabels #-}
 
 #if !defined(MIN_VERSION_Cabal)
@@ -30,8 +31,8 @@ module HaskellCI (
 import Control.Applicative as App ((<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
-import Control.Monad (when, unless, liftM, forM_, mzero, foldM, join)
-import Data.Char (isSpace, isUpper, toLower)
+import Control.Monad (when, unless, liftM, forM_, mzero, join)
+import Data.Char (isSpace)
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
@@ -39,7 +40,6 @@ import Data.Function
 import Data.List
 import Data.Maybe
 import Data.Monoid as Mon (Monoid (..), Endo (..))
-import Data.Either (partitionEithers)
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Map as M
@@ -90,14 +90,25 @@ import Data.Semigroup (Semigroup (..))
 import Data.Monoid ((<>))
 #endif
 
+import qualified Distribution.CabalSpecVersion   as C
+import qualified Distribution.FieldGrammar       as C
+import qualified Distribution.Parsec.Common      as C
+import qualified Distribution.Parsec.Parser      as C
+import qualified Distribution.Parsec.ParseResult as C
+import Distribution.Simple.Utils                    (fromUTF8BS)
+
 -- lens
 import Lens.Micro
 import Data.Generics.Labels () -- IsLabel (->) ...
 
 import HaskellCI.Config
+import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.Doctest
+import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
+import HaskellCI.Config.Jobs
 import HaskellCI.Glob
+import HaskellCI.ParsecUtils
 import HaskellCI.Project
 
 #if !(MIN_VERSION_Cabal(2,0,0))
@@ -113,13 +124,6 @@ versionNumbers :: Version -> [Int]
 versionNumbers (Version vn _) = vn
 
 #endif
-
--------------------------------------------------------------------------------
--- Microlens
--------------------------------------------------------------------------------
-
-view :: Getting a s a -> s -> a
-view l x = x ^. l
 
 -------------------------------------------------------------------------------
 -- Hardcoded values
@@ -774,15 +778,15 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         ]
 
     -- Cabal jobs
-    case cfgJobs config of
-        (Just n, _) -> tellStrLns
+    case cfgJobs config >>= cabalJobs of
+        Just n -> tellStrLns
             [ sh $ "sed -i.bak 's/^-- jobs:.*/jobs: " ++ show n ++ "/' ${HOME}/.cabal/config"
             ]
         _ -> return ()
 
     -- GHC jobs
-    case cfgJobs config of
-        (_, Just m) -> tellStrLns
+    case cfgJobs config >>= ghcJobs of
+        Just m -> tellStrLns
             [ sh $ "if [ $HCNUMVER -ge 70800 ]; then sed -i.bak 's/-- ghc-options:.*/ghc-options: -j" ++ show m ++ "/' ${HOME}/.cabal/config; fi"
             ]
         _ -> return ()
@@ -1199,34 +1203,34 @@ ghcVersionToString v =  case versionNumbers v of
 --
 -- >>> let parseJobs = maybeReadP parseJobsQ
 -- >>> parseJobs "2:2"
--- Just (Just 2,Just 2)
+-- Just (BothJobs 2 2)
 --
 -- >>> parseJobs ":2"
--- Just (Nothing,Just 2)
+-- Just (GhcJobs 2)
 --
 -- >>> parseJobs "2"
--- Just (Just 2,Nothing)
+-- Just (CabalJobs 2)
 --
 -- >>> parseJobs "garbage"
 -- Nothing
 --
-parseJobsQ :: ReadP r (Maybe Int, Maybe Int)
-parseJobsQ = nm <++ m <++ n <++ return (Nothing, Nothing)
+parseJobsQ :: ReadP r Jobs
+parseJobsQ = nm <++ m <++ n
   where
     nm = do
       x <- parseInt
       _ <- char ':'
       y <- parseInt
-      return (Just x, Just y)
+      return (BothJobs x y)
 
     m = do
       _ <- char ':'
       y <- parseInt
-      return (Nothing, Just y)
+      return (GhcJobs y)
 
     n = do
       x <- parseInt
-      return (Just x, Nothing)
+      return (CabalJobs x)
 
 -------------------------------------------------------------------------------
 -- Options
@@ -1301,7 +1305,7 @@ options =
       (ReqArg (success' $ \arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
       "generate osx build job with ghc version"
     , Option ['j'] ["jobs"]
-      (reqArgReadP parseJobsQ (\jobs cfg -> cfg { cfgJobs = jobs }) "JOBS")
+      (reqArgReadP parseJobsQ (\jobs cfg -> cfg { cfgJobs = Just jobs }) "JOBS")
       "jobs (N:M - cabal:ghc)"
     , Option [] ["local-ghc-options"]
       (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgLocalGhcOptions = xs }) "OPTIONS")
@@ -1400,20 +1404,6 @@ instance Monoid a => Semigroup (Result e a) where
 -- Fold
 -------------------------------------------------------------------------------
 
-showFold :: Fold -> String
-showFold = dashise . drop 4 . show
-  where
-    dashise = intercalate "-" . map (map toLower) . split
-
-    split [] = []
-    split xs0 =
-        let (ys, xs1) = span isUpper xs0
-            (zs, xs2) = break isUpper xs1
-        in (ys ++ zs) : split xs2
-
-possibleFolds :: [Fold]
-possibleFolds = [minBound .. maxBound]
-
 parseFoldQ :: ReadP r (Set Fold -> Set Fold)
 parseFoldQ = do
     t <- PU.parseTokenQ
@@ -1426,163 +1416,38 @@ parseFoldQ = do
   where
     ps = M.fromList $ map (\x -> (showFold x, x)) possibleFolds
 
--------------------------------------------------------------------------------
--- Config file
--------------------------------------------------------------------------------
-
-configFieldDescrs :: [PU.FieldDescr Config]
-configFieldDescrs =
-    [ PU.simpleField  "jobs"
-        (error "we don't pretty print")
-        parseJobsQ
-        cfgJobs
-        (\x cfg -> cfg { cfgJobs = x })
-    , PU.boolField  "hlint"
-        (view $ #cfgHLint . #cfgHLintEnabled)
-        (set $ #cfgHLint . #cfgHLintEnabled)
-    , PU.simpleField "hlint-yaml"
-        (error "we don't pretty print")
-        (fmap Just PU.parseFilePathQ)
-        (view $ #cfgHLint . #cfgHLintYaml)
-        (set $ #cfgHLint . #cfgHLintYaml)
-    , PU.simpleField "hlint-version"
-        (error "we don't pretty print")
-        parse
-        (view $ #cfgHLint . #cfgHLintVersion)
-        (set $ #cfgHLint . #cfgHLintVersion)
-    , PU.simpleField "hlint-options"
-        (error "we don't pretty print")
-        parseOptsQ
-        (view $ #cfgHLint . #cfgHLintOptions)
-        (set $ #cfgHLint . #cfgHLintOptions)
-    , PU.boolField  "doctest"
-        (view $ #cfgDoctest . #cfgDoctestEnabled)
-        (set $ #cfgDoctest . #cfgDoctestEnabled)
-    , PU.simpleField "doctest-options"
-        (error "we don't pretty print")
-        parseOptsQ
-        (view $ #cfgDoctest . #cfgDoctestOptions)
-        (set $ #cfgDoctest . #cfgDoctestOptions)
-    , PU.simpleField "doctest-version"
-        (error "we don't pretty print")
-        parse
-        (view $ #cfgDoctest . #cfgDoctestVersion)
-        (set $ #cfgDoctest . #cfgDoctestVersion)
-    , PU.simpleField "cabal-install-version"
-        (error "we don't pretty print")
-        (fmap Just parse)
-        cfgCabalInstallVersion
-        (\x cfg -> cfg { cfgCabalInstallVersion = x })
-    , PU.simpleField "local-ghc-options"
-        (error "we don't pretty print")
-        parseOptsQ
-        cfgLocalGhcOptions
-        (\x cfg -> cfg { cfgLocalGhcOptions = cfgLocalGhcOptions cfg ++ x })
-    , PU.boolField  "cache"
-        cfgCache
-        (\b cfg -> cfg { cfgCache = b })
-    , PU.boolField  "cabal-noise"
-        cfgNoise
-        (\b cfg -> cfg { cfgNoise = b })
-    , PU.boolField  "cabal-check"
-        cfgCheck
-        (\b cfg -> cfg { cfgCheck = b })
-    , PU.boolField  "install-dependencies-step"
-        cfgInstallDeps
-        (\b cfg -> cfg { cfgInstallDeps = b })
-    , PU.boolField  "no-tests-no-benchmarks"
-        cfgNoTestsNoBench
-        (\b cfg -> cfg { cfgNoTestsNoBench = b })
-    , PU.boolField  "unconstrained-step"
-        cfgUnconstrainted
-        (\b cfg -> cfg { cfgUnconstrainted = b })
-    , PU.listField  "irc-channels"
-        (error "we don't pretty print")
-        PU.parseTokenQ
-        cfgIrcChannels
-        (\x cfg -> cfg { cfgIrcChannels = x })
-    , PU.simpleField "name"
-        (error "we don't pretty print")
-        (fmap Just PU.parseTokenQ)
-        cfgProjectName
-        (set #cfgProjectName)
-    , PU.listField  "branches"
-        (error "we don't pretty print")
-        PU.parseTokenQ
-        cfgOnlyBranches
-        (set #cfgOnlyBranches)
-    , PU.simpleField  "folds"
-        (error "we don't pretty print")
-        (sepBy parseFoldQ (munch1 isSpace))
-        (\cfg -> [\_ -> cfgFolds cfg])
-        (\x cfg -> cfg { cfgFolds = foldl' (flip id) (cfgFolds cfg) x })
-    , PU.boolField "ghc-head"
-        cfgGhcHead
-        (set #cfgGhcHead)
-    -- , PU.simpleField "env" -- TODO
-    , PU.simpleField "env"
-        (error "we don't pretty print")
-        envP
-        (error "we don't pretty print")
-        (\(k,v) -> over #cfgEnv (M.insert k v))
-    ]
-
 parseOptsQ :: ReadP r [String]
 parseOptsQ = sepBy PU.parseTokenQ' (munch1 isSpace)
 
+-------------------------------------------------------------------------------
+-- Parsing config file
+-------------------------------------------------------------------------------
+
 readConfigFile :: MonadIO m => FilePath -> YamlWriter m Config
-readConfigFile path = do
-    contents <- liftIO $ readFile path
-    parseConfigFile path contents
+readConfigFile = liftIO . readAndParseFile parseConfigFile
 
-parseConfigFile :: Monad m => FilePath -> String -> YamlWriter m Config
-parseConfigFile path contents = toWriter $ do
-    fields' <- PU.readFields contents
-    let (fields, sections) = partitionEithers (map classify fields')
-    config <- accumFields configFieldDescrs emptyConfig fields
-    go config sections
+parseConfigFile :: [C.Field C.Position] -> C.ParseResult Config
+parseConfigFile fields0 = do
+    config <- C.parseFieldGrammar C.cabalSpecLatest fields configGrammar
+    config' <- traverse parseSection $ concat sections
+    return (foldr (.) id config' config)
   where
-    toWriter r = case r of
-        PU.ParseOk ws x -> do
-            forM_ ws $ \w -> putStrLnWarn (PU.showPWarning path w)
-            return x
-        PU.ParseFailed err -> case PU.locatedErrorMsg err of
-            (l, msg) -> putStrLnErr $ path ++ ":" ++ show l ++ ": " ++ msg
+    (fields, sections) = C.partitionFields fields0
 
-    classify x@PU.IfBlock {} = Right x
-    classify x@PU.Section {} = Right x
-    classify x@PU.F {}       = Left x
-
-    go :: Config -> [PU.Field] -> PU.ParseResult Config
-    go  cfg [] = return cfg
-    go _cfg (PU.IfBlock {} : _fields) = fail "if conditional found"
-    go  cfg (PU.F {} : fields)        = go cfg fields
-    go  cfg (PU.Section line name arg subfields : fields)
+    parseSection :: C.Section C.Position -> C.ParseResult (Config -> Config)
+    parseSection (C.MkSection (C.Name pos name) args cfields)
         | name == "constraint-set" = do
-            cs <- accumFields constraintSetFieldDescrs (emptyConstraintSet arg) subfields
-            let cfg' = cfg { cfgConstraintSets = cfgConstraintSets cfg ++ [cs] }
-            go cfg' fields
+            name' <- parseName pos args
+            let (fs, _sections) = C.partitionFields cfields
+            cs <- C.parseFieldGrammar C.cabalSpecLatest fs (constraintSetGrammar name')
+            return $ over #cfgConstraintSets (++ [cs])
         | otherwise = do
-            PU.warning $ "Unknown section " ++ name ++ " on line " ++ show line
-            go cfg fields
+            C.parseWarning pos C.PWTUnknownSection $ "Unknown section " ++ fromUTF8BS name
+            return id
 
 -------------------------------------------------------------------------------
 -- ConstraintSet
 -------------------------------------------------------------------------------
-
-constraintSetFieldDescrs :: [PU.FieldDescr ConstraintSet]
-constraintSetFieldDescrs =
-    [ PU.listField "constraints"
-        (error "we don't pretty print") -- pretty
-        (parseHaskellString <++ munch1 (`notElem` [',', '"']))
-        csConstraints
-        (\c cs -> cs { csConstraints = csConstraints cs ++ c })
-    , PU.simpleField "ghc"
-        (error "we don't pretty print") -- pretty
-        Distribution.Text.parse
-        csGhcVersions
-        (\c cs -> cs { csGhcVersions = c })
-    ]
 
 ghcVersionPredicate :: VersionRange -> String
 ghcVersionPredicate = conj . asVersionIntervals
@@ -1607,26 +1472,26 @@ ghcVersionPredicate = conj . asVersionIntervals
 -- From Cabal
 -------------------------------------------------------------------------------
 
-accumFields :: [PU.FieldDescr a] -> a -> [PU.Field] -> PU.ParseResult a
-accumFields fields = foldM setField
-  where
-    fieldMap = M.fromList
-        [ (name, f) | f@(PU.FieldDescr name _ _) <- fields ]
-    setField accum (PU.F line name value) = case M.lookup name fieldMap of
-      Just (PU.FieldDescr _ _ setter) -> setter line value accum
-      Nothing -> do
-          PU.warning $ "Unrecognized field " ++ name ++ " on line " ++ show line
-          return accum
-    setField accum f = do
-        PU.warning ("Unrecognized stanza on line " ++ show (PU.lineNo f))
-        return accum
+parseName :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult String
+parseName pos args = fromUTF8BS <$> parseNameBS pos args
+
+parseNameBS :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult BS.ByteString
+parseNameBS pos args = case args of
+    [C.SecArgName _pos secName] ->
+         pure secName
+    [C.SecArgStr _pos secName] ->
+         pure secName
+    [] -> do
+         C.parseFailure pos "name required"
+         pure ""
+    _ -> do
+         -- TODO: pretty print args
+         C.parseFailure pos $ "Invalid name " ++ show args
+         pure ""
 
 -------------------------------------------------------------------------------
 -- From cabal-install
 -------------------------------------------------------------------------------
-
-parseHaskellString :: ReadP r String
-parseHaskellString = readS_to_P reads
 
 parseInt :: ReadP r Int
 parseInt = readS_to_P reads

@@ -1,5 +1,8 @@
-build:
+build :
 	cabal new-build -w ghc-8.4.4 --enable-tests --constraint='Cabal^>=2.4'
+
+self-test :
+	cabal new-run -w ghc-8.4.4 haskell-ci -- --config=cabal.haskell-ci haskell-ci.cabal
 
 ghcid :
 	ghcid -c 'cabal new-repl'
