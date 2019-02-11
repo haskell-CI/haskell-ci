@@ -128,24 +128,19 @@ install:
       cabal new-update head.hackage -v
     fi
   - grep -Ev -- '^\s*--' ${HOME}/.cabal/config | grep -Ev '^\s*$'
-  - "printf 'packages: \"servant\" \"servant-client\" \"servant-docs\" \"servant-server\"\\n' > cabal.project"
+  - "printf 'packages: \"servant\"\\n' > cabal.project"
+  - "printf 'packages: \"servant-client\"\\n' > cabal.project"
+  - "printf 'packages: \"servant-docs\"\\n' > cabal.project"
+  - "printf 'packages: \"servant-server\"\\n' > cabal.project"
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - touch cabal.project.local
   - "for pkg in deepseq; do echo \"constraints: $pkg installed\" >> cabal.project >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
-  - if [ -f "servant/configure.ac" ]; then
-      (cd "servant" && autoreconf -i);
-    fi
-  - if [ -f "servant-client/configure.ac" ]; then
-      (cd "servant-client" && autoreconf -i);
-    fi
-  - if [ -f "servant-docs/configure.ac" ]; then
-      (cd "servant-docs" && autoreconf -i);
-    fi
-  - if [ -f "servant-server/configure.ac" ]; then
-      (cd "servant-server" && autoreconf -i);
-    fi
+  - if [ -f "servant/configure.ac" ]; then (cd "servant" && autoreconf -i); fi
+  - if [ -f "servant-client/configure.ac" ]; then (cd "servant-client" && autoreconf -i); fi
+  - if [ -f "servant-docs/configure.ac" ]; then (cd "servant-docs" && autoreconf -i); fi
+  - if [ -f "servant-server/configure.ac" ]; then (cd "servant-server" && autoreconf -i); fi
   - rm -f cabal.project.freeze
   - cabal new-freeze -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project.messy" --dry
   - "cat \"cabal.project.messy.freeze\" | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
@@ -163,7 +158,10 @@ script:
   - mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
-  - "printf 'packages: servant-*/*.cabal servant-client-*/*.cabal servant-docs-*/*.cabal servant-server-*/*.cabal\\n' > cabal.project"
+  - "printf 'packages: \"servant-*/*.cabal\"\\n' > cabal.project"
+  - "printf 'packages: \"servant-client-*/*.cabal\"\\n' > cabal.project"
+  - "printf 'packages: \"servant-docs-*/*.cabal\"\\n' > cabal.project"
+  - "printf 'packages: \"servant-server-*/*.cabal\"\\n' > cabal.project"
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - touch cabal.project.local
   - "for pkg in deepseq; do echo \"constraints: $pkg installed\" >> cabal.project >> cabal.project.local; done"

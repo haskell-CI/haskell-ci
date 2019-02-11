@@ -101,7 +101,9 @@ import HaskellCI.Extras
 import HaskellCI.GHC
 import HaskellCI.Glob
 import HaskellCI.Optimization
+import HaskellCI.Package
 import HaskellCI.Project
+import HaskellCI.TestedWith
 
 -------------------------------------------------------------------------------
 -- Script
@@ -285,12 +287,6 @@ runYamlWriter mfp m = do
                 Nothing -> putStr contents'
                 Just fp -> writeFile fp contents'
 
-data Package = Pkg
-    { pkgName :: String
-    , pkgDir :: FilePath
-    , pkgGpd :: GenericPackageDescription
-    } deriving (Eq, Show)
-
 travisFromConfigFile
     :: MonadIO m
     => [String]
@@ -302,37 +298,11 @@ travisFromConfigFile args opts path = do
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config opts) cabalFiles
-    (ghcs, prj) <- checkVersions pkgs
+    (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
+        Right x     -> return x
+        Left errors -> putStrLnErrs errors >> mzero
     genTravisFromConfigs args opts isCabalProject config prj ghcs
   where
-    checkVersions
-        :: MonadIO m
-        => Project (Package, Set Version)
-        -> YamlWriter m (Set Version, Project Package)
-    checkVersions prj | null (prjPackages prj) = putStrLnErr "Error reading cabal file(s)!"
-    checkVersions prj = do
-        let (errors, names) = F.foldl' collectConfig mempty prj
-        putStrLnErrs errors
-        return (allVersions, prj { prjPackages = names })
-      where
-        allVersions = F.foldMap snd prj
-
-        collectConfig
-            :: ([String], [Package])
-            -> (Package, Set Version)
-            -> ([String], [Package])
-        collectConfig aggregate (pkg, testWith) =
-            aggregate <> (errors, [pkg])
-          where
-            symDiff a b = S.union a b `S.difference` S.intersection a b
-            diff = symDiff testWith allVersions
-            missingVersions = map display $ S.toList diff
-            errors | S.null diff = []
-                   | otherwise = pure $ mconcat
-                        [ pkgName pkg
-                        , " is missing tested-with annotations for: "
-                        ] ++ intercalate "," missingVersions
-
     isCabalProject :: Maybe FilePath
     isCabalProject
         | "cabal.project" `isPrefixOf` takeFileName path = Just path
@@ -442,7 +412,7 @@ configFromCabalFile cfg opts cabalFile = do
                , "add 'tested-width: GHC == " ++ display v ++ "' to your .cabal file"
                ]
 
-    let pkg = Pkg pkgNameStr (takeDirectory cabalFile) gpd
+    let pkg = Pkg pkgNameStr anyVersion (takeDirectory cabalFile) gpd
 
     return (pkg, S.fromList testedGhcVersions)
   where
@@ -718,15 +688,13 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         ]
 
     forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
-        [ "  - if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then"
-        , "      (cd \"" ++ pkgDir ++ "\" && autoreconf -i);"
-        , "    fi"
+        [ "  - if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then (cd \"" ++ pkgDir ++ "\" && autoreconf -i); fi"
         ]
 
     let quotedRmPaths =
           ".ghc.environment.*"
           ++ " " ++
-          quotedPaths (\Pkg{pkgDir} -> pkgDir ++ "/dist")
+          unwords (quotedPaths (\Pkg{pkgDir} -> pkgDir ++ "/dist"))
 
     tellStrLns
         [ sh $ "rm -f cabal.project.freeze"
@@ -927,9 +895,14 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     headGhcVers = S.filter previewGHC versions
 
     generateCabalProject dist = do
+        F.forM_  pkgs $ \pkg -> do
+            let p | dist      = pkgName pkg ++ "-*/*.cabal"
+                  | otherwise = pkgDir pkg
+            tellStrLns $ 
+                [ shForJob versions' (pkgJobs pkg) $ "printf 'packages: \"" ++ p ++ "\"\\n' > cabal.project"
+                ]
         tellStrLns
-            [ sh $ "printf 'packages: " ++ cabalPaths ++ "\\n' > cabal.project"
-            , sh $ "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
+            [ sh $ "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
             ]
         F.forM_ (prjConstraints prj) $ \xs -> do
             let s = concat (lines xs)
@@ -1005,16 +978,12 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             [ sh $ "cat cabal.project || true"
             , sh $ "cat cabal.project.local || true"
             ]
-      where
-        cabalPaths
-            | dist      = quotedPaths $ \Pkg{pkgName} -> pkgName ++ "-*/*.cabal"
-            | otherwise = quotedPaths $ \Pkg{pkgDir}  -> pkgDir
 
     projectFile :: FilePath
     projectFile = fromMaybe "cabal.project" isCabalProject
 
-    quotedPaths :: (Package -> FilePath) -> String
-    quotedPaths f = unwords $ map (f . quote) pkgs
+    quotedPaths :: (Package -> FilePath) -> [String]
+    quotedPaths f = map (f . quote) pkgs
       where
         quote pkg = pkg{ pkgDir = "\"" ++ pkgDir pkg ++ "\"" }
 

@@ -65,8 +65,8 @@ library
     HaskellCI.Cli
     HaskellCI.Config
     HaskellCI.Config.ConstraintSet
-    HaskellCI.Config.Dump
     HaskellCI.Config.Doctest
+    HaskellCI.Config.Dump
     HaskellCI.Config.Folds
     HaskellCI.Config.HLint
     HaskellCI.Config.Installed
@@ -76,11 +76,13 @@ library
     HaskellCI.Glob
     HaskellCI.Newtypes
     HaskellCI.Optimization
-    HaskellCI.OptparseGrammar
     HaskellCI.OptionsGrammar
+    HaskellCI.OptparseGrammar
+    HaskellCI.Package
     HaskellCI.ParsecError
     HaskellCI.ParsecUtils
     HaskellCI.Project
+    HaskellCI.TestedWith
 
   ghc-options:
     -Wall -Wcompat -Wnoncanonical-monad-instances
