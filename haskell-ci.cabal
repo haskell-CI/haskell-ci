@@ -68,6 +68,7 @@ library
     HaskellCI.Config.Doctest
     HaskellCI.Config.Folds
     HaskellCI.Config.HLint
+    HaskellCI.Config.Installed
     HaskellCI.Config.Jobs
     HaskellCI.Extras
     HaskellCI.GHC
