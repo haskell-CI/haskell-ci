@@ -110,6 +110,7 @@ import HaskellCI.Config.HLint
 import HaskellCI.Config.Jobs
 import HaskellCI.Glob
 import HaskellCI.OptionsGrammar
+import HaskellCI.Optimization
 import HaskellCI.ParsecUtils
 import HaskellCI.Project
 
@@ -441,7 +442,7 @@ travisFromConfigFile args opts path = do
 
     getCabalFiles :: MonadIO m => YamlWriter m (Project FilePath)
     getCabalFiles
-        | isNothing isCabalProject = return (Project [path] [] [])
+        | isNothing isCabalProject = return $ emptyProject & #prjPackages .~ [path]
         | otherwise = do
             contents <- liftIO $ BS.readFile path
             pkgs <- either putStrLnErr return $ parseProjectFile path contents
@@ -1037,6 +1038,21 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                 [ sh $ "echo 'package " ++ pkgName ++ "' >> cabal.project"
                 , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
                 ]
+
+        when (prjReorderGoals prj) $
+            tellStrLns
+                [ sh $ "echo 'reorder-goals: True' >> cabal.project"
+                ]
+
+        F.forM_ (prjMaxBackjumps prj) $ \bj ->
+            tellStrLns
+                [ sh $ "echo 'max-backjumps: " ++ show bj ++ "' >> cabal.project"
+                ]
+
+        case prjOptimization prj of
+            OptimizationOn      -> return ()
+            OptimizationOff     -> tellStrLns [ sh $ "echo 'optimization: False' >> cabal.project " ]
+            OptimizationLevel l -> tellStrLns [ sh $ "echo 'optimization: " ++ show l ++ "' >> cabal.project " ]
 
         -- also write cabal.project.local file with
         -- @

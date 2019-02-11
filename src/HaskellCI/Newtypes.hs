@@ -97,6 +97,22 @@ instance C.Pretty HeadVersion where
     pretty (HeadVersion (Just v)) = C.pretty v
 
 -------------------------------------------------------------------------------
+-- Newtype
+-------------------------------------------------------------------------------
+
+newtype Int' = Int' Int
+
+instance C.Newtype Int' Int where
+    pack = coerce
+    unpack = coerce
+
+instance C.Parsec Int' where
+    parsec = Int' <$> C.integral
+
+instance C.Pretty Int' where
+    pretty (Int' i) = PP.int i
+
+-------------------------------------------------------------------------------
 -- AlaSet
 -------------------------------------------------------------------------------
 

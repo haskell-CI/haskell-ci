@@ -70,6 +70,7 @@ library
     HaskellCI.Config.Jobs
     HaskellCI.Glob
     HaskellCI.Newtypes
+    HaskellCI.Optimization
     HaskellCI.OptionsGrammar
     HaskellCI.ParsecError
     HaskellCI.ParsecUtils

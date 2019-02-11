@@ -16,19 +16,23 @@ import qualified Distribution.Parsec.ParseResult as C
 
 import           HaskellCI.Newtypes
 import           HaskellCI.ParsecError
+import           HaskellCI.Optimization
 
 -- $setup
 -- >>> :seti -XOverloadedStrings
 
 data Project a = Project
-    { prjPackages    :: [a]
-    , prjConstraints :: [String]
-    , prjAllowNewer  :: [String]
+    { prjPackages     :: [a]
+    , prjConstraints  :: [String]
+    , prjAllowNewer   :: [String]
+    , prjReorderGoals :: Bool
+    , prjMaxBackjumps :: Maybe Int
+    , prjOptimization :: Optimization
     }
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
 emptyProject :: Project [a]
-emptyProject = Project [] [] []
+emptyProject = Project [] [] [] False Nothing OptimizationOn
 
 -- | Parse project file. Extracts only few fields.
 --
@@ -48,6 +52,9 @@ parseProjectFile fp bs = do
 
 grammar :: C.ParsecFieldGrammar (Project String) (Project String)
 grammar = Project
-    <$> C.monoidalFieldAla "packages"    (C.alaList' C.FSep PackageLocation) #prjPackages
-    <*> C.monoidalFieldAla "constraints" (C.alaList' C.CommaVCat NoCommas)   #prjConstraints
-    <*> C.monoidalFieldAla "allow-newer" (C.alaList' C.CommaVCat NoCommas)    #prjAllowNewer
+    <$> C.monoidalFieldAla "packages"      (C.alaList' C.FSep PackageLocation) #prjPackages
+    <*> C.monoidalFieldAla "constraints"   (C.alaList' C.CommaVCat NoCommas)   #prjConstraints
+    <*> C.monoidalFieldAla "allow-newer"   (C.alaList' C.CommaVCat NoCommas)   #prjAllowNewer
+    <*> C.booleanFieldDef  "reorder-goals"                                     #prjReorderGoals False
+    <*> C.optionalFieldAla "max-backjumps" Int'                                    #prjMaxBackjumps
+    <*> C.optionalFieldDef "optimization"                                      #prjOptimization OptimizationOn
