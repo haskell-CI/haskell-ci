@@ -70,6 +70,11 @@ import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Verbosity (Verbosity)
 #endif
 
+import qualified Distribution.FieldGrammar                    as C
+import qualified Distribution.PackageDescription.FieldGrammar as C
+import qualified Distribution.Types.SourceRepo                as C
+import qualified Text.PrettyPrint                             as PP
+
 #ifdef MIN_VERSION_ShellCheck
 import ShellCheck.Checker (checkScript)
 import qualified ShellCheck.Interface as SC
@@ -962,6 +967,11 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             OptimizationOn      -> return ()
             OptimizationOff     -> tellStrLns [ sh $ "echo 'optimization: False' >> cabal.project " ]
             OptimizationLevel l -> tellStrLns [ sh $ "echo 'optimization: " ++ show l ++ "' >> cabal.project " ]
+
+        F.forM_ (prjSourceRepos prj) $ \repo -> do
+            let repo' = PP.render $ C.prettyFieldGrammar (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused") repo
+            tellStrLns [ sh $ "echo 'source-repository-package' >> cabal.project" ]
+            tellStrLns [ sh $ "echo '  " ++ l ++ "' >> cabal.project" | l <- lines repo' ]
 
         -- also write cabal.project.local file with
         -- @
