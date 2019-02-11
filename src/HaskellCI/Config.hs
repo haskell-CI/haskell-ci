@@ -123,8 +123,8 @@ configGrammar = Config
     <*> C.booleanFieldDef     "cabal-check"                                                   #cfgCheck True
     <*> C.booleanFieldDef     "cabal-noise"                                                   #cfgNoise True
     <*> C.booleanFieldDef     "no-tests-no-benchmarks"                                        #cfgNoTestsNoBench True
-    <*> C.booleanFieldDef     "unconstrained-step"                                            #cfgUnconstrainted True
-    <*> C.booleanFieldDef     "install-dependencies-step"                                     #cfgInstallDeps True
+    <*> C.booleanFieldDef     "unconstrained"                                                 #cfgUnconstrainted True
+    <*> C.booleanFieldDef     "install-dependencies"                                          #cfgInstallDeps True
     <*> C.monoidalFieldAla    "installed"                 (C.alaList C.FSep)                  #cfgInstalled
     <*> C.optionalFieldDef    "haddock"                                                       #cfgHaddock anyVersion
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches

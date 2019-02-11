@@ -15,11 +15,12 @@ data ConstraintSet = ConstraintSet
     { csName        :: String
     , csGhcVersions :: VersionRange
     , csConstraints :: [String] -- we parse these simply as strings
+    , csRunTests    :: Bool
     }
   deriving (Show, Generic)
 
 emptyConstraintSet :: String -> ConstraintSet
-emptyConstraintSet n = ConstraintSet n anyVersion []
+emptyConstraintSet n = ConstraintSet n anyVersion [] False
 
 -------------------------------------------------------------------------------
 -- Grammar
@@ -31,3 +32,4 @@ constraintSetGrammar
 constraintSetGrammar name = ConstraintSet name
     <$> C.uniqueField      "ghc"                                           #csGhcVersions
     <*> C.monoidalFieldAla "constraints" (C.alaList' C.CommaVCat NoCommas) #csConstraints
+    <*> C.booleanFieldDef  "run-tests"                                     #csRunTests False
