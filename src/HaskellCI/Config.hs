@@ -46,12 +46,11 @@ data Config = Config
     , cfgEnv                 :: M.Map Version String
     , cfgAllowFailures       :: S.Set Version -- TODO: change to range
     , cfgLastInSeries        :: !Bool
+    , cfgOsx                 :: S.Set Version
+    , cfgApt                 :: S.Set String
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
-    -- TODO: apt-packages
-    -- TOOD: osx
-    -- "generate osx build job with ghc version"
     }
   deriving (Show, Generic)
 
@@ -87,6 +86,8 @@ emptyConfig = Config
     , cfgEnv             = M.empty
     , cfgAllowFailures   = S.empty
     , cfgLastInSeries    = False
+    , cfgOsx             = S.empty
+    , cfgApt             = S.empty
     }
 
 -------------------------------------------------------------------------------
@@ -114,6 +115,8 @@ configGrammar = Config
     <*> C.monoidalFieldAla    "env"                       Env                                 #cfgEnv
     <*> C.monoidalFieldAla    "allow-failures"            (alaSet C.CommaFSep)                #cfgAllowFailures
     <*> C.booleanFieldDef     "last-in-series"                                                #cfgLastInSeries False
+    <*> C.monoidalFieldAla    "osx"                       (alaSet C.NoCommaFSep)              #cfgOsx
+    <*> C.monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    #cfgApt
     <*> C.blurFieldGrammar #cfgDoctest doctestConfigGrammar
     <*> C.blurFieldGrammar #cfgHLint   hlintConfigGrammar
     <*> pure []

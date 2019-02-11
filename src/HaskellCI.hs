@@ -350,7 +350,7 @@ main = do
 
 doTravis :: [String] -> FilePath -> Options -> IO ()
 doTravis args path opts = do
-    runYamlWriter (optOutput opts) $ travisFromConfigFile args opts path []
+    runYamlWriter (optOutput opts) $ travisFromConfigFile args opts path
 
 parseTravis :: [String] -> IO (FilePath, Options)
 parseTravis argv = case res of
@@ -397,15 +397,14 @@ travisFromConfigFile
     => [String]
     -> Options
     -> FilePath
-    -> [String]
     -> YamlWriter m ()
-travisFromConfigFile args opts path xpkgs = do
+travisFromConfigFile args opts path = do
     cabalFiles <- getCabalFiles
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config opts) cabalFiles
     (ghcs, prj) <- checkVersions pkgs
-    genTravisFromConfigs args opts xpkgs isCabalProject config prj ghcs
+    genTravisFromConfigs args opts isCabalProject config prj ghcs
   where
     checkVersions
         :: MonadIO m
@@ -566,19 +565,18 @@ genTravisFromConfigs
     :: Monad m
     => [String]
     -> Options
-    -> [String]
     -> Maybe FilePath
     -> Config
     -> Project Package
     -> Set Version
     -> YamlWriter m ()
-genTravisFromConfigs argv opts xpkgs isCabalProject config prj@Project { prjPackages = pkgs } versions' = do
+genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages = pkgs } versions' = do
     let folds = cfgFolds config
 
     putStrLnInfo $
         "Generating Travis-CI config for testing for GHC versions: " ++ ghcVersions
 
-    unless (null $ optOsx opts) $  do
+    unless (null $ cfgOsx config) $  do
         putStrLnInfo $ "Also OSX jobs for: " ++ ghcOsxVersions
         unless (S.null omittedOsxVersions) $
             putStrLnWarn $ "Not all GHC versions specified with --osx are generated: " ++ ghcOmittedOsxVersions
@@ -633,7 +631,7 @@ genTravisFromConfigs argv opts xpkgs isCabalProject config prj@Project { prjPack
 
     -- on OSX ghc is installed in $HOME so we can cache it
     -- independently of linux
-    when (cfgCache config && not (null (optOsx opts))) $ tellStrLns
+    when (cfgCache config && not (null (cfgOsx config))) $ tellStrLns
         [ "    - $HOME/.ghc-install"
         ]
 
@@ -662,7 +660,7 @@ genTravisFromConfigs argv opts xpkgs isCabalProject config prj@Project { prjPack
             let cvs = dispGhcVersion $ cfgCabalInstallVersion config <|> (lookupCabVer =<< gv)
                 gvs = dispGhcVersion gv
 
-                xpkgs' = concatMap (',':) xpkgs
+                xpkgs' = concatMap (',':) (S.toList $ cfgApt config)
 
                 colls' = [ cid | (v,cid) <- colls, Just v == gv ]
 
@@ -707,7 +705,7 @@ genTravisFromConfigs argv opts xpkgs isCabalProject config prj@Project { prjPack
 
     let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
 
-    if null (optOsx opts)
+    if null (cfgOsx config)
     then tellStrLns
         [ sh "PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$HOME/local/bin:$PATH"
         ]
@@ -1082,7 +1080,7 @@ genTravisFromConfigs argv opts xpkgs isCabalProject config prj@Project { prjPack
 
     -- specified ersions
     osxVersions' :: Set Version
-    osxVersions' = S.fromList $ mapMaybe simpleParse $ optOsx opts
+    osxVersions' = cfgOsx config
 
     versions :: Set (Maybe Version)
     versions
@@ -1178,21 +1176,19 @@ data Command
 data Options = Options
     { optCollections :: [String]
     , optOutput :: Maybe FilePath
-    , optOsx :: [String]
     , optConfig :: Maybe FilePath
     , optConfigMorphism :: Config -> Config
     }
 
 instance Semigroup Options where
-    Options a b c d e <> Options a' b' c' d' e' =
-        Options (a <> a') (b <|> b') (c <> c') (d <|> d') (e' . e)
+    Options a b d e <> Options a' b' d' e' =
+        Options (a <> a') (b <|> b') (d <|> d') (e' . e)
 
 defaultOptions :: Options
 defaultOptions = Options
-    { optCollections = []
-    , optOutput = Nothing
-    , optOsx = []
-    , optConfig = Nothing
+    { optCollections    = []
+    , optOutput         = Nothing
+    , optConfig         = Nothing
     , optConfigMorphism = id
     }
 
@@ -1200,7 +1196,6 @@ optionsP :: O.Parser Options
 optionsP = Options
     <$> pure []
     <*> O.optional (O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Optput file (stdout if omitted)"))
-    <*> pure []
     <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
     <*> runOptionsGrammar configGrammar
 

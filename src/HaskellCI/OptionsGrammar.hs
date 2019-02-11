@@ -97,6 +97,8 @@ extraMods = M.fromList
     , mk "env"                       "ENV"      "Environment variables per job (e.g. `8.0.2:HADDOCK=false`)"
     , mk "allow-failures"            "JOB"      "Allow failures of particular GHC version"
     , mk "last-in-series"            "BOOL"     "[Discouraged] Assume there are only GHCs last in major series: 8.0.* will match only 8.2.2"
+    , mk "osx"                       "JOB"      "Jobs to build with OSX too"
+    , mk "apt"                       "PKG"      "Additional apt packages to install"
 
     , mk "doctest"                   "BOOL"     "Run doctest"
     , mk "doctest-options"           "ARG"      "Additional doctest options"
