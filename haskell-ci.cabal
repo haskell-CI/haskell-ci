@@ -75,6 +75,7 @@ library
     HaskellCI.Glob
     HaskellCI.Newtypes
     HaskellCI.Optimization
+    HaskellCI.OptparseGrammar
     HaskellCI.OptionsGrammar
     HaskellCI.ParsecError
     HaskellCI.ParsecUtils
