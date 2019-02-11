@@ -112,6 +112,7 @@ sh :: String -> String
 sh = sh'
     [ 2034 -- VAR appears unused. Verify it or export it.
     , 2086 -- SC2086: Double quote to prevent globbing and word splitting.
+    , 2002 -- SC2002: Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead.
     ]
 
 shForJob :: Set Version -> VersionRange -> String -> String
@@ -734,7 +735,13 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     -- Install dependencies
     when (cfgInstallDeps config) $ do
         tellStrLns
-            [ sh $ "cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
+            -- dump install plan
+            [ sh $ "cabal new-freeze -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dry"
+            , sh $ "cat \"" ++ projectFile ++ ".freeze\" | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
+            , sh $ "rm  \"" ++ projectFile ++ ".freeze\""
+            
+            -- install dependencies
+            , sh $ "cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
             ]
         when (cfgNoTestsNoBench config) $ tellStrLns
             [ sh $ "cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
