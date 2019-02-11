@@ -1,22 +1,30 @@
-{-# LANGUAGE OverloadedLabels      #-}
-{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE OverloadedLabels  #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- | Handling of @cabal.project@ file
-module HaskellCI.Project where
+module HaskellCI.Project (
+    Project (..),
+    emptyProject,
+    parseProjectFile,
+    ) where
 
-import           Data.ByteString                 (ByteString)
-import           Data.Generics.Labels            ()
-import           GHC.Generics                    (Generic)
+import           Data.ByteString                              (ByteString)
+import           Data.Generics.Labels                         ()
+import           GHC.Generics                                 (Generic)
+import           Lens.Micro                                   (over)
 
-import qualified Data.Map.Strict                 as M
-import qualified Distribution.CabalSpecVersion   as C
-import qualified Distribution.FieldGrammar       as C
-import qualified Distribution.Parsec.Newtypes    as C
-import qualified Distribution.Parsec.Parser      as C
-import qualified Distribution.Parsec.ParseResult as C
+import qualified Data.Map.Strict                              as M
+import qualified Distribution.CabalSpecVersion                as C
+import qualified Distribution.FieldGrammar                    as C
+import qualified Distribution.PackageDescription.FieldGrammar as C
+import qualified Distribution.Parsec.Common                   as C
+import qualified Distribution.Parsec.Newtypes                 as C
+import qualified Distribution.Parsec.Parser                   as C
+import qualified Distribution.Parsec.ParseResult              as C
+import qualified Distribution.Types.SourceRepo                as C
 
 import           HaskellCI.Newtypes
-import           HaskellCI.ParsecError
 import           HaskellCI.Optimization
+import           HaskellCI.ParsecError
 
 -- $setup
 -- >>> :seti -XOverloadedStrings
@@ -28,11 +36,12 @@ data Project a = Project
     , prjReorderGoals :: Bool
     , prjMaxBackjumps :: Maybe Int
     , prjOptimization :: Optimization
+    , prjSourceRepos  :: [C.SourceRepo]
     }
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
 emptyProject :: Project [a]
-emptyProject = Project [] [] [] False Nothing OptimizationOn
+emptyProject = Project [] [] [] False Nothing OptimizationOn []
 
 -- | Parse project file. Extracts only few fields.
 --
@@ -42,13 +51,25 @@ emptyProject = Project [] [] [] False Nothing OptimizationOn
 parseProjectFile :: FilePath -> ByteString -> Either String (Project String)
 parseProjectFile fp bs = do
     fields0 <- either (Left . show) Right $ C.readFields bs
-    let fields1 = fst $ C.partitionFields fields0
+    let (fields1, sections) = C.partitionFields fields0
     let fields2 = M.filterWithKey (\k _ -> k `elem` knownFields) fields1
-    case C.runParseResult $ C.parseFieldGrammar C.cabalSpecLatest fields2 grammar of
+    case C.runParseResult $ parse fields2 sections of
         (_, Right x)       -> return x
         (ws, Left (_, es)) -> Left $ renderParseError fp bs es ws
   where
     knownFields = C.fieldGrammarKnownFieldList grammar
+
+    parse fields sections = do
+        prj <- C.parseFieldGrammar C.cabalSpecLatest fields grammar
+        foldr ($) prj <$> traverse parseSec (concat sections)
+
+    parseSec :: C.Section C.Position -> C.ParseResult (Project String -> Project String)
+    parseSec (C.MkSection (C.Name _pos name) [] fields) | name == "source-repository-package" = do
+        let fields' = fst $ C.partitionFields fields
+        repo <- C.parseFieldGrammar C.cabalSpecLatest fields' (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused")
+        return $ over #prjSourceRepos (repo :)
+
+    parseSec _ = return id
 
 grammar :: C.ParsecFieldGrammar (Project String) (Project String)
 grammar = Project
@@ -58,3 +79,4 @@ grammar = Project
     <*> C.booleanFieldDef  "reorder-goals"                                     #prjReorderGoals False
     <*> C.optionalFieldAla "max-backjumps" Int'                                    #prjMaxBackjumps
     <*> C.optionalFieldDef "optimization"                                      #prjOptimization OptimizationOn
+    <*> pure []
