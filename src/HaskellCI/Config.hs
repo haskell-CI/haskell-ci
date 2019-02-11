@@ -36,6 +36,7 @@ import           HaskellCI.Config.HLint
 import           HaskellCI.Config.Installed
 import           HaskellCI.Config.Jobs
 import           HaskellCI.Newtypes
+import           HaskellCI.OptionsGrammar
 import           HaskellCI.ParsecUtils
 
 -- TODO: split other blocks like DoctestConfig
@@ -113,30 +114,51 @@ emptyConfig = Config
 -------------------------------------------------------------------------------
 
 configGrammar
-    :: (C.FieldGrammar g, Applicative (g Config), Applicative (g DoctestConfig), Applicative (g HLintConfig))
+    :: (OptionsGrammar g, Applicative (g Config), Applicative (g DoctestConfig), Applicative (g HLintConfig))
     => g Config Config
 configGrammar = Config
     <$> C.optionalFieldDefAla "cabal-install-version"     HeadVersion                         #cfgCabalInstallVersion defaultCabalInstallVersion
+        ^^^ metahelp "VERSION" "cabal-install version for all jobs"
     <*> C.optionalField       "jobs"                                                          #cfgJobs
+        ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
     <*> C.monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') #cfgLocalGhcOptions
+        ^^^ metahelp "OPTS" "--ghc-options for local packages"
     <*> C.booleanFieldDef     "cache"                                                         #cfgCache True
+        ^^^ help "Disable caching"
     <*> C.booleanFieldDef     "cabal-check"                                                   #cfgCheck True
+        ^^^ help "Disable running cabal check"
     <*> C.booleanFieldDef     "cabal-noise"                                                   #cfgNoise True
+        ^^^ help "Make cabal less noisy"
     <*> C.booleanFieldDef     "no-tests-no-benchmarks"                                        #cfgNoTestsNoBench True
+        ^^^ help "Don't build without tests and benchmarks"
     <*> C.booleanFieldDef     "unconstrained"                                                 #cfgUnconstrainted True
+        ^^^ help "Don't make unconstrained build"
     <*> C.booleanFieldDef     "install-dependencies"                                          #cfgInstallDeps True
+        ^^^ help "Skip separate dependency installation step"
     <*> C.monoidalFieldAla    "installed"                 (C.alaList C.FSep)                  #cfgInstalled
+        ^^^ metahelp "+/-PKG" "Specify 'constraint: ... installed' packages"
     <*> C.optionalFieldDef    "haddock"                                                       #cfgHaddock anyVersion
+        ^^^ metahelp "RANGE" "Haddock step"
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches
+        ^^^ metahelp "BRANCH" "Enable builds only for specific branches"
     <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        #cfgIrcChannels
+        ^^^ metahelp "IRC" "Enable IRC notifications to given channel (e.g. 'irc.freenode.org#haskell-lens')"
     <*> C.optionalFieldAla    "project-name"              C.Token'                            #cfgProjectName
+        ^^^ metahelp "name" "Project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
     <*> C.monoidalFieldAla    "folds"                     Folds                               #cfgFolds
+        ^^^ metahelp "FOLD" "Build steps to fold"
     <*> C.booleanFieldDef     "ghc-head"                                                      #cfgGhcHead False
+        ^^^ help "Add ghc-head job"
     <*> C.monoidalFieldAla    "env"                       Env                                 #cfgEnv
+        ^^^ metahelp "ENV" "Environment variables per job (e.g. `8.0.2:HADDOCK=false`)"
     <*> C.monoidalFieldAla    "allow-failures"            (alaSet C.CommaFSep)                #cfgAllowFailures
+        ^^^ metahelp "JOB" "Allow failures of particular GHC version"
     <*> C.booleanFieldDef     "last-in-series"                                                #cfgLastInSeries False
+        ^^^ help "[Discouraged] Assume there are only GHCs last in major series: 8.2.* will match only 8.2.2"
     <*> C.monoidalFieldAla    "osx"                       (alaSet C.NoCommaFSep)              #cfgOsx
+        ^^^ metahelp "JOB" "Jobs to additionally build with OSX"
     <*> C.monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    #cfgApt
+        ^^^ metahelp "PKG" "Additional apt packages to install"
     <*> C.blurFieldGrammar #cfgDoctest doctestConfigGrammar
     <*> C.blurFieldGrammar #cfgHLint   hlintConfigGrammar
     <*> pure []

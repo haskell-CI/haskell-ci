@@ -14,6 +14,8 @@ import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Pretty             as C
 import qualified Text.PrettyPrint                as PP
 
+import HaskellCI.OptionsGrammar
+
 data HLintConfig = HLintConfig
     { cfgHLintEnabled :: !Bool
     , cfgHLintJob     :: !HLintJob
@@ -48,11 +50,16 @@ instance C.Pretty HLintJob where
 -------------------------------------------------------------------------------
 
 hlintConfigGrammar
-    :: (C.FieldGrammar g, Applicative (g HLintConfig))
+    :: (OptionsGrammar g, Applicative (g HLintConfig))
     => g HLintConfig HLintConfig
 hlintConfigGrammar = HLintConfig
     <$> C.booleanFieldDef  "hlint"                                             #cfgHLintEnabled False
+        ^^^ help "Enable HLint job"
     <*> C.optionalFieldDef "hlint-job"                                         #cfgHLintJob HLintJobLatest
+        ^^^ metahelp "JOB" "Specify HLint job"
     <*> C.optionalFieldAla "hlint-yaml"    C.FilePathNT                        #cfgHLintYaml
+        ^^^ metahelp "PATH" "Use specific .hlint.yaml"
     <*> C.monoidalFieldAla "hlint-options" (C.alaList' C.NoCommaFSep C.Token') #cfgHLintOptions
+        ^^^ metahelp "OPTS" "Additional HLint options"
     <*> C.optionalFieldDef "hlint-version"                                     #cfgHLintVersion defaultHLintVersion
+        ^^^ metahelp "RANGE" "HLint version"

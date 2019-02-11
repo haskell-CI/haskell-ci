@@ -92,6 +92,7 @@ import HaskellCI.Cli
 import HaskellCI.Config
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.Doctest
+import HaskellCI.Config.Dump
 import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
@@ -237,7 +238,9 @@ main = do
             forM_ groupedVersions $ \(v, vs) -> do
                 putStr $ prettyMajVersion v ++ ": "
                 putStrLn $ intercalate ", " (map display vs)
-            exitSuccess
+        CommandDumpConfig -> do
+            putStr $ unlines $ runDG configGrammar
+             
         CommandRegenerate -> do
             let fp = ".travis.yml" -- make configurable?
             contents <- readFile fp

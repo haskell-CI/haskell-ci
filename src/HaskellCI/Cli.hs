@@ -11,7 +11,7 @@ import           System.IO                (hPutStrLn, stderr)
 import qualified Options.Applicative      as O
 
 import           HaskellCI.Config
-import           HaskellCI.OptionsGrammar
+import           HaskellCI.OptparseGrammar
 
 -------------------------------------------------------------------------------
 -- Command
@@ -21,6 +21,7 @@ data Command
     = CommandTravis FilePath
     | CommandRegenerate
     | CommandListGHC
+    | CommandDumpConfig
   deriving Show
 
 -------------------------------------------------------------------------------
@@ -55,7 +56,7 @@ optionsP = Options
     <$> pure []
     <*> O.optional (O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Optput file (stdout if omitted)"))
     <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
-    <*> runOptionsGrammar configGrammar
+    <*> runOptparseGrammar configGrammar
 
 cliParserInfo :: O.ParserInfo (Command, Options)
 cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> O.helper) $ mconcat
@@ -64,9 +65,10 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> O.helper) $ mconcat
     ]
   where
     cmdP = O.subparser (mconcat
-        [ O.command "regenerate" $ O.info (pure CommandRegenerate) $ O.progDesc "Regenerate .travis.yml"
-        , O.command "travis"     $ O.info travisP                  $ O.progDesc "Generate travis-ci config"
-        , O.command "list-ghc"   $ O.info (pure CommandListGHC)    $ O.progDesc "List known GHC versions"
+        [ O.command "regenerate"  $ O.info (pure CommandRegenerate) $ O.progDesc "Regenerate .travis.yml"
+        , O.command "travis"      $ O.info travisP                  $ O.progDesc "Generate travis-ci config"
+        , O.command "list-ghc"    $ O.info (pure CommandListGHC)    $ O.progDesc "List known GHC versions"
+        , O.command "dump-config" $ O.info (pure CommandDumpConfig) $ O.progDesc "Dump cabal.haskell-ci config with default values" 
         ]) <|> travisP
 
     travisP = CommandTravis

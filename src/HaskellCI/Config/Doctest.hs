@@ -9,6 +9,8 @@ import           GHC.Generics                 (Generic)
 import qualified Distribution.FieldGrammar    as C
 import qualified Distribution.Parsec.Newtypes as C
 
+import HaskellCI.OptionsGrammar
+
 data DoctestConfig = DoctestConfig
     { cfgDoctestEnabled :: !Bool
     , cfgDoctestOptions :: [String]
@@ -24,9 +26,12 @@ defaultDoctestVersion = withinVersion (mkVersion [0,16])
 -------------------------------------------------------------------------------
 
 doctestConfigGrammar
-    :: (C.FieldGrammar g, Applicative (g DoctestConfig))
+    :: (OptionsGrammar g, Applicative (g DoctestConfig))
     => g DoctestConfig DoctestConfig
 doctestConfigGrammar = DoctestConfig
     <$> C.booleanFieldDef  "doctest"                                             #cfgDoctestEnabled False
+        ^^^ help "Enable Doctest job"
     <*> C.monoidalFieldAla "doctest-options" (C.alaList' C.NoCommaFSep C.Token') #cfgDoctestOptions
+        ^^^ metahelp "OPTS" "Additional Doctest options"
     <*> C.optionalFieldDef "doctest-version"                                     #cfgDoctestVersion defaultDoctestVersion
+        ^^^ metahelp "RANGE" "Doctest version"

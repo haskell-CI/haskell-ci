@@ -8,6 +8,7 @@ import           Data.List                       (intercalate)
 
 import qualified Data.Map.Strict                 as M
 import qualified Data.Set                        as S
+import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Compat.Newtype     as C
 import qualified Distribution.Parsec.Class       as C
 import qualified Distribution.Pretty             as C
@@ -57,16 +58,17 @@ instance C.Newtype Folds (S.Set Fold) where
     unpack = coerce
 
 instance C.Parsec Folds where
-    parsec = do
+    parsec = fmap (Folds . S.unions) $ manySpaces $ do
         t <- C.parsecToken'
         case t of
-            "all"          -> return $ Folds $ S.fromList possibleFolds
-            "all-but-test" -> return $ Folds $ S.delete FoldTest $ S.fromList possibleFolds
+            "all"          -> return $ S.fromList possibleFolds
+            "all-but-test" -> return $  S.delete FoldTest $ S.fromList possibleFolds
             n -> case M.lookup n ps of
-                Just n' -> return $ Folds $ S.singleton n'
+                Just n' -> return $ S.singleton n'
                 Nothing -> fail $ "Illegal fold name: " ++ n
       where
         ps = M.fromList $ map (\x -> (showFold x, x)) possibleFolds
+        manySpaces p = C.many (p <* C.spaces)
 
 instance C.Pretty Folds where
     pretty = PP.fsep . map (PP.text . showFold) . S.toList . getFolds
