@@ -2,13 +2,8 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLabels #-}
-
-#if !defined(MIN_VERSION_Cabal)
--- As a heuristic, if the macro isn't defined, be pessimistic and
--- assume an "old" Cabal version
-# define MIN_VERSION_Cabal(x,y,z) 0
-#endif
 
 -- | New-style @.travis.yml@ script generator using cabal 1.24's nix-style
 -- tech-preview facilities.
@@ -22,38 +17,40 @@ module HaskellCI (
     -- * for tests
     Result (..),
     Diagnostic (..),
-    parseOptsNoCommands,
+    parseTravis,
     formatDiagnostic, formatDiagnostics,
-    travisFromConfigFile, MakeTravisOutput, Options (..), defOptions, options,
+    travisFromConfigFile, MakeTravisOutput, Options (..), defaultOptions,
     ) where
 
-import Control.Applicative as App ((<|>), pure)
+import Prelude ()
+import Prelude.Compat
+
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
-import Control.Monad (when, unless, liftM, forM_, mzero, foldM, join)
-import Data.Char (isSpace, isUpper, toLower)
+import Control.Monad (when, unless, liftM, forM_, mzero)
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import Data.Function
 import Data.List
 import Data.Maybe
-import Data.Monoid as Mon (Monoid (..), Endo (..))
-import Data.Either (partitionEithers)
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Map as M
-import System.Console.GetOpt
 import System.Directory (doesDirectoryExist, doesFileExist)
-import System.Environment
 import System.Exit
 import System.FilePath.Posix ((</>), takeDirectory, takeFileName, takeExtension)
 import System.IO
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe
+import System.Environment (getArgs)
 import Control.Monad.Trans.Writer
 import Text.Read (readMaybe)
+import Distribution.Compat.ReadP (readP_to_S)
+
+
+import qualified Options.Applicative         as O
 
 import Distribution.Compiler (CompilerFlavor(..))
 import Distribution.Package hiding (Package, pkgName)
@@ -72,9 +69,6 @@ import Distribution.PackageDescription.Parse (readGenericPackageDescription)
 import Distribution.PackageDescription.Parse (readPackageDescription)
 import Distribution.Verbosity (Verbosity)
 #endif
-import Distribution.Compat.ReadP
-    ( ReadP, (<++), char, munch1
-    , readP_to_S, readS_to_P, sepBy, munch, skipSpaces)
 
 #ifdef MIN_VERSION_ShellCheck
 import ShellCheck.Checker (checkScript)
@@ -94,68 +88,18 @@ import Data.Monoid ((<>))
 import Lens.Micro
 import Data.Generics.Labels () -- IsLabel (->) ...
 
+import HaskellCI.Cli
 import HaskellCI.Config
+import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.Doctest
+import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
+import HaskellCI.Config.Jobs
+import HaskellCI.Extras
+import HaskellCI.GHC
 import HaskellCI.Glob
+import HaskellCI.Optimization
 import HaskellCI.Project
-
-#if !(MIN_VERSION_Cabal(2,0,0))
--- compat helpers for pre-2.0
-
-readGenericPackageDescription :: Verbosity -> FilePath -> IO GenericPackageDescription
-readGenericPackageDescription = readPackageDescription
-
-mkVersion :: [Int] -> Version
-mkVersion vn = Version vn []
-
-versionNumbers :: Version -> [Int]
-versionNumbers (Version vn _) = vn
-
-#endif
-
--------------------------------------------------------------------------------
--- Microlens
--------------------------------------------------------------------------------
-
-view :: Getting a s a -> s -> a
-view l x = x ^. l
-
--------------------------------------------------------------------------------
--- Hardcoded values
--------------------------------------------------------------------------------
-
-knownGhcVersions :: [Version]
-knownGhcVersions = fmap mkVersion
-    [ [7,0,1],  [7,0,2], [7,0,3], [7,0,4]
-    , [7,2,1],  [7,2,2]
-    , [7,4,1],  [7,4,2]
-    , [7,6,1],  [7,6,2], [7,6,3]
-    , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
-    , [7,10,1], [7,10,2], [7,10,3]
-    , [8,0,1],  [8,0,2]
-    , [8,2,1],  [8,2,2]
-    , [8,4,1],  [8,4,2], [8,4,3], [8,4,4]
-    , [8,6,1],  [8,6,2], [8,6,3]
-    ]
-
-ghcAlpha :: Maybe Version
-ghcAlpha = Nothing
--- ghcAlpha = Just (mkVersion [8,8,1])
-
-cabalVerMap :: [((Int, Int), Maybe Version)]
-cabalVerMap = fmap (fmap (fmap mkVersion))
-    [ ((7, 0), Just [2,4]) -- Use 2.4 for everything.
-    , ((7, 2), Just [2,4])
-    , ((7, 4), Just [2,4])
-    , ((7, 6), Just [2,4])
-    , ((7, 8), Just [2,4])
-    , ((7,10), Just [2,4])
-    , ((8, 0), Just [2,4])
-    , ((8, 2), Just [2,4])
-    , ((8, 4), Just [2,4])
-    , ((8, 6), Just [2,4])
-    ]
 
 -------------------------------------------------------------------------------
 -- Script
@@ -267,72 +211,38 @@ foldedTellStrLns' label pfx prettyLabel labels output
 
     showFold' l = showFold l ++ if null pfx then "" else "-" ++ pfx
 
--- | Return the part after the first argument
---
--- >>> afterInfix "BAR" "FOOBAR XYZZY"
--- Just " XYZZY"
---
-afterInfix :: Eq a => [a] -> [a] -> Maybe [a]
-afterInfix needle haystack = findMaybe (afterPrefix needle) (tails haystack)
-
--- |
---
--- >>> afterPrefix "FOO" "FOOBAR"
--- Just "BAR"
---
-afterPrefix :: Eq a => [a] -> [a] -> Maybe [a]
-afterPrefix needle haystack
-    | needle `isPrefixOf` haystack = Just (drop (length needle) haystack)
-    | otherwise                    = Nothing
-
--- |
---
--- >>> findMaybe readMaybe ["foo", "1", "bar"] :: Maybe Int
--- Just 1
---
-findMaybe :: (a -> Maybe b) -> [a] -> Maybe b
-findMaybe f = foldr (\a b -> f a App.<|> b) Nothing
-
--- | >>> maybeReadP PU.parseTokenQ' "foo"
--- Just "foo"
-maybeReadP :: ReadP a a -> String -> Maybe a
-maybeReadP p s = listToMaybe $
-    [ x
-    | (x, rest) <- readP_to_S p s
-    , all isSpace rest
-    ]
+-------------------------------------------------------------------------------
+-- Main
+-------------------------------------------------------------------------------
 
 main :: IO ()
 main = do
-    argv <- getArgs
-    (opts,argv',configFile,xpkgs) <- parseOpts argv
-    genTravisFromConfigFile (argv',opts) configFile xpkgs
-
-parseOpts :: [String] -> IO (Options, [String], FilePath, [String])
-parseOpts argv = case argv of
-    -- travis is default command
-    --
-    -- we also simply check `isPrefixOf` as so far one char is enough to disambiguate
-    -- - travis
-    -- - regenerate
-    -- - list-ghc
-    --
-    (cmd : argv') | cmd `isPrefixOf` "travis" -> do
-        parseOptsNoCommands argv'
-    (cmd : argv') | cmd `isPrefixOf` "regenerate" -> do
-        let fp = fromMaybe  ".travis.yml" $ listToMaybe argv'
-        ls <- fmap lines (readFile fp >>= evaluate . force) -- strict IO
-        case findArgv ls of
-            Nothing     -> dieCli [Error $ "expected REGENDATA line in " ++ fp ++ "\n"]
-            Just argv'' -> parseOpts argv''
-    [cmd] | cmd `isPrefixOf` "list-ghc" -> do
-        putStrLn $ "Supported GHC versions:"
-        forM_ groupedVersions $ \(v, vs) -> do
-            putStr $ prettyMajVersion v ++ ": "
-            putStrLn $ intercalate ", " (map display vs)
-        exitSuccess
-    _ -> parseOptsNoCommands argv
+    argv0 <- getArgs
+    (cmd, opts) <- O.execParser cliParserInfo
+    case cmd of
+        CommandListGHC -> do
+            putStrLn $ "Supported GHC versions:"
+            forM_ groupedVersions $ \(v, vs) -> do
+                putStr $ prettyMajVersion v ++ ": "
+                putStrLn $ intercalate ", " (map display vs)
+            exitSuccess
+        CommandRegenerate -> do
+            let fp = ".travis.yml" -- make configurable?
+            contents <- readFile fp
+            case findArgv (lines contents) of
+                Nothing     -> do
+                    hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ fp
+                    exitFailure
+                Just argv   -> do
+                    (f, opts') <- parseTravis argv
+                    doTravis argv f (opts' <> opts)
+        CommandTravis f -> doTravis argv0 f opts
   where
+    findArgv :: [String] -> Maybe [String]
+    findArgv ls = do
+        l <- findMaybe (afterInfix "REGENDATA") ls
+        readMaybe l
+
     groupedVersions :: [(Version, [Version])]
     groupedVersions = map ((\vs -> (head vs, vs)) . sortBy (flip compare))
                     . groupBy ((==) `on` ghcMajVer)
@@ -343,50 +253,9 @@ parseOpts argv = case argv of
         | Just v == ghcAlpha = "alpha"
         | otherwise = case ghcMajVer v of (x,y) -> show x ++ "." ++ show y
 
-    findArgv :: [String] -> Maybe [String]
-    findArgv ls = do
-        l <- findMaybe (afterInfix "REGENDATA") ls
-        readMaybe l
-
--- Returns options, used argv, cabal file, xpkgs
-parseOptsNoCommands :: [String] -> IO (Options, [String], FilePath, [String])
-parseOptsNoCommands argv = case getOpt Permute options argv of
-    (opts',configFile:xpkgs,[]) -> do
-        opts <- foldOptions defOptions opts'
-        return (opts,argv,configFile,xpkgs)
-    (_,_,[]) -> dieCli [Error "expected .cabal or cabal.project file as first non-option argument\n"]
-    (_,_,errs) -> dieCli (map Error errs)
-  where
-    foldOptions :: Options -> [Result Diagnostic (Options -> Options)] -> IO Options
-    foldOptions def opts = case foldOptions' def opts of
-        Success ws x -> do
-            hPutStr stderr (formatDiagnostics ws)
-            return x
-        Failure errs -> dieCli errs
-
-    foldOptions' :: Options -> [Result e (Options -> Options)] -> Result e Options
-    foldOptions' opts = fmap (`appEndo` opts) . F.foldMap (fmap Endo)
-
-dieCli ::  [Diagnostic] -> IO a
-dieCli errs = hPutStrLn stderr (usageMsg errs) >> exitFailure
- where
-    usageMsg errs' = formatDiagnostics errs' ++ usageInfo h options ++ ex
-
-    h = intercalate "\n"
-        [ "Usage: runghc make_travis_yml_2.hs [OPTIONS] <cabal-file | cabal.project> <extra-apt-packages...>"
-        , ""
-        , "Available commands:"
-        , "    regenerate [TRAVIS.YAML]  Regenerate the file using the magic command in it. Default .travis.yml"
-        , "    list-ghc                  List GHC versions supported by this version of make-travis-yml"
-        , ""
-        , "Available options:"
-        ]
-
-    ex = unlines
-        [ ""
-        , "Example:"
-        , "    runghc make_travis_yml_2.hs -o .travis.yml someProject.cabal liblzma-dev"
-        ]
+doTravis :: [String] -> FilePath -> Options -> IO ()
+doTravis args path opts = do
+    runYamlWriter (optOutput opts) $ travisFromConfigFile args opts path
 
 runYamlWriter :: Maybe FilePath -> YamlWriter IO () -> IO ()
 runYamlWriter mfp m = do
@@ -400,41 +269,25 @@ runYamlWriter mfp m = do
                 Nothing -> putStr contents'
                 Just fp -> writeFile fp contents'
 
-ghcMajVer :: Version -> (Int,Int)
-ghcMajVer v
-    | x:y:_ <- versionNumbers v = (x,y)
-    | otherwise = error $ "panic: ghcMajVer called with " ++ show v
-
--- | Alphas, RCs and HEAD.
-previewGHC :: Maybe Version -> Bool
-previewGHC = maybe True $ \v -> Just v == ghcAlpha || odd (snd (ghcMajVer v))
-
-dispGhcVersion :: Maybe Version -> String
-dispGhcVersion = maybe "head" display
-
 data Package = Pkg
     { pkgName :: String
     , pkgDir :: FilePath
     , pkgGpd :: GenericPackageDescription
     } deriving (Eq, Show)
 
-genTravisFromConfigFile :: ([String],Options) -> FilePath -> [String] -> IO ()
-genTravisFromConfigFile args@(_, opts) path xpkgs =
-    runYamlWriter (optOutput opts) $ travisFromConfigFile args path xpkgs
-
 travisFromConfigFile
     :: MonadIO m
-    => ([String],Options)
+    => [String]
+    -> Options
     -> FilePath
-    -> [String]
     -> YamlWriter m ()
-travisFromConfigFile args@(_, opts) path xpkgs = do
+travisFromConfigFile args opts path = do
     cabalFiles <- getCabalFiles
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config opts) cabalFiles
     (ghcs, prj) <- checkVersions pkgs
-    genTravisFromConfigs args xpkgs isCabalProject config prj ghcs
+    genTravisFromConfigs args opts isCabalProject config prj ghcs
   where
     checkVersions
         :: MonadIO m
@@ -459,7 +312,7 @@ travisFromConfigFile args@(_, opts) path xpkgs = do
             diff = symDiff testWith allVersions
             missingVersions = map display $ S.toList diff
             errors | S.null diff = []
-                   | otherwise = App.pure $ mconcat
+                   | otherwise = pure $ mconcat
                         [ pkgName pkg
                         , " is missing tested-with annotations for: "
                         ] ++ intercalate "," missingVersions
@@ -471,7 +324,7 @@ travisFromConfigFile args@(_, opts) path xpkgs = do
 
     getCabalFiles :: MonadIO m => YamlWriter m (Project FilePath)
     getCabalFiles
-        | isNothing isCabalProject = return (Project [path] [] [])
+        | isNothing isCabalProject = return $ emptyProject & #prjPackages .~ [path]
         | otherwise = do
             contents <- liftIO $ BS.readFile path
             pkgs <- either putStrLnErr return $ parseProjectFile path contents
@@ -593,20 +446,20 @@ configFromCabalFile cfg opts cabalFile = do
 
 genTravisFromConfigs
     :: Monad m
-    => ([String], Options)
-    -> [String]
+    => [String]
+    -> Options
     -> Maybe FilePath
     -> Config
     -> Project Package
     -> Set Version
     -> YamlWriter m ()
-genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPackages = pkgs } versions' = do
+genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages = pkgs } versions' = do
     let folds = cfgFolds config
 
     putStrLnInfo $
         "Generating Travis-CI config for testing for GHC versions: " ++ ghcVersions
 
-    unless (null $ optOsx opts) $  do
+    unless (null $ cfgOsx config) $  do
         putStrLnInfo $ "Also OSX jobs for: " ++ ghcOsxVersions
         unless (S.null omittedOsxVersions) $
             putStrLnWarn $ "Not all GHC versions specified with --osx are generated: " ++ ghcOmittedOsxVersions
@@ -661,7 +514,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     -- on OSX ghc is installed in $HOME so we can cache it
     -- independently of linux
-    when (cfgCache config && not (null (optOsx opts))) $ tellStrLns
+    when (cfgCache config && not (null (cfgOsx config))) $ tellStrLns
         [ "    - $HOME/.ghc-install"
         ]
 
@@ -687,10 +540,10 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     let tellJob :: Monad m => Bool -> Maybe Version -> YamlWriter m ()
         tellJob osx gv = do
-            let cvs = dispGhcVersion $ cfgCabalInstallVersion config <|> (lookupCabVer =<< gv)
+            let cvs = dispGhcVersion $ gv >> cfgCabalInstallVersion config
                 gvs = dispGhcVersion gv
 
-                xpkgs' = concatMap (',':) xpkgs
+                xpkgs' = concatMap (',':) (S.toList $ cfgApt config)
 
                 colls' = [ cid | (v,cid) <- colls, Just v == gv ]
 
@@ -735,7 +588,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
 
-    if null (optOsx opts)
+    if null (cfgOsx config)
     then tellStrLns
         [ sh "PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$HOME/local/bin:$PATH"
         ]
@@ -774,15 +627,15 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
         ]
 
     -- Cabal jobs
-    case cfgJobs config of
-        (Just n, _) -> tellStrLns
+    case cfgJobs config >>= cabalJobs of
+        Just n -> tellStrLns
             [ sh $ "sed -i.bak 's/^-- jobs:.*/jobs: " ++ show n ++ "/' ${HOME}/.cabal/config"
             ]
         _ -> return ()
 
     -- GHC jobs
-    case cfgJobs config of
-        (_, Just m) -> tellStrLns
+    case cfgJobs config >>= ghcJobs of
+        Just m -> tellStrLns
             [ sh $ "if [ $HCNUMVER -ge 70800 ]; then sed -i.bak 's/-- ghc-options:.*/ghc-options: -j" ++ show m ++ "/' ${HOME}/.cabal/config; fi"
             ]
         _ -> return ()
@@ -1068,6 +921,21 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
                 , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
                 ]
 
+        when (prjReorderGoals prj) $
+            tellStrLns
+                [ sh $ "echo 'reorder-goals: True' >> cabal.project"
+                ]
+
+        F.forM_ (prjMaxBackjumps prj) $ \bj ->
+            tellStrLns
+                [ sh $ "echo 'max-backjumps: " ++ show bj ++ "' >> cabal.project"
+                ]
+
+        case prjOptimization prj of
+            OptimizationOn      -> return ()
+            OptimizationOff     -> tellStrLns [ sh $ "echo 'optimization: False' >> cabal.project " ]
+            OptimizationLevel l -> tellStrLns [ sh $ "echo 'optimization: " ++ show l ++ "' >> cabal.project " ]
+
         -- also write cabal.project.local file with
         -- @
         -- constraints: base installed
@@ -1110,7 +978,7 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     -- specified ersions
     osxVersions' :: Set Version
-    osxVersions' = S.fromList $ mapMaybe simpleParse $ optOsx opts
+    osxVersions' = cfgOsx config
 
     versions :: Set (Maybe Version)
     versions
@@ -1128,9 +996,6 @@ genTravisFromConfigs (argv,opts) xpkgs isCabalProject config prj@Project { prjPa
 
     ghcOmittedOsxVersions :: String
     ghcOmittedOsxVersions = showVersions $ S.map Just omittedOsxVersions
-
-    lookupCabVer :: Version -> Maybe Version
-    lookupCabVer v = join $ lookup (ghcMajVer v) cabalVerMap
 
 -- | Modules arguments to the library
 --
@@ -1190,184 +1055,6 @@ ghcVersionToString v =  case versionNumbers v of
     (x:y:z:_) -> show (x * 10000 + y * 100 + z)
 
 -------------------------------------------------------------------------------
--- Jobs
--------------------------------------------------------------------------------
-
--- | parse jobs defintion
---
--- * N:M - N ghcs (cabal -j), M threads (ghc -j)
---
--- >>> let parseJobs = maybeReadP parseJobsQ
--- >>> parseJobs "2:2"
--- Just (Just 2,Just 2)
---
--- >>> parseJobs ":2"
--- Just (Nothing,Just 2)
---
--- >>> parseJobs "2"
--- Just (Just 2,Nothing)
---
--- >>> parseJobs "garbage"
--- Nothing
---
-parseJobsQ :: ReadP r (Maybe Int, Maybe Int)
-parseJobsQ = nm <++ m <++ n <++ return (Nothing, Nothing)
-  where
-    nm = do
-      x <- parseInt
-      _ <- char ':'
-      y <- parseInt
-      return (Just x, Just y)
-
-    m = do
-      _ <- char ':'
-      y <- parseInt
-      return (Nothing, Just y)
-
-    n = do
-      x <- parseInt
-      return (Just x, Nothing)
-
--------------------------------------------------------------------------------
--- Options
--------------------------------------------------------------------------------
-
-data Options = Options
-    { optCollections :: [String]
-    , optOutput :: Maybe FilePath
-    , optOsx :: [String]
-    , optConfig :: Maybe FilePath
-    , optConfigMorphism :: Config -> Config
-    }
-
-defOptions :: Options
-defOptions = Options
-    { optCollections = []
-    , optOutput = Nothing
-    , optOsx = []
-    , optConfig = Nothing
-    , optConfigMorphism = id
-    }
-
-options :: [OptDescr (Result Diagnostic (Options -> Options))]
-options =
-    [ Option [] ["no-cache"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgCache = False })
-      "disable Travis caching"
-    , Option [] ["no-cabal-noise"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgNoise = False })
-      "remove cabal noise from test output"
-    , Option [] ["no-cabal-check"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgCheck = False })
-      "Disable cabal check"
-    , Option [] ["no-install-dependencies"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgInstallDeps = False })
-      "Disable installing dependencies in a seperate step"
-    , Option [] ["no-no-tests-no-bench"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgNoTestsNoBench = False })
-      "Don't build with --no-tests --no-benchmarks"
-    , Option [] ["no-unconstrained"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgUnconstrainted = False })
-      "Build also without 'installed' constraints"
-    , Option [] ["ghc-head"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgGhcHead = True })
-      "Build also with ghc-head"
-    , Option ['c'] ["collection"]
-      (ReqArg (success' $ \arg opts -> opts { optCollections = arg : optCollections opts }) "CID")
-      "enable package collection(s) (e.g. 'lts-7'), use multiple times for multiple collections"
-    , Option ['f'] ["fold"]
-      (flip OptArg "FOLDS" $ \arg -> case arg of
-        Nothing   -> successCM $ \cfg -> cfg { cfgFolds = S.fromList possibleFolds }
-        Just arg' -> case maybeReadP parseFoldQ arg' of
-            Nothing -> Failure [Error $ "cannot parse --fold argument: " ++ arg' ++ "\n"]
-            Just f  -> successCM $ \cfg -> cfg { cfgFolds = f (cfgFolds cfg) })
-      ("build output(s) to fold, use multiple times for multiple folds. No argument defaults to 'all'. Possible values: all, all-but-test, " ++ intercalate ", " (map showFold possibleFolds))
-    , Option [] ["irc-channel"]
-      (ReqArg (successCM' $ \arg cfg -> cfg { cfgIrcChannels = arg : cfgIrcChannels cfg }) "HOST#CHANNEL")
-      "enable IRC notifcations to given channel (e.g. 'irc.freenode.org#haskell-lens'), use multiple times for multiple channels"
-    , Option ['n'] ["name"]
-      (ReqArg (successCM' $ \arg cfg -> cfg { cfgProjectName = Just arg }) "NAME")
-      "project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
-    , Option ['b'] ["branch"]
-      (ReqArg (successCM' $ \arg cfg -> cfg { cfgOnlyBranches = arg : cfgOnlyBranches cfg }) "BRANCH")
-      "enable builds only for specific brances, use multiple times for multiple branches"
-    , Option ['o'] ["output"]
-      (ReqArg (success' $ \arg opts -> opts { optOutput = Just arg }) "OUTPUT")
-      "output file (stdout if omitted)"
-    , Option [] ["config"]
-      (OptArg (success' $ \arg opts -> opts { optConfig = Just $ fromMaybe "cabal.make-travis-yml" arg }) "CONFIG")
-      "config file, currently used only to specify constraint sets"
-    , Option [] ["osx"]
-      (ReqArg (success' $ \arg opts -> opts { optOsx = arg : optOsx opts }) "GHC")
-      "generate osx build job with ghc version"
-    , Option ['j'] ["jobs"]
-      (reqArgReadP parseJobsQ (\jobs cfg -> cfg { cfgJobs = jobs }) "JOBS")
-      "jobs (N:M - cabal:ghc)"
-    , Option [] ["local-ghc-options"]
-      (reqArgReadP parseOptsQ (\xs cfg -> cfg { cfgLocalGhcOptions = xs }) "OPTIONS")
-      "--ghc-options for local packages"
-    , Option ['d'] ["doctest"]
-      (NoArg $ successCM $ set (#cfgDoctest . #cfgDoctestEnabled) True)
-      "Run doctest using .ghc.environment files."
-    , Option [] ["doctest-options"]
-      (reqArgReadP parseOptsQ (set $ #cfgDoctest . #cfgDoctestOptions) "OPTIONS")
-      "Additional doctest options."
-    , Option [] ["doctest-version"]
-      (reqArgReadP parse (set $ #cfgDoctest . #cfgDoctestVersion) "VERSION")
-      "Doctest version range"
-    , Option ['l'] ["hlint"]
-      (NoArg $ successCM $ set (#cfgHLint . #cfgHLintEnabled) True)
-      "Run hlint (only on GHC-8.4.3 target)"
-    , Option [] ["hlint-yaml"]
-      (ReqArg (successCM' $ set (#cfgHLint . #cfgHLintYaml) . Just) "HLINT.YAML")
-      "Relative path to .hlint.yaml."
-    , Option [] ["hlint-options"]
-      (reqArgReadP parseOptsQ (set $ #cfgHLint . #cfgHLintOptions) "OPTIONS")
-      "Additional hlint options."
-    , Option [] ["hlint-version"]
-      (reqArgReadP parse (set $ #cfgHLint . #cfgHLintVersion) "VERSION")
-      "HLint version range"
-    , Option [] ["cabal-install-version"]
-      (reqArgReadP parse (\arg cfg -> cfg { cfgCabalInstallVersion = Just arg }) "VERSION")
-      "cabal-install version for all jobs, overrides default"
-    , Option [] ["cabal-install-head"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgCabalInstallVersion = Nothing })
-      "Use cabal-install-head for all jobs, overrides default"
-    , Option [] ["env"]
-      (reqArgReadP envP (\(k, v) cfg -> cfg { cfgEnv = M.insert k v (cfgEnv cfg) }) "ENVDECL")
-      "Environment (e.g. `8.0.2:HADDOCK=false`)"
-    , Option [] ["allow-failure"]
-      (reqArgReadP parse (\arg cfg -> cfg { cfgAllowFailures = S.insert arg (cfgAllowFailures cfg) }) "GHCVERSION")
-      "Allow failures of particular GHC version"
-    , Option [] ["last-in-series"]
-      (NoArg $ successCM $ \cfg -> cfg { cfgLastInSeries = True })
-      "[Discouraged] Assume there are only GHCs last in major series: 8.0.* will match only 8.2.2"
-    ]
-  where
-    overCM f opts = opts
-        { optConfigMorphism = f . optConfigMorphism opts
-        }
-
-    success' f arg = success (f arg)
-
-    successCM = success . overCM
-    successCM' f arg = successCM (f arg)
-
-    reqArgReadP :: ReadP a a -> (a -> Config -> Config) -> String -> ArgDescr (Result Diagnostic (Options -> Options))
-    reqArgReadP p f n = flip ReqArg n $ \arg -> case maybeReadP  p arg of
-        Nothing -> Failure [Error $  "cannot parse: " ++ arg ]
-        Just x  -> successCM' f x
-
-envP :: ReadP r (Version, String)
-envP = do
-    ghc <- parse
-    skipSpaces
-    _ <- char ':'
-    skipSpaces
-    v <- munch (const True)
-    return (ghc, v)
-
--------------------------------------------------------------------------------
 -- Result
 -------------------------------------------------------------------------------
 
@@ -1379,9 +1066,8 @@ data Result e a
 success :: a -> Result e a
 success = Success []
 
-instance Monoid a => Mon.Monoid (Result e a) where
+instance Monoid a => Monoid (Result e a) where
     mempty = success mempty
-#if MIN_VERSION_base(4,9,0)
     mappend = (<>)
 
 instance Monoid a => Semigroup (Result e a) where
@@ -1389,200 +1075,10 @@ instance Monoid a => Semigroup (Result e a) where
     Failure err1   <> Success err2 _ = Failure $ err1 <> err2
     Success err1 _ <> Failure err2   = Failure $ err1 <> err2
     Success l1 o1  <> Success l2 o2  = Success (mappend l1 l2) (mappend o1 o2)
-#else
-    Failure err1   `mappend` Failure err2   = Failure $ err1 `mappend` err2
-    Failure err1   `mappend` Success err2 _ = Failure $ err1 `mappend` err2
-    Success err1 _ `mappend` Failure err2   = Failure $ err1 `mappend` err2
-    Success l1 o1  `mappend` Success l2 o2  = Success (mappend l1 l2) (mappend o1 o2)
-#endif
-
--------------------------------------------------------------------------------
--- Fold
--------------------------------------------------------------------------------
-
-showFold :: Fold -> String
-showFold = dashise . drop 4 . show
-  where
-    dashise = intercalate "-" . map (map toLower) . split
-
-    split [] = []
-    split xs0 =
-        let (ys, xs1) = span isUpper xs0
-            (zs, xs2) = break isUpper xs1
-        in (ys ++ zs) : split xs2
-
-possibleFolds :: [Fold]
-possibleFolds = [minBound .. maxBound]
-
-parseFoldQ :: ReadP r (Set Fold -> Set Fold)
-parseFoldQ = do
-    t <- PU.parseTokenQ
-    case t of
-        "all"          -> return $ const $ S.fromList possibleFolds
-        "all-but-test" -> return $ const $ S.delete FoldTest $ S.fromList possibleFolds
-        n -> case M.lookup n ps of
-            Just n' -> return (S.insert n')
-            Nothing -> fail $ "Illegal fold name: " ++ n
-  where
-    ps = M.fromList $ map (\x -> (showFold x, x)) possibleFolds
-
--------------------------------------------------------------------------------
--- Config file
--------------------------------------------------------------------------------
-
-configFieldDescrs :: [PU.FieldDescr Config]
-configFieldDescrs =
-    [ PU.simpleField  "jobs"
-        (error "we don't pretty print")
-        parseJobsQ
-        cfgJobs
-        (\x cfg -> cfg { cfgJobs = x })
-    , PU.boolField  "hlint"
-        (view $ #cfgHLint . #cfgHLintEnabled)
-        (set $ #cfgHLint . #cfgHLintEnabled)
-    , PU.simpleField "hlint-yaml"
-        (error "we don't pretty print")
-        (fmap Just PU.parseFilePathQ)
-        (view $ #cfgHLint . #cfgHLintYaml)
-        (set $ #cfgHLint . #cfgHLintYaml)
-    , PU.simpleField "hlint-version"
-        (error "we don't pretty print")
-        parse
-        (view $ #cfgHLint . #cfgHLintVersion)
-        (set $ #cfgHLint . #cfgHLintVersion)
-    , PU.simpleField "hlint-options"
-        (error "we don't pretty print")
-        parseOptsQ
-        (view $ #cfgHLint . #cfgHLintOptions)
-        (set $ #cfgHLint . #cfgHLintOptions)
-    , PU.boolField  "doctest"
-        (view $ #cfgDoctest . #cfgDoctestEnabled)
-        (set $ #cfgDoctest . #cfgDoctestEnabled)
-    , PU.simpleField "doctest-options"
-        (error "we don't pretty print")
-        parseOptsQ
-        (view $ #cfgDoctest . #cfgDoctestOptions)
-        (set $ #cfgDoctest . #cfgDoctestOptions)
-    , PU.simpleField "doctest-version"
-        (error "we don't pretty print")
-        parse
-        (view $ #cfgDoctest . #cfgDoctestVersion)
-        (set $ #cfgDoctest . #cfgDoctestVersion)
-    , PU.simpleField "cabal-install-version"
-        (error "we don't pretty print")
-        (fmap Just parse)
-        cfgCabalInstallVersion
-        (\x cfg -> cfg { cfgCabalInstallVersion = x })
-    , PU.simpleField "local-ghc-options"
-        (error "we don't pretty print")
-        parseOptsQ
-        cfgLocalGhcOptions
-        (\x cfg -> cfg { cfgLocalGhcOptions = cfgLocalGhcOptions cfg ++ x })
-    , PU.boolField  "cache"
-        cfgCache
-        (\b cfg -> cfg { cfgCache = b })
-    , PU.boolField  "cabal-noise"
-        cfgNoise
-        (\b cfg -> cfg { cfgNoise = b })
-    , PU.boolField  "cabal-check"
-        cfgCheck
-        (\b cfg -> cfg { cfgCheck = b })
-    , PU.boolField  "install-dependencies-step"
-        cfgInstallDeps
-        (\b cfg -> cfg { cfgInstallDeps = b })
-    , PU.boolField  "no-tests-no-benchmarks"
-        cfgNoTestsNoBench
-        (\b cfg -> cfg { cfgNoTestsNoBench = b })
-    , PU.boolField  "unconstrained-step"
-        cfgUnconstrainted
-        (\b cfg -> cfg { cfgUnconstrainted = b })
-    , PU.listField  "irc-channels"
-        (error "we don't pretty print")
-        PU.parseTokenQ
-        cfgIrcChannels
-        (\x cfg -> cfg { cfgIrcChannels = x })
-    , PU.simpleField "name"
-        (error "we don't pretty print")
-        (fmap Just PU.parseTokenQ)
-        cfgProjectName
-        (set #cfgProjectName)
-    , PU.listField  "branches"
-        (error "we don't pretty print")
-        PU.parseTokenQ
-        cfgOnlyBranches
-        (set #cfgOnlyBranches)
-    , PU.simpleField  "folds"
-        (error "we don't pretty print")
-        (sepBy parseFoldQ (munch1 isSpace))
-        (\cfg -> [\_ -> cfgFolds cfg])
-        (\x cfg -> cfg { cfgFolds = foldl' (flip id) (cfgFolds cfg) x })
-    , PU.boolField "ghc-head"
-        cfgGhcHead
-        (set #cfgGhcHead)
-    -- , PU.simpleField "env" -- TODO
-    , PU.simpleField "env"
-        (error "we don't pretty print")
-        envP
-        (error "we don't pretty print")
-        (\(k,v) -> over #cfgEnv (M.insert k v))
-    ]
-
-parseOptsQ :: ReadP r [String]
-parseOptsQ = sepBy PU.parseTokenQ' (munch1 isSpace)
-
-readConfigFile :: MonadIO m => FilePath -> YamlWriter m Config
-readConfigFile path = do
-    contents <- liftIO $ readFile path
-    parseConfigFile path contents
-
-parseConfigFile :: Monad m => FilePath -> String -> YamlWriter m Config
-parseConfigFile path contents = toWriter $ do
-    fields' <- PU.readFields contents
-    let (fields, sections) = partitionEithers (map classify fields')
-    config <- accumFields configFieldDescrs emptyConfig fields
-    go config sections
-  where
-    toWriter r = case r of
-        PU.ParseOk ws x -> do
-            forM_ ws $ \w -> putStrLnWarn (PU.showPWarning path w)
-            return x
-        PU.ParseFailed err -> case PU.locatedErrorMsg err of
-            (l, msg) -> putStrLnErr $ path ++ ":" ++ show l ++ ": " ++ msg
-
-    classify x@PU.IfBlock {} = Right x
-    classify x@PU.Section {} = Right x
-    classify x@PU.F {}       = Left x
-
-    go :: Config -> [PU.Field] -> PU.ParseResult Config
-    go  cfg [] = return cfg
-    go _cfg (PU.IfBlock {} : _fields) = fail "if conditional found"
-    go  cfg (PU.F {} : fields)        = go cfg fields
-    go  cfg (PU.Section line name arg subfields : fields)
-        | name == "constraint-set" = do
-            cs <- accumFields constraintSetFieldDescrs (emptyConstraintSet arg) subfields
-            let cfg' = cfg { cfgConstraintSets = cfgConstraintSets cfg ++ [cs] }
-            go cfg' fields
-        | otherwise = do
-            PU.warning $ "Unknown section " ++ name ++ " on line " ++ show line
-            go cfg fields
 
 -------------------------------------------------------------------------------
 -- ConstraintSet
 -------------------------------------------------------------------------------
-
-constraintSetFieldDescrs :: [PU.FieldDescr ConstraintSet]
-constraintSetFieldDescrs =
-    [ PU.listField "constraints"
-        (error "we don't pretty print") -- pretty
-        (parseHaskellString <++ munch1 (`notElem` [',', '"']))
-        csConstraints
-        (\c cs -> cs { csConstraints = csConstraints cs ++ c })
-    , PU.simpleField "ghc"
-        (error "we don't pretty print") -- pretty
-        Distribution.Text.parse
-        csGhcVersions
-        (\c cs -> cs { csGhcVersions = c })
-    ]
 
 ghcVersionPredicate :: VersionRange -> String
 ghcVersionPredicate = conj . asVersionIntervals
@@ -1602,31 +1098,3 @@ ghcVersionPredicate = conj . asVersionIntervals
     upper v ExclusiveBound = "[ $HCNUMVER -lt " ++ f v ++ " ]"
 
     f = ghcVersionToString
-
--------------------------------------------------------------------------------
--- From Cabal
--------------------------------------------------------------------------------
-
-accumFields :: [PU.FieldDescr a] -> a -> [PU.Field] -> PU.ParseResult a
-accumFields fields = foldM setField
-  where
-    fieldMap = M.fromList
-        [ (name, f) | f@(PU.FieldDescr name _ _) <- fields ]
-    setField accum (PU.F line name value) = case M.lookup name fieldMap of
-      Just (PU.FieldDescr _ _ setter) -> setter line value accum
-      Nothing -> do
-          PU.warning $ "Unrecognized field " ++ name ++ " on line " ++ show line
-          return accum
-    setField accum f = do
-        PU.warning ("Unrecognized stanza on line " ++ show (PU.lineNo f))
-        return accum
-
--------------------------------------------------------------------------------
--- From cabal-install
--------------------------------------------------------------------------------
-
-parseHaskellString :: ReadP r String
-parseHaskellString = readS_to_P reads
-
-parseInt :: ReadP r Int
-parseInt = readS_to_P reads

@@ -12,7 +12,6 @@ import Data.IORef
 import Data.List (isPrefixOf, stripPrefix)
 import Data.Maybe (mapMaybe)
 import Data.Monoid (mconcat)
-import System.Console.GetOpt (getOpt, ArgOrder(Permute))
 import System.Directory (doesFileExist, removeFile, setCurrentDirectory)
 import System.Exit (ExitCode(..), exitFailure)
 import System.FilePath (addExtension, (</>))
@@ -51,8 +50,8 @@ linesToArgv txt = case mapMaybe lineToArgv (lines txt) of
 -- @
 fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
-    (argv, opts, xpkgs) <- makeTravisFlags
-    let genConfig = travisFromConfigFile (argv, opts) fp xpkgs
+    (argv, opts) <- makeTravisFlags
+    let genConfig = travisFromConfigFile argv opts fp
     execWriterT (runMaybeT genConfig)
   where
     outputRef = addExtension fp "travis.yml"
@@ -63,17 +62,19 @@ fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
         | refExists = (linesToArgv . BS8.unpack) `fmap` BS.readFile outputRef
         | otherwise = return $ Just [fp]
 
-    makeTravisFlags :: IO ([String], Options, [String])
+    makeTravisFlags :: IO ([String], Options)
     makeTravisFlags = do
         result <- doesFileExist outputRef >>= referenceArgv
         case result of
             Nothing -> throwIO (ErrorCall "No REGENDATA in result file.")
             Just argv -> do
-                (opts, _argv, _fp, xpkgs) <- parseOpts argv
-                return (argv, opts, xpkgs)
+                (opts, _fp) <- parseOpts argv
+                return (argv, opts)
 
-parseOpts :: [String] -> IO (Options, [String], FilePath, [String])
-parseOpts = parseOptsNoCommands
+parseOpts :: [String] -> IO (Options, FilePath)
+parseOpts argv = do
+    (path, opts) <- parseTravis argv
+    return (opts, path)
 
 cabalGoldenTest
     :: TestName

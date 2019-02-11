@@ -62,10 +62,21 @@ flag ShellCheck
 library
   exposed-modules:
     HaskellCI
+    HaskellCI.Cli
     HaskellCI.Config
+    HaskellCI.Config.ConstraintSet
     HaskellCI.Config.Doctest
+    HaskellCI.Config.Folds
     HaskellCI.Config.HLint
+    HaskellCI.Config.Jobs
+    HaskellCI.Extras
+    HaskellCI.GHC
     HaskellCI.Glob
+    HaskellCI.Newtypes
+    HaskellCI.Optimization
+    HaskellCI.OptionsGrammar
+    HaskellCI.ParsecError
+    HaskellCI.ParsecUtils
     HaskellCI.Project
 
   ghc-options:
@@ -93,13 +104,16 @@ library
     , deepseq       ^>=1.4.2.0
     , directory     ^>=1.3.0.0
     , filepath      ^>=1.4.1.1
+    , parsec
     , pretty        ^>=1.1.3.3
     , transformers  ^>=0.5.2.0
 
   -- other dependencies
   build-depends:
-    , generic-lens  ^>=1.1.0.0
-    , microlens     ^>=0.4.10
+    , base-compat           ^>=0.10.5
+    , generic-lens          ^>=1.1.0.0
+    , microlens             ^>=0.4.10
+    , optparse-applicative  ^>=0.14.3.0
 
   default-language:   Haskell2010
 
