@@ -147,6 +147,9 @@ install:
       (cd "servant-server" && autoreconf -i);
     fi
   - rm -f cabal.project.freeze
+  - cabal new-freeze -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project.messy" --dry
+  - "cat \"cabal.project.messy.freeze\" | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
+  - rm  "cabal.project.messy.freeze"
   - cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project.messy" --dep -j2 all
   - cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file="cabal.project.messy" --dep -j2 all
   - rm -rf .ghc.environment.* "servant"/dist "servant-client"/dist "servant-docs"/dist "servant-server"/dist
