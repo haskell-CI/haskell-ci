@@ -890,9 +890,12 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         forM_ constraintSets $ \cs -> do
             let name = csName cs
             let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
+            let cmd | csRunTests cs = "cabal new-test  -w ${HC} --enable-tests  --enable-benchmarks"
+                    | otherwise     = "cabal new-build -w ${HC} --disable-tests --disable-benchmarks"
             tellStrLns [ comment  "Constraint set " ++ name ]
             foldedTellStrLns' FoldConstraintSets name ("Constraint set " ++ name) folds $ tellStrLns
-                [ sh' [2086] $ "if " ++ ghcVersionPredicate (csGhcVersions cs) ++ "; then cabal new-build -w ${HC} --disable-tests --disable-benchmarks" ++ constraintFlags ++ " all; else echo skipping...; fi"
+                [ shForJob versions' (csGhcVersions cs) $
+                  cmd ++ " " ++ constraintFlags ++ " all"
                 , ""
                 ]
         tellStrLns [""]

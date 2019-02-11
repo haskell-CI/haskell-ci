@@ -33,16 +33,16 @@ before_cache:
 matrix:
   include:
     - compiler: "ghc-8.6.3"
-      env: NOINSTALLEDCONSTRAINTS=true
+    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.3], sources: [hvr-ghc]}}
     - compiler: "ghc-8.4.4"
-      env: NOINSTALLEDCONSTRAINTS=true
+    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
     - compiler: "ghc-8.2.2"
-      env: NOINSTALLEDCONSTRAINTS=true
+    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.2.2], sources: [hvr-ghc]}}
     - compiler: "ghc-8.0.2"
-      env: NOINSTALLEDCONSTRAINTS=true
+    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.0.2], sources: [hvr-ghc]}}
 
 before_install:
@@ -130,7 +130,7 @@ script:
 
   # Constraint set deepseq-1.4
   - echo Constraint set deepseq-1.4 && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\r'
-  - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ]; then cabal new-build -w ${HC} --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' all; else echo skipping...; fi
+  - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then cabal new-build -w ${HC} --disable-tests --disable-benchmarks  --constraint='deepseq ==1.4.*' all ; fi
 
   - echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\r'
 
