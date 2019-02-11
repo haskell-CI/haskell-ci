@@ -112,6 +112,17 @@ sh = sh'
     , 2086 -- SC2086: Double quote to prevent globbing and word splitting.
     ]
 
+shForJob :: Set Version -> VersionRange -> String -> String
+shForJob  versions vr cmd
+    | all (`withinRange` vr) versions = sh cmd
+    | otherwise                       = sh $ unwords
+        [ "if"
+        , ghcVersionPredicate vr
+        , "; then"
+        , cmd
+        , "; fi"
+        ]
+
 -- | Like 'sh' but with explicit SC exclude codes.
 sh' :: [Integer] -> String -> String
 #ifndef MIN_VERSION_ShellCheck
@@ -121,7 +132,7 @@ sh' excl cmd = unsafePerformIO $ do
   res <- checkScript iface spec
   if null (SC.crComments res)
      then return (shImpl cmd)
-     else SC.onResult scFormatter res iface >> fail "ShellCheck!"
+     else SC.onResult scFormatter res iface >> fail ("ShellCheck! " ++ cmd)
   where
     iface = SC.SystemInterface $ \n -> return $ Left $ "cannot read file: " ++ n
     spec  = SC.emptyCheckSpec { SC.csFilename = "stdin"
@@ -613,7 +624,6 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , sh "echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
         , sh "BENCH=${BENCH---enable-benchmarks}"
         , sh "TEST=${TEST---enable-tests}"
-        , sh "HADDOCK=${HADDOCK-true}"
         , sh "UNCONSTRAINED=${UNCONSTRAINED-true}"
         , sh "NOINSTALLEDCONSTRAINTS=${NOINSTALLEDCONSTRAINTS-false}"
         , sh "GHCHEAD=${GHCHEAD-false}"
@@ -636,7 +646,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     -- GHC jobs
     case cfgJobs config >>= ghcJobs of
         Just m -> tellStrLns
-            [ sh $ "if [ $HCNUMVER -ge 70800 ]; then sed -i.bak 's/-- ghc-options:.*/ghc-options: -j" ++ show m ++ "/' ${HOME}/.cabal/config; fi"
+            [ shForJob versions' (orLaterVersion (mkVersion [7,8])) $
+              "sed -i.bak 's/-- ghc-options:.*/ghc-options: -j" ++ show m ++ "/' ${HOME}/.cabal/config"
             ]
         _ -> return ()
 
@@ -673,7 +684,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             | isAnyVersion (cfgDoctestVersion doctestConfig) = ""
             | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion doctestConfig) ++ "'"
     when (cfgDoctestEnabled doctestConfig) $ tellStrLns
-        [ sh $ "if [ $HCNUMVER -ge 80000 ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest" ++ doctestVersionConstraint ++ "; fi"
+        [ shForJob versions' doctestJobVersionRange $ "cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest" ++ doctestVersionConstraint
         ]
 
     -- Install hlint
@@ -681,7 +692,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             | isAnyVersion (cfgHLintVersion hlintConfig) = ""
             | otherwise = " --constraint='hlint " ++ display (cfgHLintVersion hlintConfig) ++ "'"
     when (cfgHLintEnabled hlintConfig) $ tellStrLns
-        [ sh $ "if [ $HCNUMVER -eq " ++ hlintJobVersion versions (cfgHLintJob hlintConfig) ++ " ]; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint ++ "; fi"
+        [ shForJob versions' (hlintJobVersionRange versions (cfgHLintJob hlintConfig)) $
+          "cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint
         ]
 
     -- create cabal.project file
@@ -794,7 +806,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                 let args = doctestArgs pkgGpd
                     args' = unwords args
                 unless (null args) $ tellStrLns
-                    [ sh $ "if [ $HCNUMVER -ge 80000 ]; then (cd " ++ pkgName ++ "-* && doctest " ++ doctestOptions ++ " " ++ args' ++ "); fi"
+                    [ shForJob versions' doctestJobVersionRange $
+                      "(cd " ++ pkgName ++ "-* && doctest " ++ doctestOptions ++ " " ++ args' ++ ")"
                     ]
         tellStrLns [ "" ]
 
@@ -815,7 +828,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                 let args = doctestArgs pkgGpd
                     args' = unwords args
                 unless (null args) $ tellStrLns
-                    [ sh $ "if [ $HCNUMVER -eq 80403 ]; then (cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ "); fi"
+                    [ shForJob versions' (hlintJobVersionRange versions (cfgHLintJob hlintConfig)) $
+                      "(cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
                     ]
         tellStrLns [ "" ]
 
@@ -831,7 +845,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     when hasLibrary $
         foldedTellStrLns FoldHaddock "Haddock..." folds $ tellStrLns
             [ comment "haddock"
-            , sh "if $HADDOCK; then cabal new-haddock -w ${HC} ${TEST} ${BENCH} all; else echo \"Skipping haddock generation\";fi"
+            , shForJob versions' (cfgHaddock config) "cabal new-haddock -w ${HC} ${TEST} ${BENCH} all"
             , ""
             ]
 
@@ -997,6 +1011,29 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     ghcOmittedOsxVersions :: String
     ghcOmittedOsxVersions = showVersions $ S.map Just omittedOsxVersions
 
+
+collToGhcVer :: String -> Version
+collToGhcVer cid = case simpleParse cid of
+  Nothing -> error ("invalid collection-id syntax " ++ show cid)
+  Just (PackageIdentifier n (versionNumbers -> v))
+    | display n /= "lts" -> error ("unknown collection " ++ show cid)
+    | isPrefixOf [0] v -> mkVersion [7,8,3]
+    | isPrefixOf [1] v -> mkVersion [7,8,4]
+    | isPrefixOf [2] v -> mkVersion [7,8,4]
+    | isPrefixOf [3] v -> mkVersion [7,10,2]
+    | isPrefixOf [4] v -> mkVersion [7,10,3]
+    | isPrefixOf [5] v -> mkVersion [7,10,3]
+    | isPrefixOf [6] v -> mkVersion [7,10,3]
+    | isPrefixOf [7] v -> mkVersion [8,0,1]
+    | otherwise -> error ("unknown collection " ++ show cid)
+
+-------------------------------------------------------------------------------
+-- Doctest
+-------------------------------------------------------------------------------
+
+doctestJobVersionRange :: VersionRange
+doctestJobVersionRange = orLaterVersion $ mkVersion [8,0]
+
 -- | Modules arguments to the library
 --
 -- * We check the library component
@@ -1022,30 +1059,15 @@ doctestArgs gpd = case PD.library $ flattenPackageDescription gpd of
 
         exts = map (("-X" ++) . display) (PD.defaultExtensions bi)
 
-collToGhcVer :: String -> Version
-collToGhcVer cid = case simpleParse cid of
-  Nothing -> error ("invalid collection-id syntax " ++ show cid)
-  Just (PackageIdentifier n (versionNumbers -> v))
-    | display n /= "lts" -> error ("unknown collection " ++ show cid)
-    | isPrefixOf [0] v -> mkVersion [7,8,3]
-    | isPrefixOf [1] v -> mkVersion [7,8,4]
-    | isPrefixOf [2] v -> mkVersion [7,8,4]
-    | isPrefixOf [3] v -> mkVersion [7,10,2]
-    | isPrefixOf [4] v -> mkVersion [7,10,3]
-    | isPrefixOf [5] v -> mkVersion [7,10,3]
-    | isPrefixOf [6] v -> mkVersion [7,10,3]
-    | isPrefixOf [7] v -> mkVersion [8,0,1]
-    | otherwise -> error ("unknown collection " ++ show cid)
-
 -------------------------------------------------------------------------------
 -- HLint
 -------------------------------------------------------------------------------
 
-hlintJobVersion :: Set (Maybe Version) -> HLintJob -> String
-hlintJobVersion vs HLintJobLatest = case S.maxView vs of
-    Just (Just v, _) -> ghcVersionToString v
-    _                -> "80603" -- it really doesn't matter, if there are no jobs
-hlintJobVersion _ (HLintJob v)   = ghcVersionToString v
+hlintJobVersionRange :: Set (Maybe Version) -> HLintJob -> VersionRange
+hlintJobVersionRange vs HLintJobLatest = case S.maxView vs of
+    Just (Just v, _) -> thisVersion v
+    _                -> thisVersion $ mkVersion [8,6,3]
+hlintJobVersionRange _ (HLintJob v)   = thisVersion v
 
 ghcVersionToString :: Version -> String
 ghcVersionToString v =  case versionNumbers v of

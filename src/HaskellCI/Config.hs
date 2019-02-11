@@ -8,7 +8,8 @@ import           Control.Monad.IO.Class          (MonadIO (..))
 import           Data.Coerce                     (coerce)
 import           Data.Generics.Labels            ()
 import           Distribution.Simple.Utils       (fromUTF8BS)
-import           Distribution.Version            (Version)
+import           Distribution.Types.Version      (Version)
+import           Distribution.Types.VersionRange (VersionRange, anyVersion)
 import           GHC.Generics                    (Generic)
 import           Lens.Micro                      (over)
 
@@ -47,6 +48,7 @@ data Config = Config
     , cfgNoTestsNoBench      :: !Bool
     , cfgUnconstrainted      :: !Bool
     , cfgInstallDeps         :: !Bool
+    , cfgHaddock             :: !VersionRange
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
     , cfgProjectName         :: Maybe String
@@ -90,6 +92,7 @@ emptyConfig = Config
     , cfgNoTestsNoBench  = True
     , cfgUnconstrainted  = True
     , cfgInstallDeps     = True
+    , cfgHaddock         = anyVersion
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
     , cfgProjectName     = Nothing
@@ -119,6 +122,7 @@ configGrammar = Config
     <*> C.booleanFieldDef     "no-tests-no-benchmarks"                                        #cfgNoTestsNoBench True
     <*> C.booleanFieldDef     "unconstrained-step"                                            #cfgUnconstrainted True
     <*> C.booleanFieldDef     "install-dependencies-step"                                     #cfgInstallDeps True
+    <*> C.optionalFieldDef    "haddock"                                                       #cfgHaddock anyVersion
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches
     <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        #cfgIrcChannels
     <*> C.optionalFieldAla    "project-name"              C.Token'                            #cfgProjectName
