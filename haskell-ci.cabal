@@ -65,6 +65,7 @@ library
     HaskellCI.Cli
     HaskellCI.Config
     HaskellCI.Config.ConstraintSet
+    HaskellCI.Config.Dump
     HaskellCI.Config.Doctest
     HaskellCI.Config.Folds
     HaskellCI.Config.HLint

@@ -21,6 +21,7 @@ data Command
     = CommandTravis FilePath
     | CommandRegenerate
     | CommandListGHC
+    | CommandDumpConfig
   deriving Show
 
 -------------------------------------------------------------------------------
@@ -64,9 +65,10 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> O.helper) $ mconcat
     ]
   where
     cmdP = O.subparser (mconcat
-        [ O.command "regenerate" $ O.info (pure CommandRegenerate) $ O.progDesc "Regenerate .travis.yml"
-        , O.command "travis"     $ O.info travisP                  $ O.progDesc "Generate travis-ci config"
-        , O.command "list-ghc"   $ O.info (pure CommandListGHC)    $ O.progDesc "List known GHC versions"
+        [ O.command "regenerate"  $ O.info (pure CommandRegenerate) $ O.progDesc "Regenerate .travis.yml"
+        , O.command "travis"      $ O.info travisP                  $ O.progDesc "Generate travis-ci config"
+        , O.command "list-ghc"    $ O.info (pure CommandListGHC)    $ O.progDesc "List known GHC versions"
+        , O.command "dump-config" $ O.info (pure CommandDumpConfig) $ O.progDesc "Dump cabal.haskell-ci config with default values" 
         ]) <|> travisP
 
     travisP = CommandTravis
