@@ -7,6 +7,23 @@ import qualified Text.PrettyPrint                as PP
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Parsec.Class       as C
 
+-- | Jobs
+--
+-- * @N:M@ - @N@ ghcs (cabal -j), @M@ threads (ghc -j)
+--
+-- >>> let parseJobs = C.simpleParsec :: String -> Maybe Jobs
+-- >>> parseJobs "2:2"
+-- Just (BothJobs 2 2)
+--
+-- >>> parseJobs ":2"
+-- Just (GhcJobs 2)
+--
+-- >>> parseJobs "2"
+-- Just (CabalJobs 2)
+--
+-- >>> parseJobs "garbage"
+-- Nothing
+--
 data Jobs
     = CabalJobs Int
     | GhcJobs Int

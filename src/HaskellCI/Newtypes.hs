@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 module HaskellCI.Newtypes where
 
-import           Control.Applicative             (liftA2)
+import           Control.Applicative             (liftA2, (<|>))
 import           Data.Char                       (isSpace)
 import           Data.Coerce                     (coerce)
 import           Data.Functor.Identity           (Identity (..))
@@ -15,6 +15,7 @@ import qualified Distribution.Compat.Newtype     as C
 import qualified Distribution.Parsec.Class       as C
 import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Pretty             as C
+import qualified Distribution.Types.Version      as C
 import qualified Text.PrettyPrint                as PP
 
 -------------------------------------------------------------------------------
@@ -76,6 +77,24 @@ instance C.Parsec NoCommas where
 
 instance C.Pretty NoCommas where
     pretty (NoCommas p) = PP.text p
+
+-------------------------------------------------------------------------------
+-- Head version
+-------------------------------------------------------------------------------
+
+newtype HeadVersion = HeadVersion { getHeadVersion :: Maybe C.Version }
+
+instance C.Newtype HeadVersion (Maybe C.Version) where
+    pack = coerce
+    unpack = coerce
+
+instance C.Parsec HeadVersion where
+    parsec = HeadVersion Nothing <$ C.string "head" <|>
+        HeadVersion . Just <$> C.parsec
+
+instance C.Pretty HeadVersion where
+    pretty (HeadVersion Nothing)  = PP.text "head"
+    pretty (HeadVersion (Just v)) = C.pretty v
 
 -------------------------------------------------------------------------------
 -- AlaSet

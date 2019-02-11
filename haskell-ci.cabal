@@ -70,6 +70,7 @@ library
     HaskellCI.Config.Jobs
     HaskellCI.Glob
     HaskellCI.Newtypes
+    HaskellCI.OptionsGrammar
     HaskellCI.ParsecError
     HaskellCI.ParsecUtils
     HaskellCI.Project
@@ -105,9 +106,10 @@ library
 
   -- other dependencies
   build-depends:
-    , base-compat   ^>=0.10.5
-    , generic-lens  ^>=1.1.0.0
-    , microlens     ^>=0.4.10
+    , base-compat           ^>=0.10.5
+    , generic-lens          ^>=1.1.0.0
+    , microlens             ^>=0.4.10
+    , optparse-applicative  ^>=0.14.3.0
 
   default-language:   Haskell2010
 
