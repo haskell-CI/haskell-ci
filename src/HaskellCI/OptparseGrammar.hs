@@ -102,4 +102,4 @@ setOptionalOG :: C.ALens' s (Maybe a) -> O.Parser a -> O.Parser (s -> s)
 setOptionalOG l = fmap $ \x -> l C.#~ Just x
 
 monoidOG :: Monoid a => C.ALens' s a -> O.Parser a -> O.Parser (s -> s)
-monoidOG l = fmap $ \x -> l C.#%~ \y -> y <> x
+monoidOG l = fmap $ \x -> l C.#%~ \y -> mappend y x
