@@ -5,12 +5,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLabels #-}
 
-#if !defined(MIN_VERSION_Cabal)
--- As a heuristic, if the macro isn't defined, be pessimistic and
--- assume an "old" Cabal version
-# define MIN_VERSION_Cabal(x,y,z) 0
-#endif
-
 -- | New-style @.travis.yml@ script generator using cabal 1.24's nix-style
 -- tech-preview facilities.
 --
@@ -31,10 +25,9 @@ module HaskellCI (
 import Prelude ()
 import Prelude.Compat
 
-import Control.Applicative as App ((<|>), pure)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
-import Control.Monad (when, unless, liftM, forM_, mzero, join)
+import Control.Monad (when, unless, liftM, forM_, mzero)
 import qualified Data.ByteString as BS
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
@@ -91,78 +84,22 @@ import Data.Semigroup (Semigroup (..))
 import Data.Monoid ((<>))
 #endif
 
-import qualified Distribution.CabalSpecVersion   as C
-import qualified Distribution.FieldGrammar       as C
-import qualified Distribution.Parsec.Common      as C
-import qualified Distribution.Parsec.Parser      as C
-import qualified Distribution.Parsec.ParseResult as C
-import Distribution.Simple.Utils                    (fromUTF8BS)
-
 -- lens
 import Lens.Micro
 import Data.Generics.Labels () -- IsLabel (->) ...
 
+import HaskellCI.Cli
 import HaskellCI.Config
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Jobs
+import HaskellCI.Extras
+import HaskellCI.GHC
 import HaskellCI.Glob
-import HaskellCI.OptionsGrammar
 import HaskellCI.Optimization
-import HaskellCI.ParsecUtils
 import HaskellCI.Project
-
-#if !(MIN_VERSION_Cabal(2,0,0))
--- compat helpers for pre-2.0
-
-readGenericPackageDescription :: Verbosity -> FilePath -> IO GenericPackageDescription
-readGenericPackageDescription = readPackageDescription
-
-mkVersion :: [Int] -> Version
-mkVersion vn = Version vn []
-
-versionNumbers :: Version -> [Int]
-versionNumbers (Version vn _) = vn
-
-#endif
-
--------------------------------------------------------------------------------
--- Hardcoded values
--------------------------------------------------------------------------------
-
-knownGhcVersions :: [Version]
-knownGhcVersions = fmap mkVersion
-    [ [7,0,1],  [7,0,2], [7,0,3], [7,0,4]
-    , [7,2,1],  [7,2,2]
-    , [7,4,1],  [7,4,2]
-    , [7,6,1],  [7,6,2], [7,6,3]
-    , [7,8,1],  [7,8,2], [7,8,3], [7,8,4]
-    , [7,10,1], [7,10,2], [7,10,3]
-    , [8,0,1],  [8,0,2]
-    , [8,2,1],  [8,2,2]
-    , [8,4,1],  [8,4,2], [8,4,3], [8,4,4]
-    , [8,6,1],  [8,6,2], [8,6,3]
-    ]
-
-ghcAlpha :: Maybe Version
-ghcAlpha = Nothing
--- ghcAlpha = Just (mkVersion [8,8,1])
-
-cabalVerMap :: [((Int, Int), Maybe Version)]
-cabalVerMap = fmap (fmap (fmap mkVersion))
-    [ ((7, 0), Just [2,4]) -- Use 2.4 for everything.
-    , ((7, 2), Just [2,4])
-    , ((7, 4), Just [2,4])
-    , ((7, 6), Just [2,4])
-    , ((7, 8), Just [2,4])
-    , ((7,10), Just [2,4])
-    , ((8, 0), Just [2,4])
-    , ((8, 2), Just [2,4])
-    , ((8, 4), Just [2,4])
-    , ((8, 6), Just [2,4])
-    ]
 
 -------------------------------------------------------------------------------
 -- Script
@@ -274,36 +211,14 @@ foldedTellStrLns' label pfx prettyLabel labels output
 
     showFold' l = showFold l ++ if null pfx then "" else "-" ++ pfx
 
--- | Return the part after the first argument
---
--- >>> afterInfix "BAR" "FOOBAR XYZZY"
--- Just " XYZZY"
---
-afterInfix :: Eq a => [a] -> [a] -> Maybe [a]
-afterInfix needle haystack = findMaybe (afterPrefix needle) (tails haystack)
-
--- |
---
--- >>> afterPrefix "FOO" "FOOBAR"
--- Just "BAR"
---
-afterPrefix :: Eq a => [a] -> [a] -> Maybe [a]
-afterPrefix needle haystack
-    | needle `isPrefixOf` haystack = Just (drop (length needle) haystack)
-    | otherwise                    = Nothing
-
--- |
---
--- >>> findMaybe readMaybe ["foo", "1", "bar"] :: Maybe Int
--- Just 1
---
-findMaybe :: (a -> Maybe b) -> [a] -> Maybe b
-findMaybe f = foldr (\a b -> f a App.<|> b) Nothing
+-------------------------------------------------------------------------------
+-- Main
+-------------------------------------------------------------------------------
 
 main :: IO ()
 main = do
     argv0 <- getArgs
-    (cmd, opts) <- O.execParser allP
+    (cmd, opts) <- O.execParser cliParserInfo
     case cmd of
         CommandListGHC -> do
             putStrLn $ "Supported GHC versions:"
@@ -323,17 +238,6 @@ main = do
                     doTravis argv f (opts' <> opts)
         CommandTravis f -> doTravis argv0 f opts
   where
-    allP = O.info ((,) <$> cmdP <*> optionsP O.<**> O.helper)
-        (O.fullDesc <> O.header "haskell-ci - generate CI scripts for Haskell projects")
-
-    cmdP = O.subparser (mconcat
-        [ O.command "regenerate" $ O.info (pure CommandRegenerate) $ O.progDesc "Regenerate .travis.yml"
-        , O.command "travis"     $ O.info travisP                  $ O.progDesc "Generate travis-ci config"
-        ]) <|> travisP
-
-    travisP = CommandTravis
-        <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
-
     findArgv :: [String] -> Maybe [String]
     findArgv ls = do
         l <- findMaybe (afterInfix "REGENDATA") ls
@@ -353,16 +257,6 @@ doTravis :: [String] -> FilePath -> Options -> IO ()
 doTravis args path opts = do
     runYamlWriter (optOutput opts) $ travisFromConfigFile args opts path
 
-parseTravis :: [String] -> IO (FilePath, Options)
-parseTravis argv = case res of
-    O.Success x -> return x
-    O.Failure f -> case O.renderFailure f "haskell-ci" of
-        (help, _) -> hPutStrLn stderr help >> exitFailure
-    O.CompletionInvoked _ -> exitFailure -- unexpected
-  where
-    res = O.execParserPure (O.prefs mempty) (O.info ((,) <$> cmdP <*> optionsP) mempty) argv
-    cmdP = O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
-
 runYamlWriter :: Maybe FilePath -> YamlWriter IO () -> IO ()
 runYamlWriter mfp m = do
     result <- execWriterT (runMaybeT m)
@@ -374,18 +268,6 @@ runYamlWriter mfp m = do
             case mfp of
                 Nothing -> putStr contents'
                 Just fp -> writeFile fp contents'
-
-ghcMajVer :: Version -> (Int,Int)
-ghcMajVer v
-    | x:y:_ <- versionNumbers v = (x,y)
-    | otherwise = error $ "panic: ghcMajVer called with " ++ show v
-
--- | Alphas, RCs and HEAD.
-previewGHC :: Maybe Version -> Bool
-previewGHC = maybe True $ \v -> Just v == ghcAlpha || odd (snd (ghcMajVer v))
-
-dispGhcVersion :: Maybe Version -> String
-dispGhcVersion = maybe "head" display
 
 data Package = Pkg
     { pkgName :: String
@@ -430,7 +312,7 @@ travisFromConfigFile args opts path = do
             diff = symDiff testWith allVersions
             missingVersions = map display $ S.toList diff
             errors | S.null diff = []
-                   | otherwise = App.pure $ mconcat
+                   | otherwise = pure $ mconcat
                         [ pkgName pkg
                         , " is missing tested-with annotations for: "
                         ] ++ intercalate "," missingVersions
@@ -658,7 +540,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     let tellJob :: Monad m => Bool -> Maybe Version -> YamlWriter m ()
         tellJob osx gv = do
-            let cvs = dispGhcVersion $ cfgCabalInstallVersion config <|> (lookupCabVer =<< gv)
+            let cvs = dispGhcVersion $ gv >> cfgCabalInstallVersion config
                 gvs = dispGhcVersion gv
 
                 xpkgs' = concatMap (',':) (S.toList $ cfgApt config)
@@ -1115,9 +997,6 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     ghcOmittedOsxVersions :: String
     ghcOmittedOsxVersions = showVersions $ S.map Just omittedOsxVersions
 
-    lookupCabVer :: Version -> Maybe Version
-    lookupCabVer v = join $ lookup (ghcMajVer v) cabalVerMap
-
 -- | Modules arguments to the library
 --
 -- * We check the library component
@@ -1176,46 +1055,6 @@ ghcVersionToString v =  case versionNumbers v of
     (x:y:z:_) -> show (x * 10000 + y * 100 + z)
 
 -------------------------------------------------------------------------------
--- Command
--------------------------------------------------------------------------------
-
-data Command
-    = CommandTravis FilePath
-    | CommandRegenerate
-    | CommandListGHC
-  deriving Show
-
--------------------------------------------------------------------------------
--- Options
--------------------------------------------------------------------------------
-
-data Options = Options
-    { optCollections :: [String]
-    , optOutput :: Maybe FilePath
-    , optConfig :: Maybe FilePath
-    , optConfigMorphism :: Config -> Config
-    }
-
-instance Semigroup Options where
-    Options a b d e <> Options a' b' d' e' =
-        Options (a <> a') (b <|> b') (d <|> d') (e' . e)
-
-defaultOptions :: Options
-defaultOptions = Options
-    { optCollections    = []
-    , optOutput         = Nothing
-    , optConfig         = Nothing
-    , optConfigMorphism = id
-    }
-
-optionsP :: O.Parser Options
-optionsP = Options
-    <$> pure []
-    <*> O.optional (O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Optput file (stdout if omitted)"))
-    <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
-    <*> runOptionsGrammar configGrammar
-
--------------------------------------------------------------------------------
 -- Result
 -------------------------------------------------------------------------------
 
@@ -1236,32 +1075,6 @@ instance Monoid a => Semigroup (Result e a) where
     Failure err1   <> Success err2 _ = Failure $ err1 <> err2
     Success err1 _ <> Failure err2   = Failure $ err1 <> err2
     Success l1 o1  <> Success l2 o2  = Success (mappend l1 l2) (mappend o1 o2)
-
--------------------------------------------------------------------------------
--- Parsing config file
--------------------------------------------------------------------------------
-
-readConfigFile :: MonadIO m => FilePath -> YamlWriter m Config
-readConfigFile = liftIO . readAndParseFile parseConfigFile
-
-parseConfigFile :: [C.Field C.Position] -> C.ParseResult Config
-parseConfigFile fields0 = do
-    config <- C.parseFieldGrammar C.cabalSpecLatest fields configGrammar
-    config' <- traverse parseSection $ concat sections
-    return (foldr (.) id config' config)
-  where
-    (fields, sections) = C.partitionFields fields0
-
-    parseSection :: C.Section C.Position -> C.ParseResult (Config -> Config)
-    parseSection (C.MkSection (C.Name pos name) args cfields)
-        | name == "constraint-set" = do
-            name' <- parseName pos args
-            let (fs, _sections) = C.partitionFields cfields
-            cs <- C.parseFieldGrammar C.cabalSpecLatest fs (constraintSetGrammar name')
-            return $ over #cfgConstraintSets (++ [cs])
-        | otherwise = do
-            C.parseWarning pos C.PWTUnknownSection $ "Unknown section " ++ fromUTF8BS name
-            return id
 
 -------------------------------------------------------------------------------
 -- ConstraintSet
@@ -1285,24 +1098,3 @@ ghcVersionPredicate = conj . asVersionIntervals
     upper v ExclusiveBound = "[ $HCNUMVER -lt " ++ f v ++ " ]"
 
     f = ghcVersionToString
-
--------------------------------------------------------------------------------
--- From Cabal
--------------------------------------------------------------------------------
-
-parseName :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult String
-parseName pos args = fromUTF8BS <$> parseNameBS pos args
-
-parseNameBS :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult BS.ByteString
-parseNameBS pos args = case args of
-    [C.SecArgName _pos secName] ->
-         pure secName
-    [C.SecArgStr _pos secName] ->
-         pure secName
-    [] -> do
-         C.parseFailure pos "name required"
-         pure ""
-    _ -> do
-         -- TODO: pretty print args
-         C.parseFailure pos $ "Invalid name " ++ show args
-         pure ""

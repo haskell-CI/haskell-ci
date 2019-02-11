@@ -4,18 +4,26 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module HaskellCI.Config where
 
+import           Control.Monad.IO.Class          (MonadIO (..))
 import           Data.Coerce                     (coerce)
 import           Data.Generics.Labels            ()
-import           Distribution.Version
+import           Distribution.Simple.Utils       (fromUTF8BS)
+import           Distribution.Version            (Version)
 import           GHC.Generics                    (Generic)
+import           Lens.Micro                      (over)
 
+import qualified Data.ByteString                 as BS
 import qualified Data.Map                        as M
 import qualified Data.Set                        as S
+import qualified Distribution.CabalSpecVersion   as C
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Compat.Newtype     as C
 import qualified Distribution.FieldGrammar       as C
 import qualified Distribution.Parsec.Class       as C
+import qualified Distribution.Parsec.Common      as C
 import qualified Distribution.Parsec.Newtypes    as C
+import qualified Distribution.Parsec.Parser      as C
+import qualified Distribution.Parsec.ParseResult as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.Version      as C
 import qualified Text.PrettyPrint                as PP
@@ -26,6 +34,7 @@ import           HaskellCI.Config.Folds
 import           HaskellCI.Config.HLint
 import           HaskellCI.Config.Jobs
 import           HaskellCI.Newtypes
+import           HaskellCI.ParsecUtils
 
 -- TODO: split other blocks like DoctestConfig
 data Config = Config
@@ -54,9 +63,12 @@ data Config = Config
     }
   deriving (Show, Generic)
 
+defaultCabalInstallVersion :: Maybe Version
+defaultCabalInstallVersion = Just (C.mkVersion [2,4])
+
 emptyConfig :: Config
 emptyConfig = Config
-    { cfgCabalInstallVersion = Nothing
+    { cfgCabalInstallVersion = defaultCabalInstallVersion
     , cfgJobs            = Nothing
     , cfgDoctest         = DoctestConfig
         { cfgDoctestEnabled = False
@@ -98,7 +110,7 @@ configGrammar
     :: (C.FieldGrammar g, Applicative (g Config), Applicative (g DoctestConfig), Applicative (g HLintConfig))
     => g Config Config
 configGrammar = Config
-    <$> C.optionalFieldDefAla "cabal-install-version"     HeadVersion                         #cfgCabalInstallVersion (Just $ C.mkVersion [2,4])
+    <$> C.optionalFieldDefAla "cabal-install-version"     HeadVersion                         #cfgCabalInstallVersion defaultCabalInstallVersion
     <*> C.optionalField       "jobs"                                                          #cfgJobs
     <*> C.monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') #cfgLocalGhcOptions
     <*> C.booleanFieldDef     "cache"                                                         #cfgCache True
@@ -122,6 +134,32 @@ configGrammar = Config
     <*> pure []
 
 -------------------------------------------------------------------------------
+-- Reading
+-------------------------------------------------------------------------------
+
+readConfigFile :: MonadIO m => FilePath -> m Config
+readConfigFile = liftIO . readAndParseFile parseConfigFile
+
+parseConfigFile :: [C.Field C.Position] -> C.ParseResult Config
+parseConfigFile fields0 = do
+    config <- C.parseFieldGrammar C.cabalSpecLatest fields configGrammar
+    config' <- traverse parseSection $ concat sections
+    return (foldr (.) id config' config)
+  where
+    (fields, sections) = C.partitionFields fields0
+
+    parseSection :: C.Section C.Position -> C.ParseResult (Config -> Config)
+    parseSection (C.MkSection (C.Name pos name) args cfields)
+        | name == "constraint-set" = do
+            name' <- parseName pos args
+            let (fs, _sections) = C.partitionFields cfields
+            cs <- C.parseFieldGrammar C.cabalSpecLatest fs (constraintSetGrammar name')
+            return $ over #cfgConstraintSets (++ [cs])
+        | otherwise = do
+            C.parseWarning pos C.PWTUnknownSection $ "Unknown section " ++ fromUTF8BS name
+            return id
+
+-------------------------------------------------------------------------------
 -- Env
 -------------------------------------------------------------------------------
 
@@ -143,3 +181,23 @@ instance C.Pretty Env where
     pretty (Env m) = PP.fsep . PP.punctuate PP.comma . map p . M.toList $ m where
         p (v, s) = C.pretty v PP.<> PP.colon PP.<> PP.text s
 
+-------------------------------------------------------------------------------
+-- From Cabal
+-------------------------------------------------------------------------------
+
+parseName :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult String
+parseName pos args = fromUTF8BS <$> parseNameBS pos args
+
+parseNameBS :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult BS.ByteString
+parseNameBS pos args = case args of
+    [C.SecArgName _pos secName] ->
+         pure secName
+    [C.SecArgStr _pos secName] ->
+         pure secName
+    [] -> do
+         C.parseFailure pos "name required"
+         pure ""
+    _ -> do
+         -- TODO: pretty print args
+         C.parseFailure pos $ "Invalid name " ++ show args
+         pure ""

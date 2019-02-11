@@ -62,12 +62,15 @@ flag ShellCheck
 library
   exposed-modules:
     HaskellCI
+    HaskellCI.Cli
     HaskellCI.Config
     HaskellCI.Config.ConstraintSet
     HaskellCI.Config.Doctest
     HaskellCI.Config.Folds
     HaskellCI.Config.HLint
     HaskellCI.Config.Jobs
+    HaskellCI.Extras
+    HaskellCI.GHC
     HaskellCI.Glob
     HaskellCI.Newtypes
     HaskellCI.Optimization
