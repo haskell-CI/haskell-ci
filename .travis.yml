@@ -78,9 +78,7 @@ install:
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | grep -vE -- '^(Cabal|haskell-ci)$' | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
-  - if [ -f "./configure.ac" ]; then
-      (cd "." && autoreconf -i);
-    fi
+  - if [ -f "./configure.ac" ]; then (cd "." && autoreconf -i); fi
   - rm -f cabal.project.freeze
   - cabal new-freeze -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project" --dry
   - "cat \"cabal.project.freeze\" | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
@@ -98,7 +96,7 @@ script:
   - mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
-  - "printf 'packages: haskell-ci-*/*.cabal\\n' > cabal.project"
+  - "printf 'packages: \"haskell-ci-*/*.cabal\"\\n' > cabal.project"
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - echo 'package haskell-ci' >> cabal.project
   - "echo '  ghc-options: -Werror' >> cabal.project"

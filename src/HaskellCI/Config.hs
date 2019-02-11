@@ -38,11 +38,13 @@ import           HaskellCI.Config.Jobs
 import           HaskellCI.Newtypes
 import           HaskellCI.OptionsGrammar
 import           HaskellCI.ParsecUtils
+import           HaskellCI.TestedWith
 
 -- TODO: split other blocks like DoctestConfig
 data Config = Config
     { cfgCabalInstallVersion :: Maybe Version
     , cfgJobs                :: Maybe Jobs
+    , cfgTestedWith          :: TestedWithJobs
     , cfgLocalGhcOptions     :: [String]
     , cfgCache               :: !Bool
     , cfgCheck               :: !Bool
@@ -75,6 +77,7 @@ emptyConfig :: Config
 emptyConfig = Config
     { cfgCabalInstallVersion = defaultCabalInstallVersion
     , cfgJobs            = Nothing
+    , cfgTestedWith      = TestedWithUniform
     , cfgDoctest         = DoctestConfig
         { cfgDoctestEnabled = False
         , cfgDoctestOptions = []
@@ -121,6 +124,8 @@ configGrammar = Config
         ^^^ metahelp "VERSION" "cabal-install version for all jobs"
     <*> C.optionalField       "jobs"                                                          #cfgJobs
         ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
+    <*> C.optionalFieldDef    "jobs-selection"                                                #cfgTestedWith TestedWithUniform
+        ^^^ metahelp "uniform|any" "Jobs selection across packages"
     <*> C.monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') #cfgLocalGhcOptions
         ^^^ metahelp "OPTS" "--ghc-options for local packages"
     <*> C.booleanFieldDef     "cache"                                                         #cfgCache True
