@@ -900,11 +900,15 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     headGhcVers = S.filter previewGHC versions
 
     generateCabalProject dist = do
+        tellStrLns
+            [ sh "rm -f cabal.project"
+            , sh "touch cabal.project"
+            ]
         F.forM_  pkgs $ \pkg -> do
             let p | dist      = pkgName pkg ++ "-*/*.cabal"
                   | otherwise = pkgDir pkg
             tellStrLns $ 
-                [ shForJob versions' (pkgJobs pkg) $ "printf 'packages: \"" ++ p ++ "\"\\n' > cabal.project"
+                [ shForJob versions' (pkgJobs pkg) $ "printf 'packages: \"" ++ p ++ "\"\\n' >> cabal.project"
                 ]
         tellStrLns
             [ sh $ "printf 'write-ghc-environment-files: always\\n' >> cabal.project"

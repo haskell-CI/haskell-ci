@@ -70,7 +70,9 @@ install:
   - grep -Ev -- '^\s*--' ${HOME}/.cabal/config | grep -Ev '^\s*$'
   - cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest --constraint='doctest ==0.16.*'
   - if [ $HCNUMVER -eq 80603 ] ; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint --constraint='hlint ==2.1.*' ; fi
-  - "printf 'packages: \".\"\\n' > cabal.project"
+  - rm -f cabal.project
+  - touch cabal.project
+  - "printf 'packages: \".\"\\n' >> cabal.project"
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - echo 'package haskell-ci' >> cabal.project
   - "echo '  ghc-options: -Werror' >> cabal.project"
@@ -96,7 +98,9 @@ script:
   - mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
-  - "printf 'packages: \"haskell-ci-*/*.cabal\"\\n' > cabal.project"
+  - rm -f cabal.project
+  - touch cabal.project
+  - "printf 'packages: \"haskell-ci-*/*.cabal\"\\n' >> cabal.project"
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - echo 'package haskell-ci' >> cabal.project
   - "echo '  ghc-options: -Werror' >> cabal.project"
