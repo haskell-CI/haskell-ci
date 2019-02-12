@@ -785,11 +785,11 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         let doctestOptions = unwords $ cfgDoctestOptions doctestConfig
         tellStrLns [ comment "doctest" ]
         foldedTellStrLns FoldDoctest "Doctest..." folds $ do
-            forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
+            forM_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
                 let args = doctestArgs pkgGpd
                     args' = unwords args
                 unless (null args) $ tellStrLns
-                    [ shForJob versions' doctestJobVersionRange $
+                    [ shForJob versions' (doctestJobVersionRange `intersectVersionRanges` pkgJobs) $
                       "(cd " ++ pkgName ++ "-* && doctest " ++ doctestOptions ++ " " ++ args' ++ ")"
                     ]
         tellStrLns [ "" ]
@@ -806,12 +806,12 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
         tellStrLns [ comment "hlint" ]
         foldedTellStrLns FoldHLint "HLint.." folds $ do
-            forM_ pkgs $ \Pkg{pkgName,pkgGpd} -> do
+            forM_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
                 -- note: same arguments work so far for doctest and hlint
                 let args = doctestArgs pkgGpd
                     args' = unwords args
                 unless (null args) $ tellStrLns
-                    [ shForJob versions' (hlintJobVersionRange versions (cfgHLintJob hlintConfig)) $
+                    [ shForJob versions' (hlintJobVersionRange versions (cfgHLintJob hlintConfig) `intersectVersionRanges` pkgJobs) $
                       "(cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
                     ]
         tellStrLns [ "" ]
@@ -819,9 +819,9 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     when (cfgCheck config) $
         foldedTellStrLns FoldCheck "cabal check..." folds $ do
             tellStrLns [ comment "cabal check" ]
-            forM_ pkgs $ \Pkg{pkgName} -> tellStrLns
-                [ sh $ "(cd " ++ pkgName ++ "-* && cabal check)"
-
+            forM_ pkgs $ \Pkg{pkgName,pkgJobs} -> tellStrLns
+                [ shForJob versions' pkgJobs $
+                  "(cd " ++ pkgName ++ "-* && cabal check)"
                 ]
             tellStrLns [ "" ]
 
