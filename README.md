@@ -23,17 +23,22 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
 
 ### Quick-start instructions
 
-* Step 1: Clone this project in any directory
+* Step 1: Clone and install this project in/from any directory
 
     ```bash
     $ git clone https://github.com/haskell-CI/haskell-ci.git
+    $ cd haskell-ci
+    $ cabal new-install haskell-ci:exe:haskell-ci
     ```
 
   or
 
     ```bash
-    cabal get -s haskell-ci
+    cabal new-install haskell-ci
     ```
+
+    *Note:* currently (2019-02-12) released version of `haskell-ci` installs
+    an executable named `make-travis-yml`
 
 * Step 2: Change directories to your project:
 
@@ -46,7 +51,7 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
     ```bash
     $ cat your-project.cabal
     ...
-    Tested-With: GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.2
+    Tested-With: GHC ==8.6.3 || ==8.4.4 || ==8.2.2
     ...
     ```
     
@@ -57,10 +62,10 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
     ```bash
     $ # You run the following command from your project's directory, even
     $ # though it references the script from the `haskell-ci` project
-    $ path/to/haskell-ci/make_travis_yml.hs your-project.cabal > .travis.yml
+    $ haskell-ci your-project.cabal --output .travis.yml
     ```
     
-    The `make_travis_yml.hs` script looks at the `Tested-With` line in your
+    The `haskell-ci` tool looks at the `Tested-With` line in your
     `*.cabal` file and generates a Travis build that tests each compiler
     version you listed in parallel.
 
@@ -102,9 +107,9 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
     $ git push  # Push your branch updates upstream
     ```
     
-    Sometimes you may need to change the generated Travis script (for example, to
-    remove the `cabal check` step if you know for sure that you need build your
-    project with the `-O2` flag).
+    Sometimes you may need to regenerate Travis script. for example, to
+    remove the `cabal check` step (pass `--no-cabal-check` flag to `haskell-ci)
+    if you know for sure that you need build your project with the `-O2` flag.
     
     Each time you push an update to your branch Travis will run again to see if
     any build failures still remain.  Repeat this process until your project
@@ -179,8 +184,6 @@ before_install:
 ```
 
 #### Caching dependencies & `.travis.yml` script generator
-
-There's also [a `runghc` script](./make_travis_yml.hs) provided in this repository to automate the generation of such a `.travis.yml` script based on the `tested-with:` property of your `.cabal` file. Moreover, the generated script contains a simple caching logic which allows to cache build-dependencies between builds (as long as the install-plan doesn't change by e.g. new packages being available from Hackage).
 
 The top-level `tested-with:` field has a similiar syntax to the `build-depends:` field but with compilers instead of packages. The script contains a list of known GHC versions and emits entries for all matching versions. Here are a few examples:
 
