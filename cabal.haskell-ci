@@ -3,6 +3,9 @@
 
 jobs: 2:2
 
+-- Add GHC head job
+ghc-head: True
+
 -- travis Caching
 -- cache: True
 
