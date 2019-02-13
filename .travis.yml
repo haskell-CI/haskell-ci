@@ -120,6 +120,7 @@ script:
 
   # hlint
   - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src) ; fi
+  - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml cli) ; fi
 
   # cabal check
   - (cd haskell-ci-* && cabal check)
