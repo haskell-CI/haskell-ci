@@ -1,2 +1,3 @@
 # Fix incorrect language classification on GitHub.com
 collections/* linguist-vendored linguist-language=Cabal
+cabal.haskell-ci linguist-vendored linguist-language=Cabal
