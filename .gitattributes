@@ -1,0 +1,2 @@
+# Fix incorrect language classification on GitHub.com
+collections/* linguist-vendored linguist-language=Cabal
