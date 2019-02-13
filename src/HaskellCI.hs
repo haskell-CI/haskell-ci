@@ -93,6 +93,9 @@ import Data.Monoid ((<>))
 import Lens.Micro
 import Data.Generics.Labels () -- IsLabel (->) ...
 
+import qualified Distribution.Types.BuildInfo.Lens          as L
+import qualified Distribution.Types.PackageDescription.Lens as L
+
 import HaskellCI.Cli
 import HaskellCI.Config
 import HaskellCI.Config.ConstraintSet
@@ -786,12 +789,12 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         tellStrLns [ comment "doctest" ]
         foldedTellStrLns FoldDoctest "Doctest..." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
-                let args = doctestArgs pkgGpd
-                    args' = unwords args
-                unless (null args) $ tellStrLns
-                    [ shForJob versions' (doctestJobVersionRange `intersectVersionRanges` pkgJobs) $
-                      "(cd " ++ pkgName ++ "-* && doctest " ++ doctestOptions ++ " " ++ args' ++ ")"
-                    ]
+                forM_ (doctestArgs pkgGpd) $ \args -> do
+                    let args' = unwords args
+                    unless (null args) $ tellStrLns
+                        [ shForJob versions' (doctestJobVersionRange `intersectVersionRanges` pkgJobs) $
+                          "(cd " ++ pkgName ++ "-* && doctest " ++ doctestOptions ++ " " ++ args' ++ ")"
+                        ]
         tellStrLns [ "" ]
 
     when (cfgHLintEnabled hlintConfig) $ do
@@ -807,13 +810,13 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         tellStrLns [ comment "hlint" ]
         foldedTellStrLns FoldHLint "HLint.." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
-                -- note: same arguments work so far for doctest and hlint
-                let args = doctestArgs pkgGpd
-                    args' = unwords args
-                unless (null args) $ tellStrLns
-                    [ shForJob versions' (hlintJobVersionRange versions (cfgHLintJob hlintConfig) `intersectVersionRanges` pkgJobs) $
-                      "(cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
-                    ]
+                -- note: similar arguments work so far for doctest and hlint
+                forM_ (hlintArgs pkgGpd) $ \args -> do
+                    let args' = unwords args
+                    unless (null args) $ tellStrLns
+                        [ shForJob versions' (hlintJobVersionRange versions (cfgHLintJob hlintConfig) `intersectVersionRanges` pkgJobs) $
+                          "(cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
+                        ]
         tellStrLns [ "" ]
 
     when (cfgCheck config) $
@@ -1058,20 +1061,39 @@ doctestJobVersionRange = orLaterVersion $ mkVersion [8,0]
 --
 -- * Also add default-extensions
 --
--- /Note:/ same argument work for hlint too!
+-- /Note:/ same argument work for hlint too, but not exactly
 --
-doctestArgs :: GenericPackageDescription -> [String]
-doctestArgs gpd = case PD.library $ flattenPackageDescription gpd of
+doctestArgs :: GenericPackageDescription -> [[String]]
+doctestArgs gpd = case flattenPackageDescription gpd ^. L.library of
     Nothing -> []
-    Just l  -> exts ++ dirsOrMods
-      where
-        bi = PD.libBuildInfo l
+    Just l  -> [libraryModuleArgs l]
 
-        dirsOrMods
-            | null (PD.hsSourceDirs bi) = map display (PD.exposedModules l)
-            | otherwise = PD.hsSourceDirs bi
+libraryModuleArgs :: PD.Library -> [String]
+libraryModuleArgs l
+    | null dirsOrMods = []
+    | otherwise       = exts ++ dirsOrMods
+  where
+    bi = l ^. L.buildInfo
 
-        exts = map (("-X" ++) . display) (PD.defaultExtensions bi)
+    dirsOrMods
+        | null (PD.hsSourceDirs bi) = map display (PD.exposedModules l)
+        | otherwise                 = PD.hsSourceDirs bi
+
+    exts = map (("-X" ++) . display) (PD.defaultExtensions bi)
+
+executableModuleArgs :: PD.Executable -> [String]
+executableModuleArgs e
+    | null dirsOrMods = []
+    | otherwise       = exts ++ dirsOrMods
+  where
+    bi = e ^. L.buildInfo
+
+    dirsOrMods
+        -- note: we don't try to find main_is location, if hsSourceDirs is empty.
+        | null (PD.hsSourceDirs bi) = map display (PD.otherModules bi)
+        | otherwise                 = PD.hsSourceDirs bi
+
+    exts = map (("-X" ++) . display) (PD.defaultExtensions bi)
 
 -------------------------------------------------------------------------------
 -- HLint
@@ -1082,6 +1104,16 @@ hlintJobVersionRange vs HLintJobLatest = case S.maxView vs of
     Just (Just v, _) -> thisVersion v
     _                -> thisVersion $ mkVersion [8,6,3]
 hlintJobVersionRange _ (HLintJob v)   = thisVersion v
+
+hlintArgs :: GenericPackageDescription -> [[String]]
+hlintArgs gpd = doctestArgs gpd ++
+    [ executableModuleArgs e
+    | e <- flattenPackageDescription gpd ^.. L.executables . traverse
+    ]
+
+-------------------------------------------------------------------------------
+-- GHC Version
+-------------------------------------------------------------------------------
 
 ghcVersionToString :: Version -> String
 ghcVersionToString v =  case versionNumbers v of
