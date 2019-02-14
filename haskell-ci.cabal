@@ -3,7 +3,7 @@ name:               haskell-ci
 version:            0.1.0.0
 synopsis:           Cabal package script generator for Travis-CI
 description:
-  Script generator (@make-travis-yml@) for [Travis-CI](https://travis-ci.org/) for continuous-integration testing of Haskell Cabal packages.
+  Script generator (@haskell-ci@) for [Travis-CI](https://travis-ci.org/) for continuous-integration testing of Haskell Cabal packages.
   .
   Included features (not limited to):
   .
@@ -17,9 +17,9 @@ description:
   .
   === Quick Start Guide
   .
-  Add a @tested-with@ line to your @.cabal@ file (e.g. @tested-with: GHC == 8.0.2 || == 8.2.2@) and then run @make-travis-yml yourpackage.cabal -o .travis.yml@ to generate the Travis-CI job script.
+  Add a @tested-with@ line to your @.cabal@ file (e.g. @tested-with: GHC == 8.0.2 || == 8.2.2@) and then run @haskell-ci yourpackage.cabal -o .travis.yml@ to generate the Travis-CI job script.
   .
-  See @make-travis-yml --help@ for more information.
+  See @haskell-ci --help@ for more information.
 
 homepage:           https://haskell-ci.rtfd.org/
 bug-reports:        https://github.com/haskell-CI/haskell-ci/issues
