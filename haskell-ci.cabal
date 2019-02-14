@@ -9,7 +9,7 @@ description:
   .
   * Multiple GHC support
   * Dependency caching
-  * cabal.project support (see [Nix-style local builds documentation](http://cabal.readthedocs.io/en/latest/nix-local-build-overview.html)
+  * cabal.project support (see [Nix-style local builds documentation](http://cabal.readthedocs.io/en/latest/nix-local-build-overview.html))
   * Runs tests and builds benchmarks
   * Generates Haddocks
   * macOS (OSX) support
