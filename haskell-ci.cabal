@@ -9,7 +9,7 @@ description:
   .
   * Multiple GHC support
   * Dependency caching
-  * cabal.project support (see [Nix-style local builds documentation](http://cabal.readthedocs.io/en/latest/nix-local-build-overview.html)
+  * cabal.project support (see [Nix-style local builds documentation](https://cabal.readthedocs.io/en/latest/nix-local-build-overview.html)
   * Runs tests and builds benchmarks
   * Generates Haddocks
   * macOS (OSX) support
@@ -21,7 +21,7 @@ description:
   .
   See @make-travis-yml --help@ for more information.
 
-homepage:           http://haskell-ci.rtfd.org/
+homepage:           https://haskell-ci.rtfd.org/
 bug-reports:        https://github.com/haskell-CI/haskell-ci/issues
 license:            BSD-3-Clause
 license-file:       LICENSE
