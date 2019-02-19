@@ -32,6 +32,11 @@ main = do
         , fixtureGoldenTest "cabal.project.empty-line"
         , fixtureGoldenTest "cabal.project.fail-versions"
         , fixtureGoldenTest "cabal.project.messy"
+        , testGroup "copy-fields"
+            [ fixtureGoldenTest "cabal.project.copy-fields.all"
+            , fixtureGoldenTest "cabal.project.copy-fields.some"
+            , fixtureGoldenTest "cabal.project.copy-fields.none"
+            ]
         ]
 
 linesToArgv :: String -> Maybe [String]

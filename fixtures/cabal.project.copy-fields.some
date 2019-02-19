@@ -1,0 +1,15 @@
+packages:
+  servant/
+  servant-client/
+  servant-docs/
+  servant-server/
+
+package servant
+  tests: False
+
+constraints: foundation >= 0.14
+
+allow-newer:
+  servant-js:servant
+allow-newer:
+  servant-js:servant-foreign

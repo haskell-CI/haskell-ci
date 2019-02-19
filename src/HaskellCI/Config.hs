@@ -20,17 +20,18 @@ import qualified Distribution.CabalSpecVersion   as C
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Compat.Newtype     as C
 import qualified Distribution.FieldGrammar       as C
+import qualified Distribution.Fields.Pretty      as C
 import qualified Distribution.Parsec.Class       as C
 import qualified Distribution.Parsec.Common      as C
 import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Parsec.Parser      as C
 import qualified Distribution.Parsec.ParseResult as C
-import qualified Distribution.Fields.Pretty as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.Version      as C
 import qualified Text.PrettyPrint                as PP
 
 import           HaskellCI.Config.ConstraintSet
+import           HaskellCI.Config.CopyFields
 import           HaskellCI.Config.Doctest
 import           HaskellCI.Config.Folds
 import           HaskellCI.Config.HLint
@@ -45,7 +46,8 @@ import           HaskellCI.TestedWith
 data Config = Config
     { cfgCabalInstallVersion :: Maybe Version
     , cfgJobs                :: Maybe Jobs
-    , cfgTestedWith          :: TestedWithJobs
+    , cfgTestedWith          :: !TestedWithJobs
+    , cfgCopyFields          :: !CopyFields
     , cfgLocalGhcOptions     :: [String]
     , cfgCache               :: !Bool
     , cfgCheck               :: !Bool
@@ -80,6 +82,7 @@ emptyConfig = Config
     { cfgCabalInstallVersion = defaultCabalInstallVersion
     , cfgJobs            = Nothing
     , cfgTestedWith      = TestedWithUniform
+    , cfgCopyFields      = CopyFieldsSome
     , cfgDoctest         = DoctestConfig
         { cfgDoctestEnabled = False
         , cfgDoctestOptions = []
@@ -129,6 +132,8 @@ configGrammar = Config
         ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
     <*> C.optionalFieldDef    "jobs-selection"                                                #cfgTestedWith TestedWithUniform
         ^^^ metahelp "uniform|any" "Jobs selection across packages"
+    <*> C.optionalFieldDef    "copy-fields"                                                   #cfgCopyFields CopyFieldsSome
+        ^^^ metahelp "none|some|all" "Copy ? fields from cabal.project fields"
     <*> C.monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') #cfgLocalGhcOptions
         ^^^ metahelp "OPTS" "--ghc-options for local packages"
     <*> C.booleanFieldDef     "cache"                                                         #cfgCache True
