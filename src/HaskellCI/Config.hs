@@ -25,6 +25,7 @@ import qualified Distribution.Parsec.Common      as C
 import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Parsec.Parser      as C
 import qualified Distribution.Parsec.ParseResult as C
+import qualified Distribution.Fields.Pretty as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.Version      as C
 import qualified Text.PrettyPrint                as PP
@@ -67,6 +68,7 @@ data Config = Config
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
+    , cfgRawProject          :: [C.PrettyField]
     }
   deriving (Show, Generic)
 
@@ -110,6 +112,7 @@ emptyConfig = Config
     , cfgLastInSeries    = False
     , cfgOsx             = S.empty
     , cfgApt             = S.empty
+    , cfgRawProject      = []
     }
 
 -------------------------------------------------------------------------------
@@ -166,7 +169,8 @@ configGrammar = Config
         ^^^ metahelp "PKG" "Additional apt packages to install"
     <*> C.blurFieldGrammar #cfgDoctest doctestConfigGrammar
     <*> C.blurFieldGrammar #cfgHLint   hlintConfigGrammar
-    <*> pure []
+    <*> pure [] -- constraint sets
+    <*> pure [] -- raw project fields
 
 -------------------------------------------------------------------------------
 -- Reading
@@ -190,6 +194,9 @@ parseConfigFile fields0 = do
             let (fs, _sections) = C.partitionFields cfields
             cs <- C.parseFieldGrammar C.cabalSpecLatest fs (constraintSetGrammar name')
             return $ over #cfgConstraintSets (++ [cs])
+        | name == "raw-project" = do
+            let fs = C.fromParsecFields cfields
+            return $ over #cfgRawProject (++ fs)
         | otherwise = do
             C.parseWarning pos C.PWTUnknownSection $ "Unknown section " ++ fromUTF8BS name
             return id

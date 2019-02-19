@@ -71,6 +71,7 @@ import Distribution.Verbosity (Verbosity)
 #endif
 
 import qualified Distribution.FieldGrammar                    as C
+import qualified Distribution.Fields.Pretty                   as C
 import qualified Distribution.PackageDescription.FieldGrammar as C
 import qualified Distribution.Types.SourceRepo                as C
 import qualified Text.PrettyPrint                             as PP
@@ -952,6 +953,12 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             let repo' = PP.render $ C.prettyFieldGrammar (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused") repo
             tellStrLns [ sh $ "echo 'source-repository-package' >> cabal.project" ]
             tellStrLns [ sh $ "echo '  " ++ l ++ "' >> cabal.project" | l <- lines repo' ]
+
+        unless (null (cfgRawProject config)) $ tellStrLns
+            [ sh $ "echo '" ++ l ++ "' >> cabal.project"
+            | l <- lines $ C.showFields' 2 $ cfgRawProject config
+            , not (null l)
+            ]
 
         -- also write cabal.project.local file with
         -- @

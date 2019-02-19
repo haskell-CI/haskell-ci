@@ -84,6 +84,10 @@ library
     HaskellCI.Project
     HaskellCI.TestedWith
 
+  -- vendored from Cabal development version
+  other-modules:
+    Distribution.Fields.Pretty
+
   ghc-options:
     -Wall -Wcompat -Wnoncanonical-monad-instances
     -Wnoncanonical-monadfail-instances

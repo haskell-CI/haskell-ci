@@ -100,6 +100,9 @@ install:
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - echo 'package haskell-ci' >> cabal.project
   - "echo '  ghc-options: -Werror' >> cabal.project"
+  - "echo 'keep-going: False' >> cabal.project"
+  - echo 'package bytestring' >> cabal.project
+  - "echo '  tests: False' >> cabal.project"
   - touch cabal.project.local
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | grep -vE -- '^(Cabal|haskell-ci)$' | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
@@ -128,6 +131,9 @@ script:
   - "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
   - echo 'package haskell-ci' >> cabal.project
   - "echo '  ghc-options: -Werror' >> cabal.project"
+  - "echo 'keep-going: False' >> cabal.project"
+  - echo 'package bytestring' >> cabal.project
+  - "echo '  tests: False' >> cabal.project"
   - touch cabal.project.local
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | grep -vE -- '^(Cabal|haskell-ci)$' | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
