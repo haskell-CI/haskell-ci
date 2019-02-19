@@ -29,27 +29,41 @@ author:             Herbert Valerio Riedel, Oleg Grenrus
 maintainer:         hvr@gnu.org
 category:           Development
 build-type:         Simple
-tested-with:        GHC ==8.6.3 || ==8.4.4 || ==8.2.2 || ==8.0.2
+tested-with:        ghc ==8.6.3 || ==8.4.4 || ==8.2.2 || ==8.0.2
 extra-source-files:
   fixtures/cabal.haskell-ci
-  fixtures/haskell-ci.cabal
-  fixtures/haskell-ci.cabal.stderr
-  fixtures/haskell-ci.cabal.travis.yml
-  fixtures/cabal.project.empty-line
-  fixtures/cabal.project.empty-line.stderr
-  fixtures/cabal.project.empty-line.travis.yml
+
   fixtures/cabal.project.fail-versions
   fixtures/cabal.project.fail-versions.stderr
+
+  fixtures/haskell-ci.cabal
+  fixtures/cabal.project.empty-line
   fixtures/cabal.project.messy
+  fixtures/cabal.project.copy-fields.all
+  fixtures/cabal.project.copy-fields.some
+  fixtures/cabal.project.copy-fields.none
+
+  fixtures/haskell-ci.cabal.stderr
+  fixtures/cabal.project.empty-line.stderr
   fixtures/cabal.project.messy.stderr
+  fixtures/cabal.project.copy-fields.all.stderr
+  fixtures/cabal.project.copy-fields.some.stderr
+  fixtures/cabal.project.copy-fields.none.stderr
+
+  fixtures/haskell-ci.cabal.travis.yml
+  fixtures/cabal.project.empty-line.travis.yml
   fixtures/cabal.project.messy.travis.yml
-  fixtures/doc/tutorial/tutorial.cabal
+  fixtures/cabal.project.copy-fields.all.travis.yml
+  fixtures/cabal.project.copy-fields.some.travis.yml
+  fixtures/cabal.project.copy-fields.none.travis.yml
+
   fixtures/servant-client-core/*.cabal
   fixtures/servant-client/*.cabal
   fixtures/servant-docs/*.cabal
   fixtures/servant-foreign/*.cabal
   fixtures/servant-server/*.cabal
   fixtures/servant/*.cabal
+  fixtures/doc/tutorial/tutorial.cabal
 
 source-repository head
   type:     git
@@ -65,6 +79,7 @@ library
     HaskellCI.Cli
     HaskellCI.Config
     HaskellCI.Config.ConstraintSet
+    HaskellCI.Config.CopyFields
     HaskellCI.Config.Doctest
     HaskellCI.Config.Dump
     HaskellCI.Config.Folds
@@ -84,6 +99,8 @@ library
     HaskellCI.Project
     HaskellCI.TestedWith
 
+  -- vendored from Cabal development version
+  other-modules:      Distribution.Fields.Pretty
   ghc-options:
     -Wall -Wcompat -Wnoncanonical-monad-instances
     -Wnoncanonical-monadfail-instances

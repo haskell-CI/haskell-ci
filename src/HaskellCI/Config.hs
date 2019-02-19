@@ -20,6 +20,7 @@ import qualified Distribution.CabalSpecVersion   as C
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Compat.Newtype     as C
 import qualified Distribution.FieldGrammar       as C
+import qualified Distribution.Fields.Pretty      as C
 import qualified Distribution.Parsec.Class       as C
 import qualified Distribution.Parsec.Common      as C
 import qualified Distribution.Parsec.Newtypes    as C
@@ -30,6 +31,7 @@ import qualified Distribution.Types.Version      as C
 import qualified Text.PrettyPrint                as PP
 
 import           HaskellCI.Config.ConstraintSet
+import           HaskellCI.Config.CopyFields
 import           HaskellCI.Config.Doctest
 import           HaskellCI.Config.Folds
 import           HaskellCI.Config.HLint
@@ -44,7 +46,8 @@ import           HaskellCI.TestedWith
 data Config = Config
     { cfgCabalInstallVersion :: Maybe Version
     , cfgJobs                :: Maybe Jobs
-    , cfgTestedWith          :: TestedWithJobs
+    , cfgTestedWith          :: !TestedWithJobs
+    , cfgCopyFields          :: !CopyFields
     , cfgLocalGhcOptions     :: [String]
     , cfgCache               :: !Bool
     , cfgCheck               :: !Bool
@@ -67,6 +70,7 @@ data Config = Config
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
+    , cfgRawProject          :: [C.PrettyField]
     }
   deriving (Show, Generic)
 
@@ -78,6 +82,7 @@ emptyConfig = Config
     { cfgCabalInstallVersion = defaultCabalInstallVersion
     , cfgJobs            = Nothing
     , cfgTestedWith      = TestedWithUniform
+    , cfgCopyFields      = CopyFieldsSome
     , cfgDoctest         = DoctestConfig
         { cfgDoctestEnabled = False
         , cfgDoctestOptions = []
@@ -110,6 +115,7 @@ emptyConfig = Config
     , cfgLastInSeries    = False
     , cfgOsx             = S.empty
     , cfgApt             = S.empty
+    , cfgRawProject      = []
     }
 
 -------------------------------------------------------------------------------
@@ -126,6 +132,8 @@ configGrammar = Config
         ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
     <*> C.optionalFieldDef    "jobs-selection"                                                #cfgTestedWith TestedWithUniform
         ^^^ metahelp "uniform|any" "Jobs selection across packages"
+    <*> C.optionalFieldDef    "copy-fields"                                                   #cfgCopyFields CopyFieldsSome
+        ^^^ metahelp "none|some|all" "Copy ? fields from cabal.project fields"
     <*> C.monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') #cfgLocalGhcOptions
         ^^^ metahelp "OPTS" "--ghc-options for local packages"
     <*> C.booleanFieldDef     "cache"                                                         #cfgCache True
@@ -166,7 +174,8 @@ configGrammar = Config
         ^^^ metahelp "PKG" "Additional apt packages to install"
     <*> C.blurFieldGrammar #cfgDoctest doctestConfigGrammar
     <*> C.blurFieldGrammar #cfgHLint   hlintConfigGrammar
-    <*> pure []
+    <*> pure [] -- constraint sets
+    <*> pure [] -- raw project fields
 
 -------------------------------------------------------------------------------
 -- Reading
@@ -190,6 +199,9 @@ parseConfigFile fields0 = do
             let (fs, _sections) = C.partitionFields cfields
             cs <- C.parseFieldGrammar C.cabalSpecLatest fs (constraintSetGrammar name')
             return $ over #cfgConstraintSets (++ [cs])
+        | name == "raw-project" = do
+            let fs = C.fromParsecFields cfields
+            return $ over #cfgRawProject (++ fs)
         | otherwise = do
             C.parseWarning pos C.PWTUnknownSection $ "Unknown section " ++ fromUTF8BS name
             return id

@@ -71,6 +71,7 @@ import Distribution.Verbosity (Verbosity)
 #endif
 
 import qualified Distribution.FieldGrammar                    as C
+import qualified Distribution.Fields.Pretty                   as C
 import qualified Distribution.PackageDescription.FieldGrammar as C
 import qualified Distribution.Types.SourceRepo                as C
 import qualified Text.PrettyPrint                             as PP
@@ -98,6 +99,7 @@ import qualified Distribution.Types.PackageDescription.Lens as L
 
 import HaskellCI.Cli
 import HaskellCI.Config
+import HaskellCI.Config.CopyFields
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Dump
@@ -913,45 +915,62 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             tellStrLns $ 
                 [ shForJob versions' (pkgJobs pkg) $ "printf 'packages: \"" ++ p ++ "\"\\n' >> cabal.project"
                 ]
+
+        case cfgCopyFields config of
+            CopyFieldsNone -> return ()
+            CopyFieldsAll  -> unless (null (prjOrigFields prj)) $ tellStrLns
+                [ sh $ "echo '" ++ l ++ "' >> cabal.project"
+                | l <- lines $ C.showFields' 2 $ prjOrigFields prj
+                , not (null l)
+                ]
+            CopyFieldsSome -> do
+                F.forM_ (prjConstraints prj) $ \xs -> do
+                    let s = concat (lines xs)
+                    tellStrLns
+                        [ sh $ "echo 'constraints: " ++ s ++ "' >> cabal.project"
+                        ]
+                F.forM_ (prjAllowNewer prj) $ \xs -> do
+                    let s = concat (lines xs)
+                    tellStrLns
+                        [ sh $ "echo 'allow-newer: " ++ s ++ "' >> cabal.project"
+                        ]
+                unless (null (cfgLocalGhcOptions config)) $ forM_ pkgs $ \Pkg{pkgName} -> do
+                    let s = unwords $ map (show . PU.showToken) $ cfgLocalGhcOptions config
+                    tellStrLns
+                        [ sh $ "echo 'package " ++ pkgName ++ "' >> cabal.project"
+                        , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
+                        ]
+
+                when (prjReorderGoals prj) $
+                    tellStrLns
+                        [ sh $ "echo 'reorder-goals: True' >> cabal.project"
+                        ]
+
+                F.forM_ (prjMaxBackjumps prj) $ \bj ->
+                    tellStrLns
+                        [ sh $ "echo 'max-backjumps: " ++ show bj ++ "' >> cabal.project"
+                        ]
+
+                case prjOptimization prj of
+                    OptimizationOn      -> return ()
+                    OptimizationOff     -> tellStrLns [ sh $ "echo 'optimization: False' >> cabal.project " ]
+                    OptimizationLevel l -> tellStrLns [ sh $ "echo 'optimization: " ++ show l ++ "' >> cabal.project " ]
+
+                F.forM_ (prjSourceRepos prj) $ \repo -> do
+                    let repo' = PP.render $ C.prettyFieldGrammar (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused") repo
+                    tellStrLns [ sh $ "echo 'source-repository-package' >> cabal.project" ]
+                    tellStrLns [ sh $ "echo '  " ++ l ++ "' >> cabal.project" | l <- lines repo' ]
+
+        -- mandatory cabal.project setup
         tellStrLns
             [ sh $ "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
             ]
-        F.forM_ (prjConstraints prj) $ \xs -> do
-            let s = concat (lines xs)
-            tellStrLns
-                [ sh $ "echo 'constraints: " ++ s ++ "' >> cabal.project"
-                ]
-        F.forM_ (prjAllowNewer prj) $ \xs -> do
-            let s = concat (lines xs)
-            tellStrLns
-                [ sh $ "echo 'allow-newer: " ++ s ++ "' >> cabal.project"
-                ]
-        unless (null (cfgLocalGhcOptions config)) $ forM_ pkgs $ \Pkg{pkgName} -> do
-            let s = unwords $ map (show . PU.showToken) $ cfgLocalGhcOptions config
-            tellStrLns
-                [ sh $ "echo 'package " ++ pkgName ++ "' >> cabal.project"
-                , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
-                ]
 
-        when (prjReorderGoals prj) $
-            tellStrLns
-                [ sh $ "echo 'reorder-goals: True' >> cabal.project"
-                ]
-
-        F.forM_ (prjMaxBackjumps prj) $ \bj ->
-            tellStrLns
-                [ sh $ "echo 'max-backjumps: " ++ show bj ++ "' >> cabal.project"
-                ]
-
-        case prjOptimization prj of
-            OptimizationOn      -> return ()
-            OptimizationOff     -> tellStrLns [ sh $ "echo 'optimization: False' >> cabal.project " ]
-            OptimizationLevel l -> tellStrLns [ sh $ "echo 'optimization: " ++ show l ++ "' >> cabal.project " ]
-
-        F.forM_ (prjSourceRepos prj) $ \repo -> do
-            let repo' = PP.render $ C.prettyFieldGrammar (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused") repo
-            tellStrLns [ sh $ "echo 'source-repository-package' >> cabal.project" ]
-            tellStrLns [ sh $ "echo '  " ++ l ++ "' >> cabal.project" | l <- lines repo' ]
+        unless (null (cfgRawProject config)) $ tellStrLns
+            [ sh $ "echo '" ++ l ++ "' >> cabal.project"
+            | l <- lines $ C.showFields' 2 $ cfgRawProject config
+            , not (null l)
+            ]
 
         -- also write cabal.project.local file with
         -- @

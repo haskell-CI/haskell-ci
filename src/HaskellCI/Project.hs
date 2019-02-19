@@ -21,6 +21,7 @@ import qualified Distribution.Parsec.Newtypes                 as C
 import qualified Distribution.Parsec.Parser                   as C
 import qualified Distribution.Parsec.ParseResult              as C
 import qualified Distribution.Types.SourceRepo                as C
+import qualified Distribution.Fields.Pretty as C
 
 import           HaskellCI.Newtypes
 import           HaskellCI.Optimization
@@ -37,11 +38,12 @@ data Project a = Project
     , prjMaxBackjumps :: Maybe Int
     , prjOptimization :: Optimization
     , prjSourceRepos  :: [C.SourceRepo]
+    , prjOrigFields   :: [C.PrettyField]
     }
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
 emptyProject :: Project [a]
-emptyProject = Project [] [] [] False Nothing OptimizationOn []
+emptyProject = Project [] [] [] False Nothing OptimizationOn [] []
 
 -- | Parse project file. Extracts only few fields.
 --
@@ -53,14 +55,15 @@ parseProjectFile fp bs = do
     fields0 <- either (Left . show) Right $ C.readFields bs
     let (fields1, sections) = C.partitionFields fields0
     let fields2 = M.filterWithKey (\k _ -> k `elem` knownFields) fields1
-    case C.runParseResult $ parse fields2 sections of
+    case C.runParseResult $ parse fields0 fields2 sections of
         (_, Right x)       -> return x
         (ws, Left (_, es)) -> Left $ renderParseError fp bs es ws
   where
-    knownFields = C.fieldGrammarKnownFieldList grammar
+    knownFields = C.fieldGrammarKnownFieldList $ grammar []
 
-    parse fields sections = do
-        prj <- C.parseFieldGrammar C.cabalSpecLatest fields grammar
+    parse origFields fields sections = do
+        let prettyOrigFields = C.fromParsecFields $ filter notPackages origFields
+        prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOrigFields
         foldr ($) prj <$> traverse parseSec (concat sections)
 
     parseSec :: C.Section C.Position -> C.ParseResult (Project String -> Project String)
@@ -71,8 +74,13 @@ parseProjectFile fp bs = do
 
     parseSec _ = return id
 
-grammar :: C.ParsecFieldGrammar (Project String) (Project String)
-grammar = Project
+notPackages :: C.Field ann -> Bool
+notPackages (C.Field (C.Name _ "packages") _) = False
+notPackages _                                 = True
+
+
+grammar :: [C.PrettyField] -> C.ParsecFieldGrammar (Project String) (Project String)
+grammar origFields = Project
     <$> C.monoidalFieldAla "packages"      (C.alaList' C.FSep PackageLocation) #prjPackages
     <*> C.monoidalFieldAla "constraints"   (C.alaList' C.CommaVCat NoCommas)   #prjConstraints
     <*> C.monoidalFieldAla "allow-newer"   (C.alaList' C.CommaVCat NoCommas)   #prjAllowNewer
@@ -80,3 +88,4 @@ grammar = Project
     <*> C.optionalFieldAla "max-backjumps" Int'                                    #prjMaxBackjumps
     <*> C.optionalFieldDef "optimization"                                      #prjOptimization OptimizationOn
     <*> pure []
+    <*> pure origFields
