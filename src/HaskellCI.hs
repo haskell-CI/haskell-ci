@@ -253,7 +253,7 @@ main = do
                 putStrLn $ intercalate ", " (map display vs)
         CommandDumpConfig -> do
             putStr $ unlines $ runDG configGrammar
-             
+
         CommandRegenerate -> do
             let fp = ".travis.yml" -- make configurable?
             contents <- readFile fp
@@ -717,7 +717,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             [ sh $ "cabal new-freeze -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dry"
             , sh $ "cat \"" ++ projectFile ++ ".freeze\" | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
             , sh $ "rm  \"" ++ projectFile ++ ".freeze\""
-            
+
             -- install dependencies
             , sh $ "cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
             ]
@@ -912,7 +912,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         F.forM_  pkgs $ \pkg -> do
             let p | dist      = pkgName pkg ++ "-*/*.cabal"
                   | otherwise = pkgDir pkg
-            tellStrLns $ 
+            tellStrLns $
                 [ shForJob versions' (pkgJobs pkg) $ "printf 'packages: \"" ++ p ++ "\"\\n' >> cabal.project"
                 ]
 
