@@ -574,9 +574,11 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     tellStrLns
         [ ""
         , "before_install:"
-        , sh "HC=${CC}"
+        , sh "HC=/opt/ghc/bin/${CC}"
         , sh' [2034,2039] "HCPKG=${HC/ghc/ghc-pkg}" -- SC2039. In POSIX sh, string replacement is undefined.
         , sh "unset CC"
+        -- cabal
+        , sh "CABAL=/opt/ghc/bin/cabal"
         -- rootdir is useful for manual script additions
         , sh "ROOTDIR=$(pwd)"
         , sh "mkdir -p $HOME/.local/bin"
@@ -586,7 +588,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     if null (cfgOsx config)
     then tellStrLns
-        [ sh "PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$HOME/local/bin:$PATH"
+        [ sh "PATH=$HOME/local/bin:$PATH"
         ]
     else tellStrLns
         [ sh $ "if [ \"$(uname)\" = \"Darwin\" ]; then brew update; brew upgrade python@3; curl " ++ haskellOnMacos ++ " | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${HC}; fi"
@@ -605,7 +607,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     tellStrLns
         [ ""
         , "install:"
-        , sh "cabal --version"
+        , sh "${CABAL} --version"
         , sh "echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
         , sh "BENCH=${BENCH---enable-benchmarks}"
         , sh "TEST=${TEST---enable-tests}"
@@ -615,7 +617,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     -- Update hackage index. Side-effect: ~/.cabal.config is created.
     tellStrLns
-        [ sh "travis_retry cabal update -v"
+        [ sh "travis_retry ${CABAL} update -v"
         , sh "sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
         , sh "rm -fv cabal.project cabal.project.local"
         ]
@@ -654,7 +656,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , ""
         , "      grep -Ev -- '^\\s*--' ${HOME}/.cabal/config | grep -Ev '^\\s*$'"
         , ""
-        , "      cabal new-update head.hackage -v"
+        , "      ${CABAL} new-update head.hackage -v"
         , "    fi"
         ]
 
@@ -668,7 +670,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             | isAnyVersion (cfgDoctestVersion doctestConfig) = ""
             | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion doctestConfig) ++ "'"
     when (cfgDoctestEnabled doctestConfig) $ tellStrLns
-        [ shForJob versions' doctestJobVersionRange $ "cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest" ++ doctestVersionConstraint
+        [ shForJob versions' doctestJobVersionRange $ "${CABAL} new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest" ++ doctestVersionConstraint
         ]
 
     -- Install hlint
@@ -677,7 +679,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             | otherwise = " --constraint='hlint " ++ display (cfgHLintVersion hlintConfig) ++ "'"
     when (cfgHLintEnabled hlintConfig) $ tellStrLns
         [ shForJob versions' (hlintJobVersionRange versions (cfgHLintJob hlintConfig)) $
-          "cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint
+          "${CABAL} new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint" ++ hlintVersionConstraint
         ]
 
     -- create cabal.project file
@@ -692,7 +694,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , "      ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
         , "      grep ' collection-id' cabal.project.freeze;"
         , "      rm -rf dist-newstyle/;"
-        , "      cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++ "\" --dep -j2 all;"
+        , "      $(CABAL} new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++ "\" --dep -j2 all;"
         , "    done"
         , ""
         ]
@@ -714,15 +716,15 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     when (cfgInstallDeps config) $ do
         tellStrLns
             -- dump install plan
-            [ sh $ "cabal new-freeze -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dry"
+            [ sh $ "${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dry"
             , sh $ "cat \"" ++ projectFile ++ ".freeze\" | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
             , sh $ "rm  \"" ++ projectFile ++ ".freeze\""
 
             -- install dependencies
-            , sh $ "cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
+            , sh $ "${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
             ]
         when (cfgNoTestsNoBench config) $ tellStrLns
-            [ sh $ "cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
+            [ sh $ "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
             ]
 
     tellStrLns
@@ -740,7 +742,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     foldedTellStrLns FoldSDist "Packaging..." folds $ do
         tellStrLns
-            [ sh $ "cabal new-sdist all"
+            [ sh $ "${CABAL} new-sdist all"
             ]
 
     let tarFiles = "dist-newstyle" </> "sdist" </> "*.tar.gz"
@@ -756,7 +758,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     when (cfgNoTestsNoBench config) $ foldedTellStrLns FoldBuild "Building..." folds $ tellStrLns
         [ comment "this builds all libraries and executables (without tests/benchmarks)"
-        , sh "cabal new-build -w ${HC} --disable-tests --disable-benchmarks all"
+        , sh "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all"
         ]
 
     tellStrLns [""]
@@ -765,7 +767,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     foldedTellStrLns FoldBuildEverything
         "Building with tests and benchmarks..." folds $ tellStrLns
         [ comment "build & run tests, build benchmarks"
-        , sh "cabal new-build -w ${HC} ${TEST} ${BENCH} all"
+        , sh "${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all"
         ]
 
     -- cabal new-test fails if there are no test-suites.
@@ -774,8 +776,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             [ sh $ mconcat
                 [ "if [ \"x$TEST\" = \"x--enable-tests\" ]; then "
                 , if cfgNoise config
-                     then "cabal "
-                     else "(set -o pipefail; cabal -vnormal+nowrap+markoutput "
+                     then "${CABAL} "
+                     else "(set -o pipefail; ${CABAL} -vnormal+nowrap+markoutput "
                 , "new-test -w ${HC} ${TEST} ${BENCH} all"
                 , if cfgNoise config
                      then ""
@@ -823,17 +825,17 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     when (cfgCheck config) $
         foldedTellStrLns FoldCheck "cabal check..." folds $ do
-            tellStrLns [ comment "cabal check" ]
+            tellStrLns [ comment "${CABAL} check" ]
             forM_ pkgs $ \Pkg{pkgName,pkgJobs} -> tellStrLns
                 [ shForJob versions' pkgJobs $
-                  "(cd " ++ pkgName ++ "-* && cabal check)"
+                  "(cd " ++ pkgName ++ "-* && ${CABAL} check)"
                 ]
             tellStrLns [ "" ]
 
     when hasLibrary $
         foldedTellStrLns FoldHaddock "Haddock..." folds $ tellStrLns
             [ comment "haddock"
-            , shForJob versions' (cfgHaddock config) "cabal new-haddock -w ${HC} ${TEST} ${BENCH} all"
+            , shForJob versions' (cfgHaddock config) "${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all"
             , ""
             ]
 
@@ -846,8 +848,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             , "      ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
             , "      grep ' collection-id' cabal.project.freeze;"
             , "      rm -rf dist-newstyle/;"
-            , "      cabal new-build -w ${HC} ${TEST} ${BENCH} all || break;"
-            , "      if [ \"x$TEST\" = \"x--enable-tests\" ]; then cabal new-test -w ${HC} ${TEST} ${BENCH} all || break; fi;"
+            , "      ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all || break;"
+            , "      if [ \"x$TEST\" = \"x--enable-tests\" ]; then ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all || break; fi;"
             , "    done"
             , ""
             ]
@@ -860,7 +862,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         -- here we split on purpose!
         , sh' [2046, 2086] $ unwords
             [ "if $UNCONSTRAINED;"
-            , "then rm -f cabal.project.local; cabal new-build -w ${HC} --disable-tests --disable-benchmarks all;"
+            , "then rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;"
             , "else echo \"Not building without installed constraints\"; fi"
             ]
         , ""
@@ -878,8 +880,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         forM_ constraintSets $ \cs -> do
             let name = csName cs
             let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
-            let cmd | csRunTests cs = "cabal new-test  -w ${HC} --enable-tests  --enable-benchmarks"
-                    | otherwise     = "cabal new-build -w ${HC} --disable-tests --disable-benchmarks"
+            let cmd | csRunTests cs = "${CABAL} new-test  -w ${HC} --enable-tests  --enable-benchmarks"
+                    | otherwise     = "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks"
             tellStrLns [ comment  "Constraint set " ++ name ]
             foldedTellStrLns' FoldConstraintSets name ("Constraint set " ++ name) folds $ tellStrLns
                 [ shForJob versions' (csGhcVersions cs) $

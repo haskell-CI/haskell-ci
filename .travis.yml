@@ -52,23 +52,24 @@ matrix:
     - compiler: "ghc-head"
 
 before_install:
-  - HC=${CC}
+  - HC=/opt/ghc/bin/${CC}
   - HCPKG=${HC/ghc/ghc-pkg}
   - unset CC
+  - CABAL=/opt/ghc/bin/cabal
   - ROOTDIR=$(pwd)
   - mkdir -p $HOME/.local/bin
-  - "PATH=/opt/ghc/bin:/opt/ghc-ppa-tools/bin:$HOME/local/bin:$PATH"
+  - "PATH=$HOME/local/bin:$PATH"
   - HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 * 10000 + \2 * 100 + \3/') ))
   - echo $HCNUMVER
 
 install:
-  - cabal --version
+  - ${CABAL} --version
   - echo "$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]"
   - BENCH=${BENCH---enable-benchmarks}
   - TEST=${TEST---enable-tests}
   - UNCONSTRAINED=${UNCONSTRAINED-true}
   - GHCHEAD=${GHCHEAD-false}
-  - travis_retry cabal update -v
+  - travis_retry ${CABAL} update -v
   - "sed -i.bak 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config"
   - rm -fv cabal.project cabal.project.local
   - "sed -i.bak 's/^-- jobs:.*/jobs: 2/' ${HOME}/.cabal/config"
@@ -89,11 +90,11 @@ install:
 
       grep -Ev -- '^\s*--' ${HOME}/.cabal/config | grep -Ev '^\s*$'
 
-      cabal new-update head.hackage -v
+      ${CABAL} new-update head.hackage -v
     fi
   - grep -Ev -- '^\s*--' ${HOME}/.cabal/config | grep -Ev '^\s*$'
-  - cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest --constraint='doctest ==0.16.*'
-  - if [ $HCNUMVER -eq 80603 ] ; then cabal new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint --constraint='hlint ==2.1.*' ; fi
+  - ${CABAL} new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin doctest --constraint='doctest ==0.16.*'
+  - if [ $HCNUMVER -eq 80603 ] ; then ${CABAL} new-install -w ${HC} -j2 --symlink-bindir=$HOME/.local/bin hlint --constraint='hlint ==2.1.*' ; fi
   - rm -f cabal.project
   - touch cabal.project
   - "printf 'packages: \".\"\\n' >> cabal.project"
@@ -109,11 +110,11 @@ install:
   - cat cabal.project.local || true
   - if [ -f "./configure.ac" ]; then (cd "." && autoreconf -i); fi
   - rm -f cabal.project.freeze
-  - cabal new-freeze -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project" --dry
+  - ${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project" --dry
   - "cat \"cabal.project.freeze\" | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
   - rm  "cabal.project.freeze"
-  - cabal new-build -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project" --dep -j2 all
-  - cabal new-build -w ${HC} --disable-tests --disable-benchmarks --project-file="cabal.project" --dep -j2 all
+  - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project" --dep -j2 all
+  - ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --project-file="cabal.project" --dep -j2 all
   - rm -rf .ghc.environment.* "."/dist
   - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)
 
@@ -121,7 +122,7 @@ install:
 # any command which exits with a non-zero exit code causes the build to fail.
 script:
   # test that source-distributions can be generated
-  - cabal new-sdist all
+  - ${CABAL} new-sdist all
   - mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/
   - cd ${DISTDIR} || false
   - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
@@ -139,11 +140,11 @@ script:
   - cat cabal.project || true
   - cat cabal.project.local || true
   # this builds all libraries and executables (without tests/benchmarks)
-  - cabal new-build -w ${HC} --disable-tests --disable-benchmarks all
+  - ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all
 
   # build & run tests, build benchmarks
-  - cabal new-build -w ${HC} ${TEST} ${BENCH} all
-  - if [ "x$TEST" = "x--enable-tests" ]; then cabal new-test -w ${HC} ${TEST} ${BENCH} all; fi
+  - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all
+  - if [ "x$TEST" = "x--enable-tests" ]; then ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all; fi
 
   # doctest
   - (cd haskell-ci-* && doctest --fast -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src)
@@ -152,21 +153,21 @@ script:
   - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src) ; fi
   - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml cli) ; fi
 
-  # cabal check
-  - (cd haskell-ci-* && cabal check)
+  # ${CABAL} check
+  - (cd haskell-ci-* && ${CABAL} check)
 
   # haddock
-  - cabal new-haddock -w ${HC} ${TEST} ${BENCH} all
+  - ${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all
 
   # Build without installed constraints for packages in global-db
-  - if $UNCONSTRAINED; then rm -f cabal.project.local; cabal new-build -w ${HC} --disable-tests --disable-benchmarks all; else echo "Not building without installed constraints"; fi
+  - if $UNCONSTRAINED; then rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all; else echo "Not building without installed constraints"; fi
 
   # Constraint sets
   - rm -rf cabal.project.local
 
   # Constraint set deepseq-1.4
   - echo Constraint set deepseq-1.4 && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\r'
-  - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then cabal new-build -w ${HC} --disable-tests --disable-benchmarks  --constraint='deepseq ==1.4.*' all ; fi
+  - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks  --constraint='deepseq ==1.4.*' all ; fi
 
   - echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\r'
 
