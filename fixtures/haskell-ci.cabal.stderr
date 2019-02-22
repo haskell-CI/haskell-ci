@@ -1,2 +1,3 @@
 *INFO* Generating Travis-CI config for testing for GHC versions: head 8.0.2 8.2.2 8.4.4 8.6.3
 *INFO* Also OSX jobs for: 8.4.4
+*INFO* Also Windows jobs for: 8.4.4

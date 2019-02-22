@@ -314,6 +314,9 @@ configFromCabalFile cfg opts cabalFile = do
 
     filterLastMajor = map maximum . groupBy ((==) `on` ghcMajVer)
 
+data OS = Linux | MacOS | Windows
+  deriving (Eq, Show)
+
 genTravisFromConfigs
     :: Monad m
     => [String]
@@ -329,10 +332,27 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     putStrLnInfo $
         "Generating Travis-CI config for testing for GHC versions: " ++ ghcVersions
 
-    unless (null $ cfgOsx config) $  do
+    unless (null $ cfgOsx config) $ do
+        let ghcOsxVersions :: String
+            ghcOsxVersions = showVersions $ S.map Just osxVersions
+
+        let ghcOmittedOsxVersions :: String
+            ghcOmittedOsxVersions = showVersions $ S.map Just omittedOsxVersions
+
         putStrLnInfo $ "Also OSX jobs for: " ++ ghcOsxVersions
         unless (S.null omittedOsxVersions) $
             putStrLnWarn $ "Not all GHC versions specified with --osx are generated: " ++ ghcOmittedOsxVersions
+
+    unless (null $ cfgWindows config) $  do
+        let ghcWindowsVersions :: String
+            ghcWindowsVersions = showVersions $ S.map Just windowsVersions
+
+        let ghcOmittedWindowsVersions :: String
+            ghcOmittedWindowsVersions = showVersions $ S.map Just omittedWindowsVersions
+
+        putStrLnInfo $ "Also Windows jobs for: " ++ ghcWindowsVersions
+        unless (S.null omittedWindowsVersions) $
+            putStrLnWarn $ "Not all GHC versions specified with --windows are generated: " ++ ghcOmittedWindowsVersions
 
     ---------------------------------------------------------------------------
     -- travis.yml generation starts here
@@ -421,8 +441,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     let colls = [ (collToGhcVer cid,cid) | cid <- reverse $ optCollections opts ]
 
-    let tellJob :: Monad m => Bool -> Maybe Version -> YamlWriter m ()
-        tellJob osx gv = do
+    let tellJob :: Monad m => OS -> Maybe Version -> YamlWriter m ()
+        tellJob os gv = do
             let cvs = dispGhcVersion $ gv >> cfgCabalInstallVersion config
                 gvs = dispGhcVersion gv
 
@@ -440,14 +460,18 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                 , Just $ "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-" <> cvs <> ",ghc-" <> gvs <> xpkgs' <> "], sources: [hvr-ghc]}}"
                 ]
 
-            when osx $ tellStrLnsRaw
+            when (os == MacOS) $ tellStrLns
                 [ "      os: osx"
+                ]
+            when (os == Windows) $ tellStrLns
+                [ "      os: windows"
                 ]
 
     -- newer GHC first, -head last (which is great).
     -- Alpha release would go first though.
-    F.forM_ (reverse $ S.toList versions) $ tellJob False
-    F.forM_ (reverse $ S.toList osxVersions) $ tellJob True . Just
+    F.forM_ (reverse $ S.toList versions) $ tellJob Linux
+    F.forM_ (reverse $ S.toList osxVersions) $ tellJob MacOS . Just
+    F.forM_ (reverse $ S.toList windowsVersions) $ tellJob Windows . Just
 
     let allowFailures = headGhcVers `S.union` S.map Just (S.filter (`C.withinRange` cfgAllowFailures config) versions')
     unless (S.null allowFailures) $ do
@@ -462,11 +486,16 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         [ ""
         , "before_install:"
         , sh "HC=/opt/ghc/bin/${CC}"
+        , sh "HCVER=$(echo \"$TRAVIS_COMPILER\" | sed 's/ghc-//')"
+        , sh "echo $HCVER"
         , sh' [2034,2039] "HCPKG=${HC/ghc/ghc-pkg}" -- SC2039. In POSIX sh, string replacement is undefined.
         , sh "unset CC"
         -- cabal
         , sh "CABAL=/opt/ghc/bin/cabal"
         , sh "CABALHOME=$HOME/.cabal"
+        , if null windowsVersions
+          then RowSkip
+          else sh "if [ \"$TRAVIS_OS_NAME\" = \"windows\" ]; then CABALHOME=$APPDATA/cabal; fi"
         -- PATH
         , sh "export PATH=\"$CABALHOME/bin:$PATH\""
         -- rootdir is useful for manual script additions
@@ -475,9 +504,15 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     -- macOS installing
     let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
-    unless (null (cfgOsx config)) $ tellStrLns
+    unless (null osxVersions) $ tellStrLns
         [ sh $ "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then brew update; brew upgrade python@3; curl " ++ haskellOnMacos ++ " | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${TRAVIS_COMPILER}; fi"
         , sh' [2034,2039] "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; HCPKG=${HC/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi"
+        ]
+
+    -- Windows installing
+    unless (null windowsVersions) $ tellStrLns
+        [ sh $ "if [ \"$TRAVIS_OS_NAME\" = \"windows\" ]; then choco install -y cabal --version 2.4.1.0; choco install -y ghc --version ${HCVER} ; fi"
+        , sh $ "if [ \"$TRAVIS_OS_NAME\" = \"windows\" ]; then HC=/c/ProgramData/chocolatey/lib/ghc/tools/$TRAVIS_COMPILER/bin/ghc.exe; CABAL=/c/ProgramData/chocolatey/lib/cabal/tools/cabal-2.4.1.0/cabal.exe; fi"
         ]
 
     -- HCNUMVER, numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
@@ -499,6 +534,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , sh "BENCH=--enable-benchmarks"
         , shForJob versions' (invertVersionRange $ cfgBenchmarks config) "BENCH=--disable-benchmarks"
         , sh "GHCHEAD=${GHCHEAD-false}"
+        , sh "if [ \"$TRAVIS_OS_NAME\" = \"windows\" ]; then export CABALHOME=$APPDATA/cabal; else export CABALHOME=$HOME/.cabal; fi"
         ]
 
     -- Update hackage index. Side-effect: ~/.cabal.config is created.
@@ -556,7 +592,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             | isAnyVersion (cfgDoctestVersion doctestConfig) = ""
             | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion doctestConfig) ++ "'"
     when (cfgDoctestEnabled doctestConfig) $ tellStrLns
-        [ shForJob versions' doctestJobVersionRange $ "${CABAL} new-install -w ${HC} -j2 doctest" ++ doctestVersionConstraint
+        [ shForJob versions' doctestJobVersionRange $
+          "(cd / && ${CABAL} new-install -w ${HC} -j2 doctest" ++ doctestVersionConstraint ++ ")"
         ]
 
     -- Install hlint
@@ -565,7 +602,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             | otherwise = " --constraint='hlint " ++ display (cfgHLintVersion hlintConfig) ++ "'"
     when (cfgHLintEnabled hlintConfig) $ tellStrLns
         [ shForJob versions' (hlintJobVersionRange versions (cfgHLintJob hlintConfig)) $
-          "${CABAL} new-install -w ${HC} -j2 hlint" ++ hlintVersionConstraint
+          "(cd / && ${CABAL} new-install -w ${HC} -j2 hlint" ++ hlintVersionConstraint ++ ")"
         ]
 
     -- create cabal.project file
@@ -908,9 +945,12 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     showVersions :: Set (Maybe Version) -> String
     showVersions = unwords . map dispGhcVersion . S.toList
 
-    -- specified ersions
+    -- specified versions
     osxVersions' :: Set Version
     osxVersions' = cfgOsx config
+
+    windowsVersions' :: Set Version
+    windowsVersions' = cfgWindows config
 
     versions :: Set (Maybe Version)
     versions
@@ -923,12 +963,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     osxVersions, omittedOsxVersions :: Set Version
     (osxVersions, omittedOsxVersions) = S.partition (`S.member` versions') osxVersions'
 
-    ghcOsxVersions :: String
-    ghcOsxVersions = showVersions $ S.map Just osxVersions
-
-    ghcOmittedOsxVersions :: String
-    ghcOmittedOsxVersions = showVersions $ S.map Just omittedOsxVersions
-
+    windowsVersions, omittedWindowsVersions :: Set Version
+    (windowsVersions, omittedWindowsVersions) = S.partition (`S.member` versions') windowsVersions'
 
 collToGhcVer :: String -> Version
 collToGhcVer cid = case simpleParse cid of

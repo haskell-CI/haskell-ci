@@ -47,20 +47,28 @@ matrix:
     - compiler: "ghc-8.4.4"
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
       os: osx
+    - compiler: "ghc-8.4.4"
+      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
+      os: windows
 
   allow_failures:
     - compiler: "ghc-head"
 
 before_install:
   - HC=/opt/ghc/bin/${CC}
+  - HCVER=$(echo "$TRAVIS_COMPILER" | sed 's/ghc-//')
+  - echo $HCVER
   - HCPKG=${HC/ghc/ghc-pkg}
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
   - CABALHOME=$HOME/.cabal
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then CABALHOME=$APPDATA/cabal; fi
   - export PATH="$CABALHOME/bin:$PATH"
   - ROOTDIR=$(pwd)
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew update; brew upgrade python@3; curl https://haskell.futurice.com/haskell-on-macos.py | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${TRAVIS_COMPILER}; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; HCPKG=${HC/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then choco install -y cabal --version 2.4.1.0; choco install -y ghc --version ${HCVER} ; fi
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then HC=/c/ProgramData/chocolatey/lib/ghc/tools/$TRAVIS_COMPILER/bin/ghc.exe; CABAL=/c/ProgramData/chocolatey/lib/cabal/tools/cabal-2.4.1.0/cabal.exe; fi
   - HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 * 10000 + \2 * 100 + \3/') ))
   - echo $HCNUMVER
 
@@ -70,6 +78,7 @@ install:
   - TEST=--enable-tests
   - BENCH=--enable-benchmarks
   - GHCHEAD=${GHCHEAD-false}
+  - if [ "$TRAVIS_OS_NAME" = "windows" ]; then export CABALHOME=$APPDATA/cabal; else export CABALHOME=$HOME/.cabal; fi
   - travis_retry ${CABAL} update -v
   - sed -i.bak 's/^jobs:/-- jobs:/' $CABALHOME/config
   - rm -fv cabal.project cabal.project.local
@@ -94,8 +103,6 @@ install:
       ${CABAL} new-update head.hackage -v
     fi
   - grep -Ev -- '^\s*--' $CABALHOME/config | grep -Ev '^\s*$'
-  - ${CABAL} new-install -w ${HC} -j2 doctest --constraint='doctest ==0.16.*'
-  - if [ $HCNUMVER -eq 80603 ] ; then ${CABAL} new-install -w ${HC} -j2 hlint --constraint='hlint ==2.1.*' ; fi
   - rm -f cabal.project
   - touch cabal.project
   - "printf 'packages: \".\"\\n' >> cabal.project"
@@ -146,13 +153,6 @@ script:
   # build & run tests, build benchmarks
   - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all
   - if [ "x$TEST" = "x--enable-tests" ]; then ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all; fi
-
-  # doctest
-  - (cd haskell-ci-* && doctest --fast -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src)
-
-  # hlint
-  - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src) ; fi
-  - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml cli) ; fi
 
   # cabal check
   - (cd haskell-ci-* && ${CABAL} check)

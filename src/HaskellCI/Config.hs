@@ -70,6 +70,7 @@ data Config = Config
     , cfgAllowFailures       :: !VersionRange
     , cfgLastInSeries        :: !Bool
     , cfgOsx                 :: S.Set Version
+    , cfgWindows             :: S.Set Version
     , cfgApt                 :: S.Set String
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
@@ -121,6 +122,7 @@ emptyConfig = Config
     , cfgAllowFailures   = noVersion
     , cfgLastInSeries    = False
     , cfgOsx             = S.empty
+    , cfgWindows         = S.empty
     , cfgApt             = S.empty
     , cfgRawProject      = []
     }
@@ -183,6 +185,8 @@ configGrammar = Config
         ^^^ help "[Discouraged] Assume there are only GHCs last in major series: 8.2.* will match only 8.2.2"
     <*> C.monoidalFieldAla    "osx"                       (alaSet C.NoCommaFSep)              #cfgOsx
         ^^^ metahelp "JOB" "Jobs to additionally build with OSX"
+    <*> C.monoidalFieldAla    "windows"                   (alaSet C.NoCommaFSep)              #cfgWindows
+        ^^^ metahelp "JOB" "Jobs to additionally build with Windows"
     <*> C.monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    #cfgApt
         ^^^ metahelp "PKG" "Additional apt packages to install"
     <*> C.blurFieldGrammar #cfgDoctest doctestConfigGrammar

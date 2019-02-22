@@ -41,17 +41,20 @@ branches: master
 folds: constraint-sets
 
 -- Run HLint (needs GHC-8.2.2 job)
-hlint: True
+hlint: False
 hlint-yaml: .hlint.yaml
 -- hlint-version: ==2.0.*
 
 -- Run doctest (on GHC-8.0+ which support .ghc.environment)
-doctest: True
+doctest: False
 doctest-options: --fast
 -- doctest-version: ==0.13.*
 
 -- macOS job
 osx: 8.4.4
+
+-- windows job
+windows: 8.4.4
 
 -- Constraint sets
 -- Package will be build with different constraints.
