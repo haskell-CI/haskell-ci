@@ -57,9 +57,9 @@ before_install:
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
   - CABALHOME=$HOME/.cabal
-  - "export PATH=\"$CABALHOME/bin:$PATH\""
+  - export PATH="$CABALHOME/bin:$PATH"
   - ROOTDIR=$(pwd)
-  - "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then brew update; brew upgrade python@3; curl https://haskell.futurice.com/haskell-on-macos.py | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${TRAVIS_COMPILER}; fi"
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew update; brew upgrade python@3; curl https://haskell.futurice.com/haskell-on-macos.py | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${TRAVIS_COMPILER}; fi
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; HCPKG=${HC/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi
   - HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 * 10000 + \2 * 100 + \3/') ))
   - echo $HCNUMVER
@@ -71,7 +71,7 @@ install:
   - BENCH=--enable-benchmarks
   - GHCHEAD=${GHCHEAD-false}
   - travis_retry ${CABAL} update -v
-  - "sed -i.bak 's/^jobs:/-- jobs:/' $CABALHOME/config"
+  - sed -i.bak 's/^jobs:/-- jobs:/' $CABALHOME/config
   - rm -fv cabal.project cabal.project.local
   - "sed -i.bak 's/^-- jobs:.*/jobs: 2/' $CABALHOME/config"
   - "sed -i.bak 's/-- ghc-options:.*/ghc-options: -j2/' $CABALHOME/config"
@@ -167,10 +167,10 @@ script:
   - rm -rf cabal.project.local
 
   # Constraint set deepseq-1.4
-  - "echo Constraint set deepseq-1.4 && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\\\r'"
+  - echo Constraint set deepseq-1.4 && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\r'
   - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks  --constraint='deepseq ==1.4.*' all ; fi
 
-  - "echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\\\r'"
+  - echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\r'
 
 # REGENDATA ["--output=.travis.yml","--config=cabal.haskell-ci","haskell-ci.cabal"]
 # EOF

@@ -1,28 +1,29 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE OverloadedStrings #-}
 module HaskellCI.MakeTravisOutput where
 
-import           Prelude                     ()
+import           Prelude                    ()
 import           Prelude.Compat
 
-import           Control.Monad               (mzero)
-import           Control.Monad.Trans.Class   (lift)
-import           Control.Monad.Trans.Maybe   (MaybeT)
-import           Control.Monad.Trans.Writer  (WriterT, tell)
-import           Data.Functor.Identity       (Identity (..))
-import           Data.Maybe                  (mapMaybe)
-import           Data.Set                    (Set)
-import           Data.String                 (IsString (..))
+import           Control.Monad              (mzero)
+import           Control.Monad.Trans.Class  (lift)
+import           Control.Monad.Trans.Maybe  (MaybeT)
+import           Control.Monad.Trans.Writer (WriterT, tell)
+import           Data.Functor.Identity      (Identity (..))
+import           Data.Maybe                 (mapMaybe)
+import           Data.Set                   (Set)
+import           Data.String                (IsString (..))
 import           Distribution.Version
 
-import qualified Data.Set                    as S
-
 #ifdef MIN_VERSION_ShellCheck
-import           ShellCheck.Checker          (checkScript)
-import qualified ShellCheck.Formatter.Format as SC
-import qualified ShellCheck.Formatter.TTY    as SC.TTY
-import qualified ShellCheck.Interface        as SC
-import           System.IO.Unsafe            (unsafePerformIO)
+import           ShellCheck.Checker         (checkScript)
+import qualified ShellCheck.Interface       as SC
 #endif
+
+import qualified Data.Set                   as S
+import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as TE
+import qualified Data.YAML                  as YAML
 
 import           HaskellCI.Config.Folds
 import           HaskellCI.Version
@@ -70,16 +71,22 @@ sh' excl cmd =
                               , SC.csExcludedWarnings = excl
                               , SC.csShellTypeOverride = Just SC.Sh
                               }
-
-scFormatter :: SC.Formatter
-scFormatter = unsafePerformIO (SC.TTY.format (SC.newFormatterOptions { SC.foColorOption = SC.ColorAlways }))
 #endif
 
 -- Non-ShellCheck version of sh'
 shImpl :: String -> String
 shImpl cmd
-    | ':' `elem` cmd = "  - " ++ show cmd
-    | otherwise      = "  - " ++ cmd
+    | needsEncoding = "  - " ++ show cmd
+    | otherwise     = "  - " ++ cmd
+  where
+    -- we try to decode optimisticly serialised "- cmd..."
+    -- if it's ok, we use it :)
+    -- otherwise escape with show
+    cmdT  = T.pack cmd
+    cmdBS = "- " <> TE.encodeUtf8 cmdT
+    needsEncoding = case YAML.decodeStrict cmdBS of
+        Right [[t]] | t == cmdT -> False
+        _           -> True
 
 comment :: String -> Row
 comment c = rawRow $ "  # " ++ c
