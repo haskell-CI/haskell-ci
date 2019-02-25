@@ -23,10 +23,10 @@ renderParseError
 renderParseError filepath contents errors warnings
     | null errors && null warnings = ""
     | null errors = unlines $
-        ("Warnings encountered when parsing cabal file " <> filepath <> ":")
+        ("Warnings encountered when parsing  file " <> filepath <> ":")
         : renderedWarnings
     | otherwise = unlines $
-        [ "Errors encountered when parsing cabal file " <> filepath <> ":"
+        [ "Errors encountered when parsing file " <> filepath <> ":"
         ]
         ++ renderedErrors
         ++ renderedWarnings

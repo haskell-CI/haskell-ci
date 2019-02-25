@@ -8,10 +8,10 @@ ghcid :
 	ghcid -c 'cabal new-repl'
 
 install:
-	cabal new-install haskell-ci:exe:haskell-ci
+	cabal new-install haskell-ci:exe:haskell-ci --overwrite-policy=always
 
 install-dev : build
-	cp $$(cabal-plan list-bin haskell-ci) $(HOME)/.local/bin/haskell-ci
+	cp $$(cabal-plan list-bin haskell-ci) $(HOME)/.cabal/bin/haskell-ci
 
 test : build
 	cabal new-run -w ghc-8.4.4 --enable-tests golden

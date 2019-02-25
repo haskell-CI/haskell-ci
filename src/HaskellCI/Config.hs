@@ -9,7 +9,8 @@ import           Data.Coerce                     (coerce)
 import           Data.Generics.Labels            ()
 import           Distribution.Simple.Utils       (fromUTF8BS)
 import           Distribution.Types.Version      (Version)
-import           Distribution.Types.VersionRange (VersionRange, anyVersion)
+import           Distribution.Types.VersionRange (VersionRange, anyVersion,
+                                                  noVersion)
 import           GHC.Generics                    (Generic)
 import           Lens.Micro                      (over)
 
@@ -50,13 +51,15 @@ data Config = Config
     , cfgCopyFields          :: !CopyFields
     , cfgLocalGhcOptions     :: [String]
     , cfgCache               :: !Bool
-    , cfgCheck               :: !Bool
     , cfgNoise               :: !Bool
-    , cfgNoTestsNoBench      :: !Bool
-    , cfgUnconstrainted      :: !Bool
     , cfgInstallDeps         :: !Bool
     , cfgInstalled           :: [Installed]
+    , cfgTests               :: !VersionRange
+    , cfgBenchmarks          :: !VersionRange
     , cfgHaddock             :: !VersionRange
+    , cfgNoTestsNoBench      :: !VersionRange
+    , cfgUnconstrainted      :: !VersionRange
+    , cfgCheck               :: !VersionRange
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
     , cfgProjectName         :: Maybe String
@@ -64,7 +67,7 @@ data Config = Config
     , cfgGhcHead             :: !Bool
     , cfgPostgres            :: !Bool
     , cfgEnv                 :: M.Map Version String
-    , cfgAllowFailures       :: S.Set Version -- TODO: change to range
+    , cfgAllowFailures       :: !VersionRange
     , cfgLastInSeries        :: !Bool
     , cfgOsx                 :: S.Set Version
     , cfgApt                 :: S.Set String
@@ -99,13 +102,15 @@ emptyConfig = Config
     , cfgLocalGhcOptions = []
     , cfgConstraintSets  = []
     , cfgCache           = True
-    , cfgCheck           = True
     , cfgNoise           = True
-    , cfgNoTestsNoBench  = True
-    , cfgUnconstrainted  = True
     , cfgInstalled       = []
     , cfgInstallDeps     = True
+    , cfgTests           = anyVersion
+    , cfgBenchmarks      = anyVersion
     , cfgHaddock         = anyVersion
+    , cfgNoTestsNoBench  = anyVersion
+    , cfgUnconstrainted  = anyVersion
+    , cfgCheck           = anyVersion
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
     , cfgProjectName     = Nothing
@@ -113,7 +118,7 @@ emptyConfig = Config
     , cfgGhcHead         = False
     , cfgPostgres        = False
     , cfgEnv             = M.empty
-    , cfgAllowFailures   = S.empty
+    , cfgAllowFailures   = noVersion
     , cfgLastInSeries    = False
     , cfgOsx             = S.empty
     , cfgApt             = S.empty
@@ -140,26 +145,30 @@ configGrammar = Config
         ^^^ metahelp "OPTS" "--ghc-options for local packages"
     <*> C.booleanFieldDef     "cache"                                                         #cfgCache True
         ^^^ help "Disable caching"
-    <*> C.booleanFieldDef     "cabal-check"                                                   #cfgCheck True
-        ^^^ help "Disable running cabal check"
     <*> C.booleanFieldDef     "cabal-noise"                                                   #cfgNoise True
         ^^^ help "Make cabal less noisy"
-    <*> C.booleanFieldDef     "no-tests-no-benchmarks"                                        #cfgNoTestsNoBench True
-        ^^^ help "Don't build without tests and benchmarks"
-    <*> C.booleanFieldDef     "unconstrained"                                                 #cfgUnconstrainted True
-        ^^^ help "Don't make unconstrained build"
     <*> C.booleanFieldDef     "install-dependencies"                                          #cfgInstallDeps True
         ^^^ help "Skip separate dependency installation step"
     <*> C.monoidalFieldAla    "installed"                 (C.alaList C.FSep)                  #cfgInstalled
         ^^^ metahelp "+/-PKG" "Specify 'constraint: ... installed' packages"
-    <*> C.optionalFieldDef    "haddock"                                                       #cfgHaddock anyVersion
+    <*> C.optionalFieldDefAla "tests"                     Range                               #cfgTests anyVersion
+        ^^^ metahelp "RANGE" "Build and run tests with"
+    <*> C.optionalFieldDefAla "benchmarks"                Range                               #cfgBenchmarks anyVersion
+        ^^^ metahelp "RANGE" "Build benchmarks"
+    <*> C.optionalFieldDefAla "haddock"                   Range                               #cfgHaddock anyVersion
         ^^^ metahelp "RANGE" "Haddock step"
+    <*> C.optionalFieldDefAla "no-tests-no-benchmarks"    Range                               #cfgNoTestsNoBench anyVersion
+        ^^^ metahelp "RANGE" "Build without tests and benchmarks"
+    <*> C.optionalFieldDefAla "unconstrained"             Range                               #cfgUnconstrainted anyVersion
+        ^^^ metahelp "RANGE" "Make unconstrained build"
+    <*> C.optionalFieldDefAla "cabal-check"               Range                               #cfgCheck anyVersion
+        ^^^ metahelp "RANGE" "Run cabal check"
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches
         ^^^ metahelp "BRANCH" "Enable builds only for specific branches"
     <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        #cfgIrcChannels
         ^^^ metahelp "IRC" "Enable IRC notifications to given channel (e.g. 'irc.freenode.org#haskell-lens')"
     <*> C.optionalFieldAla    "project-name"              C.Token'                            #cfgProjectName
-        ^^^ metahelp "name" "Project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
+        ^^^ metahelp "NAME" "Project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
     <*> C.monoidalFieldAla    "folds"                     Folds                               #cfgFolds
         ^^^ metahelp "FOLD" "Build steps to fold"
     <*> C.booleanFieldDef     "ghc-head"                                                      #cfgGhcHead False
@@ -168,7 +177,7 @@ configGrammar = Config
         ^^^ help "Add postgresql service"
     <*> C.monoidalFieldAla    "env"                       Env                                 #cfgEnv
         ^^^ metahelp "ENV" "Environment variables per job (e.g. `8.0.2:HADDOCK=false`)"
-    <*> C.monoidalFieldAla    "allow-failures"            (alaSet C.CommaFSep)                #cfgAllowFailures
+    <*> C.optionalFieldDefAla "allow-failures"            Range                               #cfgAllowFailures noVersion
         ^^^ metahelp "JOB" "Allow failures of particular GHC version"
     <*> C.booleanFieldDef     "last-in-series"                                                #cfgLastInSeries False
         ^^^ help "[Discouraged] Assume there are only GHCs last in major series: 8.2.* will match only 8.2.2"
@@ -202,7 +211,7 @@ parseConfigFile fields0 = do
             name' <- parseName pos args
             let (fs, _sections) = C.partitionFields cfields
             cs <- C.parseFieldGrammar C.cabalSpecLatest fs (constraintSetGrammar name')
-            return $ over #cfgConstraintSets (++ [cs])
+            return $ over #cfgConstraintSets (cs :)
         | name == "raw-project" = do
             let fs = C.fromParsecFields cfields
             return $ over #cfgRawProject (++ fs)

@@ -94,6 +94,7 @@ library
     HaskellCI.ParsecUtils
     HaskellCI.Project
     HaskellCI.TestedWith
+    HaskellCI.Version
 
   -- vendored from Cabal development version
   other-modules:      Distribution.Fields.Pretty

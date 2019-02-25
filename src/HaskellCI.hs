@@ -73,6 +73,7 @@ import qualified Distribution.FieldGrammar                    as C
 import qualified Distribution.Fields.Pretty                   as C
 import qualified Distribution.PackageDescription.FieldGrammar as C
 import qualified Distribution.Types.SourceRepo                as C
+import qualified Distribution.Types.VersionRange              as C
 import qualified Text.PrettyPrint                             as PP
 
 
@@ -108,6 +109,7 @@ import HaskellCI.Optimization
 import HaskellCI.Package
 import HaskellCI.Project
 import HaskellCI.TestedWith
+import HaskellCI.Version
 
 -------------------------------------------------------------------------------
 -- Main
@@ -428,14 +430,14 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
                 colls' = [ cid | (v,cid) <- colls, Just v == gv ]
 
-            tellStrLnsRaw
-                [ "    - compiler: \"ghc-" <> gvs <> "\""
+            tellStrLnsRaw $ catMaybes
+                [ Just $ "    - compiler: \"ghc-" <> gvs <> "\""
                 , if | Just e <- gv >>= \v -> M.lookup v (cfgEnv config)
-                                     -> "      env: " ++ e
-                     | previewGHC gv -> "      env: GHCHEAD=true"
-                     | null colls'   -> "    # env: TEST=--disable-tests BENCH=--disable-benchmarks"
-                     | otherwise     -> "      env: 'COLLECTIONS=" ++ intercalate "," colls' ++ "'"
-                , "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-" <> cvs <> ",ghc-" <> gvs <> xpkgs' <> "], sources: [hvr-ghc]}}"
+                                     -> Just $ "      env: " ++ e
+                     | previewGHC gv -> Just $ "      env: GHCHEAD=true"
+                     | null colls'   -> Nothing
+                     | otherwise     -> Just $ "      env: 'COLLECTIONS=" ++ intercalate "," colls' ++ "'"
+                , Just $ "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-" <> cvs <> ",ghc-" <> gvs <> xpkgs' <> "], sources: [hvr-ghc]}}"
                 ]
 
             when osx $ tellStrLnsRaw
@@ -447,7 +449,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     F.forM_ (reverse $ S.toList versions) $ tellJob False
     F.forM_ (reverse $ S.toList osxVersions) $ tellJob True . Just
 
-    let allowFailures = headGhcVers `S.union` S.map Just (cfgAllowFailures config)
+    let allowFailures = headGhcVers `S.union` S.map Just (S.filter (`C.withinRange` cfgAllowFailures config) versions')
     unless (S.null allowFailures) $ do
         tellStrLn ""
         tellStrLn "  allow_failures:"
@@ -492,9 +494,10 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , "install:"
         , sh "${CABAL} --version"
         , sh "echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
-        , sh "BENCH=${BENCH---enable-benchmarks}"
-        , sh "TEST=${TEST---enable-tests}"
-        , sh "UNCONSTRAINED=${UNCONSTRAINED-true}"
+        , sh "TEST=--enable-tests"
+        , shForJob versions' (invertVersionRange $ cfgTests config) "TEST=--disable-tests"
+        , sh "BENCH=--enable-benchmarks"
+        , shForJob versions' (invertVersionRange $ cfgBenchmarks config) "BENCH=--disable-benchmarks"
         , sh "GHCHEAD=${GHCHEAD-false}"
         ]
 
@@ -606,8 +609,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             -- install dependencies
             , sh $ "${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
             ]
-        when (cfgNoTestsNoBench config) $ tellStrLns
-            [ sh $ "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
+        tellStrLns
+            [ shForJob versions' (cfgNoTestsNoBench config) $ "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
             ]
 
     tellStrLns
@@ -639,9 +642,9 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             ]
         generateCabalProject True
 
-    when (cfgNoTestsNoBench config) $ foldedTellStrLns FoldBuild "Building..." folds $ tellStrLns
+    unless (equivVersionRanges noVersion $ cfgNoTestsNoBench config) $ foldedTellStrLns FoldBuild "Building..." folds $ tellStrLns
         [ comment "this builds all libraries and executables (without tests/benchmarks)"
-        , sh "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all"
+        , shForJob versions' (cfgNoTestsNoBench config) $ "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all"
         ]
 
     tellStrLns [""]
@@ -706,16 +709,16 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                         ]
         tellStrLns [ "" ]
 
-    when (cfgCheck config) $
+    unless (equivVersionRanges noVersion $ cfgCheck config) $
         foldedTellStrLns FoldCheck "cabal check..." folds $ do
             tellStrLns [ comment "${CABAL} check" ]
             forM_ pkgs $ \Pkg{pkgName,pkgJobs} -> tellStrLns
-                [ shForJob versions' pkgJobs $
+                [ shForJob versions' (pkgJobs `intersectVersionRanges` cfgCheck config) $
                   "(cd " ++ pkgName ++ "-* && ${CABAL} check)"
                 ]
             tellStrLns [ "" ]
 
-    when hasLibrary $
+    when (hasLibrary && not (equivVersionRanges noVersion $ cfgHaddock config)) $
         foldedTellStrLns FoldHaddock "Haddock..." folds $ tellStrLns
             [ comment "haddock"
             , shForJob versions' (cfgHaddock config) "${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all"
@@ -738,16 +741,10 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             ]
 
     -- Have to build last, as we remove cabal.project.local
-    when (cfgUnconstrainted config) $ foldedTellStrLns FoldBuildInstalled
+    unless (equivVersionRanges noVersion $ cfgUnconstrainted config) $ foldedTellStrLns FoldBuildInstalled
         "Building without installed constraints for packages in global-db..." folds $ tellStrLns
         [ comment "Build without installed constraints for packages in global-db"
-        -- SC2046: Quote this to prevent word splitting.
-        -- here we split on purpose!
-        , sh' [2046, 2086] $ unwords
-            [ "if $UNCONSTRAINED;"
-            , "then rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;"
-            , "else echo \"Not building without installed constraints\"; fi"
-            ]
+        , shForJob versions' (cfgUnconstrainted config) "rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;"
         , ""
         ]
 

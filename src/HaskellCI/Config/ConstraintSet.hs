@@ -30,6 +30,6 @@ constraintSetGrammar
     :: (C.FieldGrammar g, Applicative (g ConstraintSet))
     => String -> g ConstraintSet ConstraintSet
 constraintSetGrammar name = ConstraintSet name
-    <$> C.uniqueField      "ghc"                                           #csGhcVersions
+    <$> C.optionalFieldDef "ghc"                                           #csGhcVersions anyVersion
     <*> C.monoidalFieldAla "constraints" (C.alaList' C.CommaVCat NoCommas) #csConstraints
     <*> C.booleanFieldDef  "run-tests"                                     #csRunTests False

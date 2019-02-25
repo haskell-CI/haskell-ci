@@ -1,30 +1,31 @@
 {-# LANGUAGE CPP #-}
 module HaskellCI.MakeTravisOutput where
 
-import Prelude ()
-import Prelude.Compat
+import           Prelude                     ()
+import           Prelude.Compat
 
-import Control.Monad (mzero)
-import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Maybe (MaybeT)
-import Control.Monad.Trans.Writer (WriterT, tell)
-import Data.Functor.Identity (Identity (..))
-import Data.List (intercalate)
-import Data.Set (Set)
-import Data.String (IsString (..))
-import Distribution.Version
+import           Control.Monad               (mzero)
+import           Control.Monad.Trans.Class   (lift)
+import           Control.Monad.Trans.Maybe   (MaybeT)
+import           Control.Monad.Trans.Writer  (WriterT, tell)
+import           Data.Functor.Identity       (Identity (..))
+import           Data.Maybe                  (mapMaybe)
+import           Data.Set                    (Set)
+import           Data.String                 (IsString (..))
+import           Distribution.Version
 
-import qualified Data.Set as S
+import qualified Data.Set                    as S
 
 #ifdef MIN_VERSION_ShellCheck
-import ShellCheck.Checker (checkScript)
-import qualified ShellCheck.Interface as SC
+import           ShellCheck.Checker          (checkScript)
 import qualified ShellCheck.Formatter.Format as SC
-import qualified ShellCheck.Formatter.TTY as SC.TTY
-import System.IO.Unsafe (unsafePerformIO)
+import qualified ShellCheck.Formatter.TTY    as SC.TTY
+import qualified ShellCheck.Interface        as SC
+import           System.IO.Unsafe            (unsafePerformIO)
 #endif
 
-import HaskellCI.Config.Folds
+import           HaskellCI.Config.Folds
+import           HaskellCI.Version
 
 -- |  Encode shell command to be YAML safe and (optionally) ShellCheck it.
 sh :: String -> Row
@@ -36,8 +37,9 @@ sh = sh'
 
 shForJob :: Set Version -> VersionRange -> String -> Row
 shForJob  versions vr cmd
-    | all (`withinRange` vr) versions = sh cmd
-    | otherwise                       = sh $ unwords
+    | all (`withinRange` vr) versions       = sh cmd
+    | not $ any (`withinRange` vr) versions = RowSkip
+    | otherwise                             = sh $ unwords
         [ "if"
         , ghcVersionPredicate vr
         , "; then"
@@ -48,18 +50,18 @@ shForJob  versions vr cmd
 -- | Like 'sh' but with explicit SC exclude codes.
 sh' :: [Integer] -> String -> Row
 #ifndef MIN_VERSION_ShellCheck
-sh' _ = Row . Right . shImpl
+sh' _ cmd = rawRow (shImpl cmd)
 #else
 sh' excl cmd =
     if null (SC.crComments res)
-    then Row $ Right $ shImpl cmd
-    else Row $ Left $ unlines $
+    then rawRow $ shImpl cmd
+    else RowErr $ unlines $
         ("ShellCheck! " ++ cmd) :
         [ "SC" ++ show (SC.cCode c) ++ ": " ++ SC.cMessage c
         | pc <- SC.crComments res
         , let c = SC.pcComment pc
         ]
-      
+
   where
     res = runIdentity $ checkScript iface spec
     iface = SC.SystemInterface $ \n -> return $ Left $ "cannot read file: " ++ n
@@ -86,7 +88,7 @@ blank :: Row
 blank = rawRow ""
 
 rawRow :: String -> Row
-rawRow = Row . Right
+rawRow = Row
 
 type MakeTravisOutput = Result Diagnostic [String]
 
@@ -125,19 +127,28 @@ putStrLnInfo m = lift . tell $ Success [Info m] []
 tellStrLn :: Monad m => String -> YamlWriter m ()
 tellStrLn str = lift . tell $ success [str]
 
-newtype Row = Row { unRow ::  Either String String }
+data Row
+    = Row String
+    | RowErr String
+    | RowSkip
 
 instance IsString Row where
-    fromString = Row . Right
+    fromString = rawRow
 
 tellStrLns :: Monad m => [Row] -> YamlWriter m ()
-tellStrLns rows = case traverse unRow rows of
+tellStrLns rows = case sequenceRows rows of
     Left err    -> lift $ tell $ Failure [Error err]
     Right rows' -> lift $ tell $ success rows'
 
 tellStrLnsRaw :: Monad m => [String] -> YamlWriter m ()
 tellStrLnsRaw rows = lift $ tell $ success rows
- 
+
+sequenceRows :: [Row] -> Either String [String]
+sequenceRows = sequenceA . mapMaybe f where
+    f (Row s)      = Just (Right s)
+    f (RowErr err) = Just (Left err)
+    f RowSkip      = Nothing
+
 -------------------------------------------------------------------------------
 -- Folded
 -------------------------------------------------------------------------------
@@ -192,33 +203,3 @@ instance Monoid a => Semigroup (Result e a) where
     Failure err1   <> Success err2 _ = Failure $ err1 <> err2
     Success err1 _ <> Failure err2   = Failure $ err1 <> err2
     Success l1 o1  <> Success l2 o2  = Success (mappend l1 l2) (mappend o1 o2)
-
--------------------------------------------------------------------------------
--- GHC Version Predicate
--------------------------------------------------------------------------------
-
-ghcVersionPredicate :: VersionRange -> String
-ghcVersionPredicate = conj . asVersionIntervals
-  where
-    conj = intercalate "  ||  " . map disj
-
-    disj :: VersionInterval -> String
-    disj (LowerBound v InclusiveBound, UpperBound u InclusiveBound)
-        | v == u              = "[ $HCNUMVER -eq " ++ f v ++ " ]"
-    disj (lb, NoUpperBound)   = lower lb
-    disj (lb, UpperBound v b) = lower lb ++ " && " ++ upper v b
-
-    lower (LowerBound v InclusiveBound) = "[ $HCNUMVER -ge " ++ f v ++ " ]"
-    lower (LowerBound v ExclusiveBound) = "[ $HCNUMVER -gt " ++ f v ++ " ]"
-
-    upper v InclusiveBound = "[ $HCNUMVER -le " ++ f v ++ " ]"
-    upper v ExclusiveBound = "[ $HCNUMVER -lt " ++ f v ++ " ]"
-
-    f = ghcVersionToString
-
-ghcVersionToString :: Version -> String
-ghcVersionToString v =  case versionNumbers v of
-    []        -> "0"
-    [x]       -> show (x * 10000)
-    [x,y]     -> show (x * 10000 + y * 100)
-    (x:y:z:_) -> show (x * 10000 + y * 100 + z)

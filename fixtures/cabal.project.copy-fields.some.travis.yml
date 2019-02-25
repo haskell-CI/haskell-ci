@@ -29,58 +29,40 @@ before_cache:
 matrix:
   include:
     - compiler: "ghc-8.6.3"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.3], sources: [hvr-ghc]}}
     - compiler: "ghc-8.6.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.2], sources: [hvr-ghc]}}
     - compiler: "ghc-8.6.1"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.1], sources: [hvr-ghc]}}
     - compiler: "ghc-8.4.4"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
     - compiler: "ghc-8.4.3"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.3], sources: [hvr-ghc]}}
     - compiler: "ghc-8.4.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.2], sources: [hvr-ghc]}}
     - compiler: "ghc-8.4.1"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.1], sources: [hvr-ghc]}}
     - compiler: "ghc-8.2.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.2.2], sources: [hvr-ghc]}}
     - compiler: "ghc-8.2.1"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.2.1], sources: [hvr-ghc]}}
     - compiler: "ghc-8.0.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.0.2], sources: [hvr-ghc]}}
     - compiler: "ghc-8.0.1"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.0.1], sources: [hvr-ghc]}}
     - compiler: "ghc-7.10.3"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.10.3], sources: [hvr-ghc]}}
     - compiler: "ghc-7.10.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.10.2], sources: [hvr-ghc]}}
     - compiler: "ghc-7.10.1"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.10.1], sources: [hvr-ghc]}}
     - compiler: "ghc-7.8.4"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.8.4], sources: [hvr-ghc]}}
     - compiler: "ghc-7.8.3"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.8.3], sources: [hvr-ghc]}}
     - compiler: "ghc-7.8.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.8.2], sources: [hvr-ghc]}}
     - compiler: "ghc-7.8.1"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.8.1], sources: [hvr-ghc]}}
 
 before_install:
@@ -97,9 +79,8 @@ before_install:
 install:
   - ${CABAL} --version
   - echo "$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]"
-  - BENCH=${BENCH---enable-benchmarks}
-  - TEST=${TEST---enable-tests}
-  - UNCONSTRAINED=${UNCONSTRAINED-true}
+  - TEST=--enable-tests
+  - BENCH=--enable-benchmarks
   - GHCHEAD=${GHCHEAD-false}
   - travis_retry ${CABAL} update -v
   - "sed -i.bak 's/^jobs:/-- jobs:/' $CABALHOME/config"
@@ -171,7 +152,7 @@ script:
   - ${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all
 
   # Build without installed constraints for packages in global-db
-  - if $UNCONSTRAINED; then rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all; else echo "Not building without installed constraints"; fi
+  - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;
 
 # REGENDATA ["-o","cabal.project.empty-line.travis.yml","--copy-fields=some","cabal.project.empty-line"]
 # EOF
