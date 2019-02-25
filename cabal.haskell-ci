@@ -50,6 +50,9 @@ doctest: True
 doctest-options: --fast
 -- doctest-version: ==0.13.*
 
+-- macOS job
+osx: 8.4.4
+
 -- Constraint sets
 -- Package will be build with different constraints.
 -- This is useful to check compatibility with older versions of dependencies.

@@ -62,6 +62,7 @@ data Config = Config
     , cfgProjectName         :: Maybe String
     , cfgFolds               :: S.Set Fold
     , cfgGhcHead             :: !Bool
+    , cfgPostgres            :: !Bool
     , cfgEnv                 :: M.Map Version String
     , cfgAllowFailures       :: S.Set Version -- TODO: change to range
     , cfgLastInSeries        :: !Bool
@@ -110,6 +111,7 @@ emptyConfig = Config
     , cfgProjectName     = Nothing
     , cfgFolds           = S.empty
     , cfgGhcHead         = False
+    , cfgPostgres        = False
     , cfgEnv             = M.empty
     , cfgAllowFailures   = S.empty
     , cfgLastInSeries    = False
@@ -162,6 +164,8 @@ configGrammar = Config
         ^^^ metahelp "FOLD" "Build steps to fold"
     <*> C.booleanFieldDef     "ghc-head"                                                      #cfgGhcHead False
         ^^^ help "Add ghc-head job"
+    <*> C.booleanFieldDef     "postgresql"                                                    #cfgPostgres False
+        ^^^ help "Add postgresql service"
     <*> C.monoidalFieldAla    "env"                       Env                                 #cfgEnv
         ^^^ metahelp "ENV" "Environment variables per job (e.g. `8.0.2:HADDOCK=false`)"
     <*> C.monoidalFieldAla    "allow-failures"            (alaSet C.CommaFSep)                #cfgAllowFailures
