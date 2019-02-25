@@ -42,7 +42,6 @@ import System.Exit
 import System.FilePath.Posix ((</>), takeDirectory, takeFileName, takeExtension)
 import System.IO
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe
 import System.Environment (getArgs)
 import Control.Monad.Trans.Writer
@@ -74,15 +73,10 @@ import qualified Distribution.FieldGrammar                    as C
 import qualified Distribution.Fields.Pretty                   as C
 import qualified Distribution.PackageDescription.FieldGrammar as C
 import qualified Distribution.Types.SourceRepo                as C
+import qualified Distribution.Types.VersionRange              as C
 import qualified Text.PrettyPrint                             as PP
 
-#ifdef MIN_VERSION_ShellCheck
-import ShellCheck.Checker (checkScript)
-import qualified ShellCheck.Interface as SC
-import qualified ShellCheck.Formatter.Format as SC
-import qualified ShellCheck.Formatter.TTY as SC.TTY
-import System.IO.Unsafe (unsafePerformIO)
-#endif
+
 
 #if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup (..))
@@ -110,132 +104,12 @@ import HaskellCI.Config.Jobs
 import HaskellCI.Extras
 import HaskellCI.GHC
 import HaskellCI.Glob
+import HaskellCI.MakeTravisOutput
 import HaskellCI.Optimization
 import HaskellCI.Package
 import HaskellCI.Project
 import HaskellCI.TestedWith
-
--------------------------------------------------------------------------------
--- Script
--------------------------------------------------------------------------------
-
--- |  Encode shell command to be YAML safe and (optionally) ShellCheck it.
-sh :: String -> String
-sh = sh'
-    [ 2034 -- VAR appears unused. Verify it or export it.
-    , 2086 -- SC2086: Double quote to prevent globbing and word splitting.
-    , 2002 -- SC2002: Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead.
-    ]
-
-shForJob :: Set Version -> VersionRange -> String -> String
-shForJob  versions vr cmd
-    | all (`withinRange` vr) versions = sh cmd
-    | otherwise                       = sh $ unwords
-        [ "if"
-        , ghcVersionPredicate vr
-        , "; then"
-        , cmd
-        , "; fi"
-        ]
-
--- | Like 'sh' but with explicit SC exclude codes.
-sh' :: [Integer] -> String -> String
-#ifndef MIN_VERSION_ShellCheck
-sh' _ = shImpl
-#else
-sh' excl cmd = unsafePerformIO $ do
-  res <- checkScript iface spec
-  if null (SC.crComments res)
-     then return (shImpl cmd)
-     else SC.onResult scFormatter res iface >> fail ("ShellCheck! " ++ cmd)
-  where
-    iface = SC.SystemInterface $ \n -> return $ Left $ "cannot read file: " ++ n
-    spec  = SC.emptyCheckSpec { SC.csFilename = "stdin"
-                              , SC.csScript = cmd
-                              , SC.csExcludedWarnings = excl
-                              , SC.csShellTypeOverride = Just SC.Sh
-                              }
-
-scFormatter :: SC.Formatter
-scFormatter = unsafePerformIO (SC.TTY.format (SC.newFormatterOptions { SC.foColorOption = SC.ColorAlways }))
-#endif
-
--- Non-ShellCheck version of sh'
-shImpl :: String -> String
-shImpl cmd
-    | ':' `elem` cmd = "  - " ++ show cmd
-    | otherwise      = "  - " ++ cmd
-
-comment :: String -> String
-comment = ("  # " ++)
-
-type MakeTravisOutput = Result Diagnostic [String]
-
-data Diagnostic
-    = Info String
-    | Warn String
-    | Error String
-  deriving (Eq, Show)
-
-formatDiagnostics :: [Diagnostic] -> String
-formatDiagnostics = unlines . map formatDiagnostic
-
-formatDiagnostic :: Diagnostic -> String
-formatDiagnostic (Error s) = "*ERROR* " ++ s
-formatDiagnostic (Warn  s) = "*WARNING* " ++ s
-formatDiagnostic (Info  s) = "*INFO* " ++ s
-
--- MaybeT is used to preserve the short-circuiting semantics of 'putStrLnErr'.
-type YamlWriter m a = MaybeT (WriterT MakeTravisOutput m) a
-
-putStrLnErr :: Monad m => String -> YamlWriter m a
-putStrLnErr m = do
-    lift . tell $ Failure [Error m]
-    mzero
-
-putStrLnErrs :: Monad m => [String] -> YamlWriter m ()
-putStrLnErrs [] = return ()
-putStrLnErrs ms = do
-    lift (tell (Failure (map Error ms)))
-    mzero
-
-putStrLnWarn, putStrLnInfo :: Monad m => String -> YamlWriter m ()
-putStrLnWarn m = lift . tell $ Success [Warn m] []
-putStrLnInfo m = lift . tell $ Success [Info m] []
-
-tellStrLn :: Monad m => String -> YamlWriter m ()
-tellStrLn str = lift . tell $ success [str]
-
-tellStrLns :: Monad m => [String] -> YamlWriter m ()
-tellStrLns = lift . tell . success
-
-foldedTellStrLns
-    :: Monad m
-    => Fold
-    -> String
-    -> Set Fold
-    -> YamlWriter m ()
-    -> YamlWriter m ()
-foldedTellStrLns label = foldedTellStrLns' label ""
-
-foldedTellStrLns'
-    :: Monad m
-    => Fold
-    -> String
-    -> String
-    -> Set Fold
-    -> YamlWriter m ()
-    -> YamlWriter m ()
-foldedTellStrLns' label pfx prettyLabel labels output
-    | label `S.notMember` labels = output
-    | otherwise = tellStrLns [prologue] >> output >> tellStrLns epilogue
-  where
-    prologue = mconcat
-        [ "  - echo ", prettyLabel
-        , " && echo -en 'travis_fold:start:", showFold' label, "\\\\r'" ]
-    epilogue = ["  - echo -en 'travis_fold:end:" ++ showFold' label ++ "\\\\r'" ]
-
-    showFold' l = showFold l ++ if null pfx then "" else "-" ++ pfx
+import HaskellCI.Version
 
 -------------------------------------------------------------------------------
 -- Main
@@ -466,7 +340,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     tellStrLns
         [ "# This Travis job script has been generated by a script via"
         , "#"
-        , "#   haskell-ci " ++ unwords [ "'" ++ a ++ "'" | a <- argv ]
+        , rawRow $ "#   haskell-ci " ++ unwords [ "'" ++ a ++ "'" | a <- argv ]
         , "#"
         , "# For more information, see https://github.com/haskell-CI/haskell-ci"
         , "#"
@@ -479,7 +353,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         ]
 
     let projectName = fromMaybe (pkgName $ head pkgs) (cfgProjectName config)
-    unless (null $ cfgIrcChannels config) $ tellStrLns $
+    unless (null $ cfgIrcChannels config) $ tellStrLnsRaw $
         [ "notifications:"
         , "  irc:"
         , "    channels:"
@@ -491,7 +365,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , ""
         ]
 
-    unless (null $ cfgOnlyBranches config) $ tellStrLns $
+    unless (null $ cfgOnlyBranches config) $ tellStrLnsRaw $
         [ "branches:"
         , "  only:"
         ] ++
@@ -556,17 +430,17 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
                 colls' = [ cid | (v,cid) <- colls, Just v == gv ]
 
-            tellStrLns
-                [ "    - compiler: \"ghc-" <> gvs <> "\""
+            tellStrLnsRaw $ catMaybes
+                [ Just $ "    - compiler: \"ghc-" <> gvs <> "\""
                 , if | Just e <- gv >>= \v -> M.lookup v (cfgEnv config)
-                                     -> "      env: " ++ e
-                     | previewGHC gv -> "      env: GHCHEAD=true"
-                     | null colls'   -> "    # env: TEST=--disable-tests BENCH=--disable-benchmarks"
-                     | otherwise     -> "      env: 'COLLECTIONS=" ++ intercalate "," colls' ++ "'"
-                , "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-" <> cvs <> ",ghc-" <> gvs <> xpkgs' <> "], sources: [hvr-ghc]}}"
+                                     -> Just $ "      env: " ++ e
+                     | previewGHC gv -> Just $ "      env: GHCHEAD=true"
+                     | null colls'   -> Nothing
+                     | otherwise     -> Just $ "      env: 'COLLECTIONS=" ++ intercalate "," colls' ++ "'"
+                , Just $ "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-" <> cvs <> ",ghc-" <> gvs <> xpkgs' <> "], sources: [hvr-ghc]}}"
                 ]
 
-            when osx $ tellStrLns
+            when osx $ tellStrLnsRaw
                 [ "      os: osx"
                 ]
 
@@ -575,7 +449,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     F.forM_ (reverse $ S.toList versions) $ tellJob False
     F.forM_ (reverse $ S.toList osxVersions) $ tellJob True . Just
 
-    let allowFailures = headGhcVers `S.union` S.map Just (cfgAllowFailures config)
+    let allowFailures = headGhcVers `S.union` S.map Just (S.filter (`C.withinRange` cfgAllowFailures config) versions')
     unless (S.null allowFailures) $ do
         tellStrLn ""
         tellStrLn "  allow_failures:"
@@ -620,9 +494,10 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , "install:"
         , sh "${CABAL} --version"
         , sh "echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
-        , sh "BENCH=${BENCH---enable-benchmarks}"
-        , sh "TEST=${TEST---enable-tests}"
-        , sh "UNCONSTRAINED=${UNCONSTRAINED-true}"
+        , sh "TEST=--enable-tests"
+        , shForJob versions' (invertVersionRange $ cfgTests config) "TEST=--disable-tests"
+        , sh "BENCH=--enable-benchmarks"
+        , shForJob versions' (invertVersionRange $ cfgBenchmarks config) "BENCH=--disable-benchmarks"
         , sh "GHCHEAD=${GHCHEAD-false}"
         ]
 
@@ -698,7 +573,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     let pkgFilter = intercalate " | " $ map (wrap.pkgName) pkgs
         wrap s = "grep -Fv \"" ++ s ++ " ==\""
-    unless (null colls) $ tellStrLns
+    unless (null colls) $ tellStrLnsRaw
         [ "  - for COLL in \"${COLLS[@]}\"; do"
         , "      echo \"== collection $COLL ==\";"
         , "      ghc-travis collection ${COLL} > /dev/null || break;"
@@ -711,7 +586,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         ]
 
     forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
-        [ "  - if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then (cd \"" ++ pkgDir ++ "\" && autoreconf -i); fi"
+        [ sh $ "if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then (cd \"" ++ pkgDir ++ "\" && autoreconf -i); fi"
         ]
 
     let quotedRmPaths =
@@ -734,8 +609,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             -- install dependencies
             , sh $ "${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
             ]
-        when (cfgNoTestsNoBench config) $ tellStrLns
-            [ sh $ "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
+        tellStrLns
+            [ shForJob versions' (cfgNoTestsNoBench config) $ "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
             ]
 
     tellStrLns
@@ -767,9 +642,9 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             ]
         generateCabalProject True
 
-    when (cfgNoTestsNoBench config) $ foldedTellStrLns FoldBuild "Building..." folds $ tellStrLns
+    unless (equivVersionRanges noVersion $ cfgNoTestsNoBench config) $ foldedTellStrLns FoldBuild "Building..." folds $ tellStrLns
         [ comment "this builds all libraries and executables (without tests/benchmarks)"
-        , sh "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all"
+        , shForJob versions' (cfgNoTestsNoBench config) $ "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all"
         ]
 
     tellStrLns [""]
@@ -834,16 +709,16 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                         ]
         tellStrLns [ "" ]
 
-    when (cfgCheck config) $
+    unless (equivVersionRanges noVersion $ cfgCheck config) $
         foldedTellStrLns FoldCheck "cabal check..." folds $ do
             tellStrLns [ comment "${CABAL} check" ]
             forM_ pkgs $ \Pkg{pkgName,pkgJobs} -> tellStrLns
-                [ shForJob versions' pkgJobs $
+                [ shForJob versions' (pkgJobs `intersectVersionRanges` cfgCheck config) $
                   "(cd " ++ pkgName ++ "-* && ${CABAL} check)"
                 ]
             tellStrLns [ "" ]
 
-    when hasLibrary $
+    when (hasLibrary && not (equivVersionRanges noVersion $ cfgHaddock config)) $
         foldedTellStrLns FoldHaddock "Haddock..." folds $ tellStrLns
             [ comment "haddock"
             , shForJob versions' (cfgHaddock config) "${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all"
@@ -851,7 +726,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             ]
 
     unless (null colls) $
-        foldedTellStrLns FoldStackage "Stackage builds..." folds $ tellStrLns
+        foldedTellStrLns FoldStackage "Stackage builds..." folds $ tellStrLnsRaw
             [ "  # try building & testing for package collections"
             , "  - for COLL in \"${COLLS[@]}\"; do"
             , "      echo \"== collection $COLL ==\";"
@@ -866,16 +741,10 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             ]
 
     -- Have to build last, as we remove cabal.project.local
-    when (cfgUnconstrainted config) $ foldedTellStrLns FoldBuildInstalled
+    unless (equivVersionRanges noVersion $ cfgUnconstrainted config) $ foldedTellStrLns FoldBuildInstalled
         "Building without installed constraints for packages in global-db..." folds $ tellStrLns
         [ comment "Build without installed constraints for packages in global-db"
-        -- SC2046: Quote this to prevent word splitting.
-        -- here we split on purpose!
-        , sh' [2046, 2086] $ unwords
-            [ "if $UNCONSTRAINED;"
-            , "then rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;"
-            , "else echo \"Not building without installed constraints\"; fi"
-            ]
+        , shForJob versions' (cfgUnconstrainted config) "rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;"
         , ""
         ]
 
@@ -893,7 +762,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
             let cmd | csRunTests cs = "${CABAL} new-test  -w ${HC} --enable-tests  --enable-benchmarks"
                     | otherwise     = "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks"
-            tellStrLns [ comment  "Constraint set " ++ name ]
+            tellStrLns [ comment $ "Constraint set " ++ name ]
             foldedTellStrLns' FoldConstraintSets name ("Constraint set " ++ name) folds $ tellStrLns
                 [ shForJob versions' (csGhcVersions cs) $
                   cmd ++ " " ++ constraintFlags ++ " all"
@@ -901,7 +770,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                 ]
         tellStrLns [""]
 
-    tellStrLns
+    tellStrLnsRaw
         [ "# REGENDATA " ++ show argv
         , "# EOF"
         ]
@@ -1142,59 +1011,3 @@ hlintArgs gpd = doctestArgs gpd ++
     [ executableModuleArgs e
     | e <- flattenPackageDescription gpd ^.. L.executables . traverse
     ]
-
--------------------------------------------------------------------------------
--- GHC Version
--------------------------------------------------------------------------------
-
-ghcVersionToString :: Version -> String
-ghcVersionToString v =  case versionNumbers v of
-    []        -> "0"
-    [x]       -> show (x * 10000)
-    [x,y]     -> show (x * 10000 + y * 100)
-    (x:y:z:_) -> show (x * 10000 + y * 100 + z)
-
--------------------------------------------------------------------------------
--- Result
--------------------------------------------------------------------------------
-
-data Result e a
-    = Success [e] a
-    | Failure [e]
-    deriving (Eq, Show, Functor)
-
-success :: a -> Result e a
-success = Success []
-
-instance Monoid a => Monoid (Result e a) where
-    mempty = success mempty
-    mappend = (<>)
-
-instance Monoid a => Semigroup (Result e a) where
-    Failure err1   <> Failure err2   = Failure $ err1 <> err2
-    Failure err1   <> Success err2 _ = Failure $ err1 <> err2
-    Success err1 _ <> Failure err2   = Failure $ err1 <> err2
-    Success l1 o1  <> Success l2 o2  = Success (mappend l1 l2) (mappend o1 o2)
-
--------------------------------------------------------------------------------
--- ConstraintSet
--------------------------------------------------------------------------------
-
-ghcVersionPredicate :: VersionRange -> String
-ghcVersionPredicate = conj . asVersionIntervals
-  where
-    conj = intercalate "  ||  " . map disj
-
-    disj :: VersionInterval -> String
-    disj (LowerBound v InclusiveBound, UpperBound u InclusiveBound)
-        | v == u              = "[ $HCNUMVER -eq " ++ f v ++ " ]"
-    disj (lb, NoUpperBound)   = lower lb
-    disj (lb, UpperBound v b) = lower lb ++ " && " ++ upper v b
-
-    lower (LowerBound v InclusiveBound) = "[ $HCNUMVER -ge " ++ f v ++ " ]"
-    lower (LowerBound v ExclusiveBound) = "[ $HCNUMVER -gt " ++ f v ++ " ]"
-
-    upper v InclusiveBound = "[ $HCNUMVER -le " ++ f v ++ " ]"
-    upper v ExclusiveBound = "[ $HCNUMVER -lt " ++ f v ++ " ]"
-
-    f = ghcVersionToString

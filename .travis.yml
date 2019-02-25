@@ -34,22 +34,17 @@ before_cache:
 matrix:
   include:
     - compiler: "ghc-8.6.3"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.3], sources: [hvr-ghc]}}
     - compiler: "ghc-8.4.4"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
     - compiler: "ghc-8.2.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.2.2], sources: [hvr-ghc]}}
     - compiler: "ghc-8.0.2"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.0.2], sources: [hvr-ghc]}}
     - compiler: "ghc-head"
       env: GHCHEAD=true
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-head,ghc-head], sources: [hvr-ghc]}}
     - compiler: "ghc-8.4.4"
-    # env: TEST=--disable-tests BENCH=--disable-benchmarks
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
       os: osx
 
@@ -72,9 +67,8 @@ before_install:
 install:
   - ${CABAL} --version
   - echo "$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]"
-  - BENCH=${BENCH---enable-benchmarks}
-  - TEST=${TEST---enable-tests}
-  - UNCONSTRAINED=${UNCONSTRAINED-true}
+  - TEST=--enable-tests
+  - BENCH=--enable-benchmarks
   - GHCHEAD=${GHCHEAD-false}
   - travis_retry ${CABAL} update -v
   - "sed -i.bak 's/^jobs:/-- jobs:/' $CABALHOME/config"
@@ -167,16 +161,16 @@ script:
   - ${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all
 
   # Build without installed constraints for packages in global-db
-  - if $UNCONSTRAINED; then rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all; else echo "Not building without installed constraints"; fi
+  - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;
 
   # Constraint sets
   - rm -rf cabal.project.local
 
   # Constraint set deepseq-1.4
-  - echo Constraint set deepseq-1.4 && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\r'
+  - "echo Constraint set deepseq-1.4 && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\\\r'"
   - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks  --constraint='deepseq ==1.4.*' all ; fi
 
-  - echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\r'
+  - "echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\\\r'"
 
 # REGENDATA ["--output=.travis.yml","--config=cabal.haskell-ci","haskell-ci.cabal"]
 # EOF

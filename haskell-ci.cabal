@@ -29,34 +29,29 @@ author:             Herbert Valerio Riedel, Oleg Grenrus
 maintainer:         hvr@gnu.org
 category:           Development
 build-type:         Simple
-tested-with:        ghc ==8.6.3 || ==8.4.4 || ==8.2.2 || ==8.0.2
+tested-with:        GHC ==8.6.3 || ==8.4.4 || ==8.2.2 || ==8.0.2
 extra-source-files:
   fixtures/cabal.haskell-ci
-
   fixtures/cabal.project.fail-versions
   fixtures/cabal.project.fail-versions.stderr
-
   fixtures/haskell-ci.cabal
   fixtures/cabal.project.empty-line
   fixtures/cabal.project.messy
   fixtures/cabal.project.copy-fields.all
   fixtures/cabal.project.copy-fields.some
   fixtures/cabal.project.copy-fields.none
-
   fixtures/haskell-ci.cabal.stderr
   fixtures/cabal.project.empty-line.stderr
   fixtures/cabal.project.messy.stderr
   fixtures/cabal.project.copy-fields.all.stderr
   fixtures/cabal.project.copy-fields.some.stderr
   fixtures/cabal.project.copy-fields.none.stderr
-
   fixtures/haskell-ci.cabal.travis.yml
   fixtures/cabal.project.empty-line.travis.yml
   fixtures/cabal.project.messy.travis.yml
   fixtures/cabal.project.copy-fields.all.travis.yml
   fixtures/cabal.project.copy-fields.some.travis.yml
   fixtures/cabal.project.copy-fields.none.travis.yml
-
   fixtures/servant-client-core/*.cabal
   fixtures/servant-client/*.cabal
   fixtures/servant-docs/*.cabal
@@ -89,6 +84,7 @@ library
     HaskellCI.Extras
     HaskellCI.GHC
     HaskellCI.Glob
+    HaskellCI.MakeTravisOutput
     HaskellCI.Newtypes
     HaskellCI.Optimization
     HaskellCI.OptionsGrammar
@@ -98,6 +94,7 @@ library
     HaskellCI.ParsecUtils
     HaskellCI.Project
     HaskellCI.TestedWith
+    HaskellCI.Version
 
   -- vendored from Cabal development version
   other-modules:      Distribution.Fields.Pretty

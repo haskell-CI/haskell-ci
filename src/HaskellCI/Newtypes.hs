@@ -16,7 +16,10 @@ import qualified Distribution.Parsec.Class       as C
 import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.Version      as C
+import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
+
+import           HaskellCI.Version
 
 -------------------------------------------------------------------------------
 -- PackageLocation
@@ -111,6 +114,27 @@ instance C.Parsec Int' where
 
 instance C.Pretty Int' where
     pretty (Int' i) = PP.int i
+
+-------------------------------------------------------------------------------
+-- Range
+-------------------------------------------------------------------------------
+
+newtype Range = Range C.VersionRange
+
+instance C.Newtype Range C.VersionRange where
+    pack = coerce
+    unpack = coerce
+
+instance C.Parsec Range where
+    parsec = fmap Range $ C.parsec <|> fromBool <$> C.parsec where
+        fromBool True  = C.anyVersion
+        fromBool False = C.noVersion
+
+instance C.Pretty Range where
+    pretty (Range r)
+        | equivVersionRanges r C.anyVersion = C.pretty True
+        | equivVersionRanges r C.noVersion  = C.pretty False
+        | otherwise                         = C.pretty r
 
 -------------------------------------------------------------------------------
 -- AlaSet
