@@ -123,14 +123,16 @@ library
     , deepseq       ^>=1.4.2.0
     , directory     ^>=1.3.0.0
     , filepath      ^>=1.4.1.1
-    , parsec
+    , parsec        ^>=3.1.13.0
     , pretty        ^>=1.1.3.3
+    , text          ^>=1.2.3.0
     , transformers  ^>=0.5.2.0
 
   -- other dependencies
   build-depends:
     , base-compat           ^>=0.10.5
     , generic-lens          ^>=1.1.0.0
+    , HsYAML                ^>=0.1.1.3
     , microlens             ^>=0.4.10
     , optparse-applicative  ^>=0.14.3.0
 

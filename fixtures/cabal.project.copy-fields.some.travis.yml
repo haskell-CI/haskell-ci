@@ -71,7 +71,7 @@ before_install:
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
   - CABALHOME=$HOME/.cabal
-  - "export PATH=\"$CABALHOME/bin:$PATH\""
+  - export PATH="$CABALHOME/bin:$PATH"
   - ROOTDIR=$(pwd)
   - HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 * 10000 + \2 * 100 + \3/') ))
   - echo $HCNUMVER
@@ -83,7 +83,7 @@ install:
   - BENCH=--enable-benchmarks
   - GHCHEAD=${GHCHEAD-false}
   - travis_retry ${CABAL} update -v
-  - "sed -i.bak 's/^jobs:/-- jobs:/' $CABALHOME/config"
+  - sed -i.bak 's/^jobs:/-- jobs:/' $CABALHOME/config
   - rm -fv cabal.project cabal.project.local
   - grep -Ev -- '^\s*--' $CABALHOME/config | grep -Ev '^\s*$'
   - rm -f cabal.project
