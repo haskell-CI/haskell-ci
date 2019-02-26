@@ -157,7 +157,7 @@ test-suite golden
   main-is:          Tests.hs
   hs-source-dirs:   test
   build-depends:
-    , ansi-terminal  ^>=0.8.0.2
+    , ansi-terminal  ^>=0.9
     , base
     , bytestring
     , Diff           ^>=0.3.4
