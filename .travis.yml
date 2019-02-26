@@ -154,7 +154,7 @@ script:
   - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src) ; fi
   - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml cli) ; fi
 
-  # ${CABAL} check
+  # cabal check
   - (cd haskell-ci-* && ${CABAL} check)
 
   # haddock

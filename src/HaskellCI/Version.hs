@@ -39,4 +39,4 @@ ghcVersionToString v =  case C.versionNumbers v of
     (x:y:z:_) -> show (x * 10000 + y * 100 + z)
 
 equivVersionRanges :: C.VersionRange -> C.VersionRange -> Bool
-equivVersionRanges = on (==) C.simplifyVersionRange
+equivVersionRanges = on (==) C.asVersionIntervals

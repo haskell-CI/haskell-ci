@@ -146,7 +146,7 @@ script:
   - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all
   - if [ "x$TEST" = "x--enable-tests" ]; then ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all; fi
 
-  # ${CABAL} check
+  # cabal check
   - (cd servant-* && ${CABAL} check)
   - (cd servant-client-* && ${CABAL} check)
   - (cd servant-docs-* && ${CABAL} check)

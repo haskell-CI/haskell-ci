@@ -709,11 +709,11 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                         ]
         tellStrLns [ "" ]
 
-    unless (equivVersionRanges noVersion $ cfgCheck config) $
+    when (cfgCheck config) $
         foldedTellStrLns FoldCheck "cabal check..." folds $ do
-            tellStrLns [ comment "${CABAL} check" ]
+            tellStrLns [ comment "cabal check" ]
             forM_ pkgs $ \Pkg{pkgName,pkgJobs} -> tellStrLns
-                [ shForJob versions' (pkgJobs `intersectVersionRanges` cfgCheck config) $
+                [ shForJob versions' pkgJobs $
                   "(cd " ++ pkgName ++ "-* && ${CABAL} check)"
                 ]
             tellStrLns [ "" ]

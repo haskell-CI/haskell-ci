@@ -18,9 +18,11 @@ import qualified Distribution.FieldGrammar   as C
 import qualified Distribution.Parsec.Class   as C
 import qualified Distribution.Parsec.Field   as C
 import qualified Distribution.Pretty         as C
+import qualified Distribution.Version        as C
 import qualified Options.Applicative         as O
 
 import           HaskellCI.OptionsGrammar
+import           HaskellCI.Version
 
 data SomeParser s where
     SP :: (Maybe String -> Maybe String -> O.Parser (s -> s)) -> SomeParser s
@@ -83,6 +85,23 @@ instance OptionsGrammar OptparseGrammar where
         [ SP $ \_m _h -> p (Just m) (Just h)
         | SP p <- ps
         ]
+
+    -- example: @rangeField tests #cfgTests anyVersion@, generates options:
+    --
+    -- --tests
+    -- --no-tests
+    -- --tests-jobs RANGE
+    --
+    -- where the --no-tests has help, because it's not default.
+    --
+    rangeField fn l def = OG
+        [ SP $ \_m  h -> setOG l $ O.flag' C.anyVersion $ flagMods fn (th h)
+        , SP $ \_m  h -> setOG l $ O.flag' C.noVersion  $ flagMods ("no-" <> fn) (fh h)
+        , SP $ \_m _h -> setOG l $ O.option readMParsec $ O.long (fromUTF8BS $ fn <> "-jobs") <> O.metavar "RANGE"
+        ]
+      where
+        th h = if equivVersionRanges def C.anyVersion then Nothing else h
+        fh h = if equivVersionRanges def C.anyVersion then h else Nothing
 
 optionMods :: (O.HasName mods, O.HasMetavar mods) => C.FieldName -> Maybe String -> Maybe String -> O.Mod mods a
 optionMods fn mmetavar mhelp = flagMods fn mhelp

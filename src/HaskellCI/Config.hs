@@ -59,7 +59,7 @@ data Config = Config
     , cfgHaddock             :: !VersionRange
     , cfgNoTestsNoBench      :: !VersionRange
     , cfgUnconstrainted      :: !VersionRange
-    , cfgCheck               :: !VersionRange
+    , cfgCheck               :: !Bool
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
     , cfgProjectName         :: Maybe String
@@ -110,7 +110,7 @@ emptyConfig = Config
     , cfgHaddock         = anyVersion
     , cfgNoTestsNoBench  = anyVersion
     , cfgUnconstrainted  = anyVersion
-    , cfgCheck           = anyVersion
+    , cfgCheck           = True
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
     , cfgProjectName     = Nothing
@@ -151,18 +151,18 @@ configGrammar = Config
         ^^^ help "Skip separate dependency installation step"
     <*> C.monoidalFieldAla    "installed"                 (C.alaList C.FSep)                  #cfgInstalled
         ^^^ metahelp "+/-PKG" "Specify 'constraint: ... installed' packages"
-    <*> C.optionalFieldDefAla "tests"                     Range                               #cfgTests anyVersion
+    <*> rangeField            "tests"                                                         #cfgTests anyVersion
         ^^^ metahelp "RANGE" "Build and run tests with"
-    <*> C.optionalFieldDefAla "benchmarks"                Range                               #cfgBenchmarks anyVersion
+    <*> rangeField           "benchmarks"                                                     #cfgBenchmarks anyVersion
         ^^^ metahelp "RANGE" "Build benchmarks"
-    <*> C.optionalFieldDefAla "haddock"                   Range                               #cfgHaddock anyVersion
+    <*> rangeField           "haddock"                                                        #cfgHaddock anyVersion
         ^^^ metahelp "RANGE" "Haddock step"
-    <*> C.optionalFieldDefAla "no-tests-no-benchmarks"    Range                               #cfgNoTestsNoBench anyVersion
+    <*> rangeField           "no-tests-no-benchmarks"                                         #cfgNoTestsNoBench anyVersion
         ^^^ metahelp "RANGE" "Build without tests and benchmarks"
-    <*> C.optionalFieldDefAla "unconstrained"             Range                               #cfgUnconstrainted anyVersion
+    <*> rangeField            "unconstrained"                                                 #cfgUnconstrainted anyVersion
         ^^^ metahelp "RANGE" "Make unconstrained build"
-    <*> C.optionalFieldDefAla "cabal-check"               Range                               #cfgCheck anyVersion
-        ^^^ metahelp "RANGE" "Run cabal check"
+    <*> C.booleanFieldDef "cabal-check"                                                       #cfgCheck True
+        ^^^ help "Disable cabal check run"
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches
         ^^^ metahelp "BRANCH" "Enable builds only for specific branches"
     <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        #cfgIrcChannels
