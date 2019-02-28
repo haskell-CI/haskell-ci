@@ -534,7 +534,6 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , sh "BENCH=--enable-benchmarks"
         , shForJob versions' (invertVersionRange $ cfgBenchmarks config) "BENCH=--disable-benchmarks"
         , sh "GHCHEAD=${GHCHEAD-false}"
-        , sh "if [ \"$TRAVIS_OS_NAME\" = \"windows\" ]; then export CABALHOME=$APPDATA/cabal; else export CABALHOME=$HOME/.cabal; fi"
         ]
 
     -- Update hackage index. Side-effect: ~/.cabal.config is created.
