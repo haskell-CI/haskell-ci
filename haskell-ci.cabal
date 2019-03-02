@@ -98,6 +98,7 @@ library
 
   -- vendored from Cabal development version
   other-modules:      Distribution.Fields.Pretty
+                      Paths_haskell_ci
   ghc-options:
     -Wall -Wcompat -Wnoncanonical-monad-instances
     -Wnoncanonical-monadfail-instances

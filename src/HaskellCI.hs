@@ -37,6 +37,7 @@ import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set as S
 import qualified Data.Map as M
+import qualified Data.Version as V
 import System.Directory (doesDirectoryExist, doesFileExist)
 import System.Exit
 import System.FilePath.Posix ((</>), takeDirectory, takeFileName, takeExtension)
@@ -110,6 +111,8 @@ import HaskellCI.Package
 import HaskellCI.Project
 import HaskellCI.TestedWith
 import HaskellCI.Version
+
+import Paths_haskell_ci (version)
 
 -------------------------------------------------------------------------------
 -- Main
@@ -343,6 +346,8 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , rawRow $ "#   haskell-ci " ++ unwords [ "'" ++ a ++ "'" | a <- argv ]
         , "#"
         , "# For more information, see https://github.com/haskell-CI/haskell-ci"
+        , "#"
+        , rawRow $ "# version: " ++ V.showVersion version
         , "#"
         , "language: c"
         , "dist: xenial"
