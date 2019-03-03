@@ -68,7 +68,7 @@ flag ShellCheck
   default: True
   manual:  True
 
-library
+library haskell-ci-internal
   exposed-modules:
     HaskellCI
     HaskellCI.Cli
@@ -148,7 +148,7 @@ executable haskell-ci
   hs-source-dirs:   cli
   build-depends:
     , base
-    , haskell-ci
+    , haskell-ci-internal
 
   default-language: Haskell2010
 
@@ -157,15 +157,15 @@ test-suite golden
   main-is:          Tests.hs
   hs-source-dirs:   test
   build-depends:
-    , ansi-terminal  ^>=0.8.0.2
+    , ansi-terminal        ^>=0.8.0.2
     , base
     , bytestring
-    , Diff           ^>=0.3.4
+    , Diff                 ^>=0.3.4
     , directory
     , filepath
-    , haskell-ci
-    , tasty          >=1.0     && <1.2
-    , tasty-golden   ^>=2.3.1.1
+    , haskell-ci-internal
+    , tasty                >=1.0     && <1.2
+    , tasty-golden         ^>=2.3.1.1
     , transformers
 
   -- inherited constraints via lib:haskell-ci

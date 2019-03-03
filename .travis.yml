@@ -159,9 +159,6 @@ script:
   # cabal check
   - (cd haskell-ci-* && ${CABAL} check)
 
-  # haddock
-  - ${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all
-
   # Build without installed constraints for packages in global-db
   - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;
 
