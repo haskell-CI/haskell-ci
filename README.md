@@ -39,7 +39,7 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
   or
 
     ```bash
-    stack install --stack-yaml=stack-8.6.3.yaml
+    stack install
     ```
 
     *Note:* currently (2019-02-12) released version of `haskell-ci` installs
