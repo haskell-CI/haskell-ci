@@ -36,6 +36,11 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
     ```bash
     cabal new-install haskell-ci
     ```
+  or
+
+    ```bash
+    stack install --stack-yaml=stack-8.6.3.yaml
+    ```
 
     *Note:* currently (2019-02-12) released version of `haskell-ci` installs
     an executable named `make-travis-yml`
