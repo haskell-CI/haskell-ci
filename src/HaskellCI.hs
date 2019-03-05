@@ -822,12 +822,6 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                     tellStrLns
                         [ sh $ "echo 'allow-newer: " ++ s ++ "' >> cabal.project"
                         ]
-                unless (null (cfgLocalGhcOptions config)) $ forM_ pkgs $ \Pkg{pkgName} -> do
-                    let s = unwords $ map (show . PU.showToken) $ cfgLocalGhcOptions config
-                    tellStrLns
-                        [ sh $ "echo 'package " ++ pkgName ++ "' >> cabal.project"
-                        , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
-                        ]
 
                 when (prjReorderGoals prj) $
                     tellStrLns
@@ -853,6 +847,13 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         tellStrLns
             [ sh $ "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
             ]
+
+        unless (null (cfgLocalGhcOptions config)) $ forM_ pkgs $ \Pkg{pkgName} -> do
+            let s = unwords $ map (show . PU.showToken) $ cfgLocalGhcOptions config
+            tellStrLns
+                [ sh $ "echo 'package " ++ pkgName ++ "' >> cabal.project"
+                , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
+                ]
 
         unless (null (cfgRawProject config)) $ tellStrLns
             [ sh $ "echo '" ++ l ++ "' >> cabal.project"
