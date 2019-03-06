@@ -61,6 +61,21 @@ constraint-set deepseq-1.4
   ghc: (>= 7.8 && <7.10) || == 8.2.2
   constraints: deepseq ==1.4.*
 
+-- Copy over additional properties specified in a cabal.project file.
+-- Possible values are:
+--   none: Do not copy any properties from the cabal.project file.
+--   some: Copy a subset of the properties from the cabal.project file. (Default)
+--         The fields and sections that are copied over are:
+--
+--         * constraints
+--         * allow-newer
+--         * reorder-goals
+--         * max-backjumps
+--         * optimization
+--         * source-repository-package
+--   all: Copy every property from the cabal.project file.
+copy-fields: some
+
 -- Include these fields "as is" in generated cabal.project
 raw-project
   keep-going: False
