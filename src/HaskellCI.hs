@@ -111,10 +111,6 @@ import HaskellCI.Project
 import HaskellCI.TestedWith
 import HaskellCI.Version
 
-#ifndef CURRENT_PACKAGE_VERSION
-#define CURRENT_PACKAGE_VERSION "???"
-#endif
-
 -------------------------------------------------------------------------------
 -- Main
 -------------------------------------------------------------------------------
@@ -348,7 +344,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , "#"
         , "# For more information, see https://github.com/haskell-CI/haskell-ci"
         , "#"
-        , rawRow $ "# version: " ++ CURRENT_PACKAGE_VERSION
+        , rawRow $ "# version: " ++ haskellCIVerStr
         , "#"
         , "language: c"
         , "dist: xenial"
