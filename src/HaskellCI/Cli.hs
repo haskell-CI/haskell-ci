@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Most of client interface.
 module HaskellCI.Cli where
 
@@ -12,6 +14,10 @@ import qualified Options.Applicative      as O
 
 import           HaskellCI.Config
 import           HaskellCI.OptparseGrammar
+
+#ifndef CURRENT_PACKAGE_VERSION
+#define CURRENT_PACKAGE_VERSION "???"
+#endif
 
 -------------------------------------------------------------------------------
 -- Command
@@ -58,8 +64,18 @@ optionsP = Options
     <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
     <*> runOptparseGrammar configGrammar
 
+versionP :: O.Parser (a -> a)
+versionP = O.infoOption haskellCIVerStr (mconcat
+         [ O.long "version"
+         , O.short 'V'
+         , O.help "Print version information"
+         ])
+
+haskellCIVerStr :: String
+haskellCIVerStr = CURRENT_PACKAGE_VERSION
+
 cliParserInfo :: O.ParserInfo (Command, Options)
-cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> O.helper) $ mconcat
+cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helper) $ mconcat
     [ O.fullDesc
     , O.header "haskell-ci - generate CI scripts for Haskell projects"
     ]
@@ -68,7 +84,7 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> O.helper) $ mconcat
         [ O.command "regenerate"  $ O.info (pure CommandRegenerate) $ O.progDesc "Regenerate .travis.yml"
         , O.command "travis"      $ O.info travisP                  $ O.progDesc "Generate travis-ci config"
         , O.command "list-ghc"    $ O.info (pure CommandListGHC)    $ O.progDesc "List known GHC versions"
-        , O.command "dump-config" $ O.info (pure CommandDumpConfig) $ O.progDesc "Dump cabal.haskell-ci config with default values" 
+        , O.command "dump-config" $ O.info (pure CommandDumpConfig) $ O.progDesc "Dump cabal.haskell-ci config with default values"
         ]) <|> travisP
 
     travisP = CommandTravis
