@@ -749,17 +749,18 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             tellStrLns [ comment $ "Constraint set " ++ name ]
 
             let shForCs = shForJob versions' (csGhcVersions cs)
-            let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
+            let testFlag = if csTests cs then "--enable-tests" else "--disable-tests"
+            let benchFlag = if csBenchmarks cs then "--enable-benchmarks" else "--disable-benchmarks"
+            let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)
+            let allFlags = unwords (testFlag : benchFlag : constraintFlags)
 
             foldedTellStrLns' FoldConstraintSets name ("Constraint set " ++ name) folds $ tellStrLns
-                [ shForCs $ "CSTEST=" ++ if csTests cs then "--enable-tests" else "--disable-tests"
-                , shForCs $ "CSBENCH=" ++ if csBenchmarks cs then "--enable-benchmarks" else "--disable-benchmarks"
-                , shForCs $ "${CABAL} v2-build -w ${HC} ${CSTEST} ${CSBENCH} all " ++ constraintFlags
+                [ shForCs $ "${CABAL} v2-build -w ${HC} " ++ allFlags ++ " all"
                 , if csRunTests cs
-                  then shForCs $ "${CABAL} v2-test -w ${HC} ${CSTEST} ${CSBENCH} all " ++ constraintFlags
+                  then shForCs $ "${CABAL} v2-test -w ${HC} " ++ allFlags ++ " all"
                   else RowSkip
                 , if csHaddock cs
-                  then shForCs $ "${CABAL} v2-haddock -w ${HC} ${CSTEST} ${CSBENCH} all " ++ constraintFlags
+                  then shForCs $ "${CABAL} v2-haddock -w ${HC} " ++ allFlags ++ " all"
                   else RowSkip
                 ]
         tellStrLns [""]

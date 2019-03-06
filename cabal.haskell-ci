@@ -73,6 +73,7 @@ osx: 8.4.4
 constraint-set deepseq-1.4
   ghc: (>= 7.8 && <7.10) || == 8.2.2
   constraints: deepseq ==1.4.*
+  constraints: binary installed
 
   -- Constraint sets accept booleans for few steps, as the main script
   -- Defaults are False.
