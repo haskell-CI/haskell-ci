@@ -12,6 +12,19 @@ ghc-head: True
 -- remove cabal noise from test output
 -- cabal-noise: False
 
+-- Build tests. In addition to True and False you may specify
+-- a version range, e.g. >= 8.0 to build tests only in some jobs.
+tests: True
+
+-- Run tests. Note that only built tests are run. Accepts booleans or version range.
+run-tests: True
+
+-- Build benchmarks. There are no way to run benchmarks. Accepts booleans or version range.
+benchmarks: True
+
+-- Build haddocks. Accepts booleans or version range.
+haddock: True
+
 -- Run cabal check
 -- cabal-check: True
 
@@ -60,6 +73,11 @@ osx: 8.4.4
 constraint-set deepseq-1.4
   ghc: (>= 7.8 && <7.10) || == 8.2.2
   constraints: deepseq ==1.4.*
+
+  -- Constraint sets accept booleans for few steps, as the main script
+  -- Defaults are False.
+  -- These fields don't accept version ranges: you should rather create
+  -- another constraint set.
 
   -- tests: False
   -- run-tests: False
