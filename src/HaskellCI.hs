@@ -964,7 +964,7 @@ doctestJobVersionRange = orLaterVersion $ mkVersion [8,0]
 -- /Note:/ same argument work for hlint too, but not exactly
 --
 doctestArgs :: GenericPackageDescription -> [[String]]
-doctestArgs gpd =
+doctestArgs gpd = nub $
     [ libraryModuleArgs c
     | c <- flattenPackageDescription gpd ^.. L.library . traverse
     ] ++
@@ -1010,7 +1010,7 @@ hlintJobVersionRange vs HLintJobLatest = case S.maxView vs of
 hlintJobVersionRange _ (HLintJob v)   = thisVersion v
 
 hlintArgs :: GenericPackageDescription -> [[String]]
-hlintArgs gpd =
+hlintArgs gpd = nub $
     [ libraryModuleArgs c
     | c <- flattenPackageDescription gpd ^.. L.library . traverse
     ] ++
