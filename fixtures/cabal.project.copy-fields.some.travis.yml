@@ -4,7 +4,7 @@
 #
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
-# version: 0.2.1
+# version: 0.3
 #
 language: c
 dist: xenial
