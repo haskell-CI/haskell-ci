@@ -61,6 +61,11 @@ constraint-set deepseq-1.4
   ghc: (>= 7.8 && <7.10) || == 8.2.2
   constraints: deepseq ==1.4.*
 
+  -- tests: False
+  -- run-tests: False
+  -- benchmarks: False
+  haddock: True
+
 -- Copy over additional properties specified in a cabal.project file.
 -- Possible values are:
 --   none: Do not copy any properties from the cabal.project file.

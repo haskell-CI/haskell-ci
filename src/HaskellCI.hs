@@ -663,20 +663,17 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         ]
 
     -- cabal new-test fails if there are no test-suites.
-    when hasTests $
-        foldedTellStrLns FoldTest "Testing..." folds $ tellStrLns
-            [ sh $ mconcat
-                [ "if [ \"x$TEST\" = \"x--enable-tests\" ]; then "
-                , if cfgNoise config
-                     then "${CABAL} "
-                     else "(set -o pipefail; ${CABAL} -vnormal+nowrap+markoutput "
-                , "new-test -w ${HC} ${TEST} ${BENCH} all"
-                , if cfgNoise config
-                     then ""
-                     else " 2>&1 | sed '/^-----BEGIN CABAL OUTPUT-----$/,/^-----END CABAL OUTPUT-----$/d' )"
-                , "; fi"
-                ]
+    when hasTests $ foldedTellStrLns FoldTest "Testing..." folds $ tellStrLns
+        [ shForJob versions' (C.intersectVersionRanges (cfgTests config) (cfgRunTests config)) $ mconcat
+            [ if cfgNoise config
+                 then "${CABAL} "
+                 else "(set -o pipefail; ${CABAL} -vnormal+nowrap+markoutput "
+            , "new-test -w ${HC} ${TEST} ${BENCH} all"
+            , if cfgNoise config
+                 then ""
+                 else " 2>&1 | sed '/^-----BEGIN CABAL OUTPUT-----$/,/^-----END CABAL OUTPUT-----$/d' )"
             ]
+        ]
 
     tellStrLns [""]
 
@@ -731,21 +728,6 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             , ""
             ]
 
-    unless (null colls) $
-        foldedTellStrLns FoldStackage "Stackage builds..." folds $ tellStrLnsRaw
-            [ "  # try building & testing for package collections"
-            , "  - for COLL in \"${COLLS[@]}\"; do"
-            , "      echo \"== collection $COLL ==\";"
-            , "      ghc-travis collection ${COLL} > /dev/null || break;"
-            , "      ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
-            , "      grep ' collection-id' cabal.project.freeze;"
-            , "      rm -rf dist-newstyle/;"
-            , "      ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all || break;"
-            , "      if [ \"x$TEST\" = \"x--enable-tests\" ]; then ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all || break; fi;"
-            , "    done"
-            , ""
-            ]
-
     -- Have to build last, as we remove cabal.project.local
     unless (equivVersionRanges noVersion $ cfgUnconstrainted config) $ foldedTellStrLns FoldBuildInstalled
         "Building without installed constraints for packages in global-db..." folds $ tellStrLns
@@ -761,18 +743,24 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         tellStrLns
             [ comment "Constraint sets"
             , sh "rm -rf cabal.project.local"
-            , ""
             ]
         forM_ constraintSets $ \cs -> do
             let name = csName cs
-            let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
-            let cmd | csRunTests cs = "${CABAL} new-test  -w ${HC} --enable-tests  --enable-benchmarks"
-                    | otherwise     = "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks"
             tellStrLns [ comment $ "Constraint set " ++ name ]
+
+            let shForCs = shForJob versions' (csGhcVersions cs)
+            let constraintFlags = concatMap (\x ->  " --constraint='" ++ x ++ "'") (csConstraints cs)
+
             foldedTellStrLns' FoldConstraintSets name ("Constraint set " ++ name) folds $ tellStrLns
-                [ shForJob versions' (csGhcVersions cs) $
-                  cmd ++ " " ++ constraintFlags ++ " all"
-                , ""
+                [ shForCs $ "CSTEST=" ++ if csTests cs then "--enable-tests" else "--disable-tests"
+                , shForCs $ "CSBENCH=" ++ if csBenchmarks cs then "--enable-benchmarks" else "--disable-benchmarks"
+                , shForCs $ "${CABAL} v2-build -w ${HC} ${CSTEST} ${CSBENCH} all " ++ constraintFlags
+                , if csRunTests cs
+                  then shForCs $ "${CABAL} v2-test -w ${HC} ${CSTEST} ${CSBENCH} all " ++ constraintFlags
+                  else RowSkip
+                , if csHaddock cs
+                  then shForCs $ "${CABAL} v2-haddock -w ${HC} ${CSTEST} ${CSBENCH} all " ++ constraintFlags
+                  else RowSkip
                 ]
         tellStrLns [""]
 
