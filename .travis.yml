@@ -4,7 +4,7 @@
 #
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
-# version: 0.2
+# version: 0.2.1
 #
 language: c
 dist: xenial
@@ -35,8 +35,8 @@ before_cache:
 
 matrix:
   include:
-    - compiler: "ghc-8.6.3"
-      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.3], sources: [hvr-ghc]}}
+    - compiler: "ghc-8.6.4"
+      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.4], sources: [hvr-ghc]}}
     - compiler: "ghc-8.4.4"
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.4.4], sources: [hvr-ghc]}}
     - compiler: "ghc-8.2.2"
@@ -97,7 +97,7 @@ install:
     fi
   - grep -Ev -- '^\s*--' $CABALHOME/config | grep -Ev '^\s*$'
   - ${CABAL} new-install -w ${HC} -j2 doctest --constraint='doctest ==0.16.*'
-  - if [ $HCNUMVER -eq 80603 ] ; then ${CABAL} new-install -w ${HC} -j2 hlint --constraint='hlint ==2.1.*' ; fi
+  - if [ $HCNUMVER -eq 80604 ] ; then ${CABAL} new-install -w ${HC} -j2 hlint --constraint='hlint ==2.1.*' ; fi
   - rm -f cabal.project
   - touch cabal.project
   - "printf 'packages: \".\"\\n' >> cabal.project"
@@ -153,8 +153,8 @@ script:
   - (cd haskell-ci-* && doctest --fast -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src)
 
   # hlint
-  - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src) ; fi
-  - if [ $HCNUMVER -eq 80603 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml cli) ; fi
+  - if [ $HCNUMVER -eq 80604 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src) ; fi
+  - if [ $HCNUMVER -eq 80604 ] ; then (cd haskell-ci-* && hlint -h ${ROOTDIR}/.hlint.yaml cli) ; fi
 
   # cabal check
   - (cd haskell-ci-* && ${CABAL} check)

@@ -6,7 +6,7 @@ ENV LANG C.UTF-8
 
 # hvr-ppa and some core packages
 RUN apt-get -yq update && apt-get -yq --no-install-suggests --no-install-recommends install \
-    autoconf \
+    automake \
     build-essential \
     ca-certificates \
     git \

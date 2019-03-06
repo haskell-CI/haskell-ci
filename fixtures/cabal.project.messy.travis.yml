@@ -4,7 +4,7 @@
 #
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
-# version: 0.2
+# version: 0.2.1
 #
 language: c
 dist: xenial
@@ -30,6 +30,8 @@ before_cache:
 
 matrix:
   include:
+    - compiler: "ghc-8.6.4"
+      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.4,fftw3-dev], sources: [hvr-ghc]}}
     - compiler: "ghc-8.6.3"
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-8.6.3,fftw3-dev], sources: [hvr-ghc]}}
     - compiler: "ghc-8.6.2"
