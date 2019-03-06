@@ -31,6 +31,7 @@ category:           Development
 build-type:         Simple
 tested-with:        GHC ==8.6.4 || ==8.4.4 || ==8.2.2 || ==8.0.2
 extra-source-files:
+  CHANGELOG.md
   fixtures/cabal.haskell-ci
   fixtures/cabal.project.fail-versions
   fixtures/cabal.project.fail-versions.stderr

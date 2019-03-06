@@ -843,10 +843,6 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                     tellStrLns [ sh $ "echo 'source-repository-package' >> cabal.project" ]
                     tellStrLns [ sh $ "echo '  " ++ l ++ "' >> cabal.project" | l <- lines repo' ]
 
-        -- mandatory cabal.project setup
-        tellStrLns
-            [ sh $ "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
-            ]
 
         unless (null (cfgLocalGhcOptions config)) $ forM_ pkgs $ \Pkg{pkgName} -> do
             let s = unwords $ map (show . PU.showToken) $ cfgLocalGhcOptions config
@@ -855,10 +851,17 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
                 , sh $ "echo '  ghc-options: " ++ s ++ "' >> cabal.project"
                 ]
 
+        -- raw-project is after local-ghc-options so we can override per package.
         unless (null (cfgRawProject config)) $ tellStrLns
             [ sh $ "echo '" ++ l ++ "' >> cabal.project"
             | l <- lines $ C.showFields' 2 $ cfgRawProject config
             , not (null l)
+            ]
+
+        -- mandatory cabal.project setup
+        -- this have to be last, so configuration doesn't override it.
+        tellStrLns
+            [ sh $ "printf 'write-ghc-environment-files: always\\n' >> cabal.project"
             ]
 
         -- also write cabal.project.local file with
