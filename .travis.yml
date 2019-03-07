@@ -147,7 +147,7 @@ script:
 
   # build & run tests, build benchmarks
   - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all
-  - if [ "x$TEST" = "x--enable-tests" ]; then ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all; fi
+  - ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all
 
   # doctest
   - (cd haskell-ci-* && doctest --fast -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src)
@@ -164,11 +164,10 @@ script:
 
   # Constraint sets
   - rm -rf cabal.project.local
-
   # Constraint set deepseq-1.4
   - echo Constraint set deepseq-1.4 && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\r'
-  - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks  --constraint='deepseq ==1.4.*' all ; fi
-
+  - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} v2-build -w ${HC} --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
+  - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} v2-haddock -w ${HC} --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
   - echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\r'
 
 # REGENDATA ["--output=.travis.yml","--config=cabal.haskell-ci","haskell-ci.cabal"]

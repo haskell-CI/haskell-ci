@@ -148,7 +148,7 @@ script:
 
   # build & run tests, build benchmarks
   - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all
-  - if [ "x$TEST" = "x--enable-tests" ]; then ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all; fi
+  - ${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all
 
   # cabal check
   - (cd servant-* && ${CABAL} check)

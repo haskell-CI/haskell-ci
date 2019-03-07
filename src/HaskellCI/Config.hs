@@ -55,6 +55,7 @@ data Config = Config
     , cfgInstallDeps         :: !Bool
     , cfgInstalled           :: [Installed]
     , cfgTests               :: !VersionRange
+    , cfgRunTests            :: !VersionRange
     , cfgBenchmarks          :: !VersionRange
     , cfgHaddock             :: !VersionRange
     , cfgNoTestsNoBench      :: !VersionRange
@@ -106,6 +107,7 @@ emptyConfig = Config
     , cfgInstalled       = []
     , cfgInstallDeps     = True
     , cfgTests           = anyVersion
+    , cfgRunTests        = anyVersion
     , cfgBenchmarks      = anyVersion
     , cfgHaddock         = anyVersion
     , cfgNoTestsNoBench  = anyVersion
@@ -152,7 +154,9 @@ configGrammar = Config
     <*> C.monoidalFieldAla    "installed"                 (C.alaList C.FSep)                  #cfgInstalled
         ^^^ metahelp "+/-PKG" "Specify 'constraint: ... installed' packages"
     <*> rangeField            "tests"                                                         #cfgTests anyVersion
-        ^^^ metahelp "RANGE" "Build and run tests with"
+        ^^^ metahelp "RANGE" "Build tests with"
+    <*> rangeField            "run-tests"                                                     #cfgRunTests anyVersion
+        ^^^ metahelp "RANGE" "Run tests with (note: only built tests are run)"
     <*> rangeField           "benchmarks"                                                     #cfgBenchmarks anyVersion
         ^^^ metahelp "RANGE" "Build benchmarks"
     <*> rangeField           "haddock"                                                        #cfgHaddock anyVersion
