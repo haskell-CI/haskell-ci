@@ -160,7 +160,7 @@ script:
   - (cd haskell-ci-* && ${CABAL} check)
 
   # Build without installed constraints for packages in global-db
-  - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;
+  - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all
 
   # Constraint sets
   - rm -rf cabal.project.local

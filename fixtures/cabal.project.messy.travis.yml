@@ -174,7 +174,7 @@ script:
   - ${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all
 
   # Build without installed constraints for packages in global-db
-  - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;
+  - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all
 
 # REGENDATA ["-o","cabal.project.messy.travis.yml","--ghc-head","--apt=fftw3-dev","--installed=-all +deepseq","cabal.project.messy"]
 # EOF

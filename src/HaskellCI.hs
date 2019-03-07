@@ -728,7 +728,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     unless (equivVersionRanges noVersion $ cfgUnconstrainted config) $ foldedTellStrLns FoldBuildInstalled
         "Building without installed constraints for packages in global-db..." folds $ tellStrLns
         [ comment "Build without installed constraints for packages in global-db"
-        , shForJob versions' (cfgUnconstrainted config) "rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;"
+        , shForJob versions' (cfgUnconstrainted config) "rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all"
         , ""
         ]
 

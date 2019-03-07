@@ -160,7 +160,7 @@ script:
   - ${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all
 
   # Build without installed constraints for packages in global-db
-  - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all;
+  - rm -f cabal.project.local; ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all
 
 # REGENDATA ["-o","cabal.project.empty-line.travis.yml","--copy-fields=all","cabal.project.empty-line"]
 # EOF
