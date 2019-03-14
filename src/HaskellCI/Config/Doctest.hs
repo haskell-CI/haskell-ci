@@ -12,7 +12,7 @@ import qualified Distribution.Parsec.Newtypes as C
 import HaskellCI.OptionsGrammar
 
 data DoctestConfig = DoctestConfig
-    { cfgDoctestEnabled :: !Bool
+    { cfgDoctestEnabled :: !VersionRange
     , cfgDoctestOptions :: [String]
     , cfgDoctestVersion :: !VersionRange
     }
@@ -29,7 +29,7 @@ doctestConfigGrammar
     :: (OptionsGrammar g, Applicative (g DoctestConfig))
     => g DoctestConfig DoctestConfig
 doctestConfigGrammar = DoctestConfig
-    <$> C.booleanFieldDef  "doctest"                                             #cfgDoctestEnabled False
+    <$> rangeField         "doctest"                                             #cfgDoctestEnabled noVersion
         ^^^ help "Enable Doctest job"
     <*> C.monoidalFieldAla "doctest-options" (C.alaList' C.NoCommaFSep C.Token') #cfgDoctestOptions
         ^^^ metahelp "OPTS" "Additional Doctest options"

@@ -89,7 +89,7 @@ emptyConfig = Config
     , cfgTestedWith      = TestedWithUniform
     , cfgCopyFields      = CopyFieldsSome
     , cfgDoctest         = DoctestConfig
-        { cfgDoctestEnabled = False
+        { cfgDoctestEnabled = noVersion
         , cfgDoctestOptions = []
         , cfgDoctestVersion = defaultDoctestVersion
         }

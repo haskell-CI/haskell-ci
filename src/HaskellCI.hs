@@ -557,7 +557,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     let doctestVersionConstraint
             | isAnyVersion (cfgDoctestVersion doctestConfig) = ""
             | otherwise = " --constraint='doctest " ++ display (cfgDoctestVersion doctestConfig) ++ "'"
-    when (cfgDoctestEnabled doctestConfig) $ tellStrLns
+    when doctestEnabled $ tellStrLns
         [ shForJob versions' doctestJobVersionRange $ "${CABAL} new-install -w ${HC} -j2 doctest" ++ doctestVersionConstraint
         ]
 
@@ -673,15 +673,16 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
 
     tellStrLns [""]
 
-    when (cfgDoctestEnabled doctestConfig) $ do
+    when doctestEnabled $ do
         let doctestOptions = unwords $ cfgDoctestOptions doctestConfig
         tellStrLns [ comment "doctest" ]
         foldedTellStrLns FoldDoctest "Doctest..." folds $ do
             forM_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
                 forM_ (doctestArgs pkgGpd) $ \args -> do
                     let args' = unwords args
+                    let vr = cfgDoctestEnabled doctestConfig `intersectVersionRanges` doctestJobVersionRange `intersectVersionRanges` pkgJobs
                     unless (null args) $ tellStrLns
-                        [ shForJob versions' (doctestJobVersionRange `intersectVersionRanges` pkgJobs) $
+                        [ shForJob versions' vr $
                           "(cd " ++ pkgName ++ "-* && doctest " ++ doctestOptions ++ " " ++ args' ++ ")"
                         ]
         tellStrLns [ "" ]
@@ -769,7 +770,10 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     return ()
   where
     doctestConfig = cfgDoctest config
+    doctestEnabled = any (`withinRange` cfgDoctestEnabled doctestConfig) versions'
+
     hlintConfig   = cfgHLint config
+
 
     hasTests   = F.any (\Pkg{pkgGpd} -> not . null $ condTestSuites pkgGpd) pkgs
     hasLibrary = F.any (\Pkg{pkgGpd} -> isJust $ condLibrary pkgGpd) pkgs
