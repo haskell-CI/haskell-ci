@@ -1,6 +1,6 @@
 TAG=1
 
-COMPILERS=ghc-8.4.4 ghc-8.2.2 ghc-8.0.2 ghc-7.10.3 ghc-7.8.4 ghc-7.6.3 ghc-7.4.2 ghc-7.0.2
+COMPILERS=ghc-8.6.4 ghc-8.4.4 ghc-8.2.2 ghc-8.0.2 ghc-7.10.3 ghc-7.8.4 ghc-7.6.3 ghc-7.4.2 ghc-7.0.4
 
 IMAGES=generic-image $(COMPILERS:%=%-image)
 
