@@ -464,7 +464,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         [ ""
         , "before_install:"
         , sh "HC=/opt/ghc/bin/${CC}"
-        , sh' [2034,2039] "HCPKG=${HC/ghc/ghc-pkg}" -- SC2039. In POSIX sh, string replacement is undefined.
+        , sh "HCPKG=$(echo $HC | sed -e 's/ghc-/ghc-pkg-/')"
         , sh "unset CC"
         -- cabal
         , sh "CABAL=/opt/ghc/bin/cabal"

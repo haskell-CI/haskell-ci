@@ -71,7 +71,7 @@ matrix:
 
 before_install:
   - HC=/opt/ghc/bin/${CC}
-  - HCPKG=${HC/ghc/ghc-pkg}
+  - HCPKG=$(echo $HC | sed -e 's/ghc-/ghc-pkg-/')
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
   - CABALHOME=$HOME/.cabal
