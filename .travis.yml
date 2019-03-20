@@ -54,8 +54,8 @@ matrix:
     - compiler: "ghc-head"
 
 before_install:
-  - HC=/opt/ghc/bin/${CC}
-  - HCPKG=${HC/ghc/ghc-pkg}
+  - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
+  - HCPKG="$HC-pkg"
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
   - CABALHOME=$HOME/.cabal
