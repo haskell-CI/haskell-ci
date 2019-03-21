@@ -2,3 +2,6 @@
 -- Consult http://cabal.readthedocs.io/en/latest/nix-local-build.html for more information
 
 packages: .
+
+package haskell-ci
+  ghc-options: -Wall
