@@ -185,7 +185,7 @@ travisFromConfigFile args opts path = do
     (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
         Right x     -> return x
         Left errors -> putStrLnErrs errors >> mzero
-    genTravisFromConfigs args opts isCabalProject config prj ghcs
+    genTravisFromConfigs args opts config prj ghcs
   where
     isCabalProject :: Maybe FilePath
     isCabalProject
@@ -318,12 +318,11 @@ genTravisFromConfigs
     :: Monad m
     => [String]
     -> Options
-    -> Maybe FilePath
     -> Config
     -> Project Package
     -> Set Version
     -> YamlWriter m ()
-genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages = pkgs } versions' = do
+genTravisFromConfigs argv opts config prj@Project { prjPackages = pkgs } versions' = do
     let folds = cfgFolds config
 
     putStrLnInfo $
@@ -582,7 +581,7 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
         , "      ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
         , "      grep ' collection-id' cabal.project.freeze;"
         , "      rm -rf dist-newstyle/;"
-        , "      $(CABAL} new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++ "\" --dep -j2 all;"
+        , "      $(CABAL} new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all;"
         , "    done"
         , ""
         ]
@@ -604,15 +603,15 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
     when (cfgInstallDeps config) $ do
         tellStrLns
             -- dump install plan
-            [ sh $ "${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dry"
-            , sh $ "cat \"" ++ projectFile ++ ".freeze\" | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
-            , sh $ "rm  \"" ++ projectFile ++ ".freeze\""
+            [ sh $ "${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH} --dry"
+            , sh $ "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
+            , sh $ "rm  cabal.project.freeze"
 
             -- install dependencies
-            , sh $ "${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --project-file=\"" ++ projectFile ++"\" --dep -j2 all"
+            , sh $ "${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all"
             ]
         tellStrLns
-            [ shForJob versions' (cfgNoTestsNoBench config) $ "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --project-file=\"" ++ projectFile ++ "\" --dep -j2 all"
+            [ shForJob versions' (cfgNoTestsNoBench config) $ "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all"
             ]
 
     tellStrLns
@@ -895,9 +894,6 @@ genTravisFromConfigs argv opts isCabalProject config prj@Project { prjPackages =
             [ sh $ "cat cabal.project || true"
             , sh $ "cat cabal.project.local || true"
             ]
-
-    projectFile :: FilePath
-    projectFile = fromMaybe "cabal.project" isCabalProject
 
     quotedPaths :: (Package -> FilePath) -> [String]
     quotedPaths f = map (f . quote) pkgs
