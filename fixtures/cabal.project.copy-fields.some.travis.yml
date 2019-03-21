@@ -4,7 +4,7 @@
 #
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
-# version: 0.3.20190313
+# version: 0.3.20190320
 #
 language: c
 dist: xenial
@@ -70,8 +70,8 @@ matrix:
       addons: {apt: {packages: [ghc-ppa-tools,cabal-install-2.4,ghc-7.8.1], sources: [hvr-ghc]}}
 
 before_install:
-  - HC=/opt/ghc/bin/${CC}
-  - HCPKG=${HC/ghc/ghc-pkg}
+  - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
+  - HCPKG="$HC-pkg"
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
   - CABALHOME=$HOME/.cabal
