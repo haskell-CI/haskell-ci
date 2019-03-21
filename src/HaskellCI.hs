@@ -181,11 +181,11 @@ travisFromConfigFile args opts path = do
     cabalFiles <- getCabalFiles
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
-    pkgs <- T.mapM (configFromCabalFile config opts) cabalFiles
+    pkgs <- T.mapM (configFromCabalFile config) cabalFiles
     (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
         Right x     -> return x
         Left errors -> putStrLnErrs errors >> mzero
-    genTravisFromConfigs args opts config prj ghcs
+    genTravisFromConfigs args config prj ghcs
   where
     isCabalProject :: Maybe FilePath
     isCabalProject
@@ -236,8 +236,8 @@ travisFromConfigFile args opts path = do
             Just x  -> return (Just x)
 
 configFromCabalFile
-    :: MonadIO m => Config ->  Options -> FilePath -> YamlWriter m (Package, Set Version)
-configFromCabalFile cfg opts cabalFile = do
+    :: MonadIO m => Config -> FilePath -> YamlWriter m (Package, Set Version)
+configFromCabalFile cfg cabalFile = do
     gpd <- liftIO $ readGenericPackageDescription maxBound cabalFile
 
     let compilers = testedWith $ packageDescription gpd
@@ -288,14 +288,6 @@ configFromCabalFile cfg opts cabalFile = do
     when (null testedGhcVersions) $ do
         putStrLnErr "no known GHC version is allowed by the 'tested-with' specification"
 
-    forM_ (optCollections opts) $ \c -> do
-        let v = collToGhcVer c
-        unless (v `elem` testedGhcVersions) $
-            putStrLnErr $ unlines
-               [ "collection " ++ c ++ " requires GHC " ++ display v
-               , "add 'tested-width: GHC == " ++ display v ++ "' to your .cabal file"
-               ]
-
     let pkg = Pkg pkgNameStr anyVersion (takeDirectory cabalFile) gpd
 
     return (pkg, S.fromList testedGhcVersions)
@@ -317,12 +309,11 @@ configFromCabalFile cfg opts cabalFile = do
 genTravisFromConfigs
     :: Monad m
     => [String]
-    -> Options
     -> Config
     -> Project Package
     -> Set Version
     -> YamlWriter m ()
-genTravisFromConfigs argv opts config prj@Project { prjPackages = pkgs } versions' = do
+genTravisFromConfigs argv config prj@Project { prjPackages = pkgs } versions' = do
     let folds = cfgFolds config
 
     putStrLnInfo $
@@ -420,8 +411,6 @@ genTravisFromConfigs argv opts config prj@Project { prjPackages = pkgs } version
     tellStrLn "matrix:"
     tellStrLn "  include:"
 
-    let colls = [ (collToGhcVer cid,cid) | cid <- reverse $ optCollections opts ]
-
     let tellJob :: Monad m => Bool -> Maybe Version -> YamlWriter m ()
         tellJob osx gv = do
             let cvs = dispGhcVersion $ gv >> cfgCabalInstallVersion config
@@ -429,15 +418,12 @@ genTravisFromConfigs argv opts config prj@Project { prjPackages = pkgs } version
 
                 xpkgs' = concatMap (',':) (S.toList $ cfgApt config)
 
-                colls' = [ cid | (v,cid) <- colls, Just v == gv ]
-
             tellStrLnsRaw $ catMaybes
                 [ Just $ "    - compiler: \"ghc-" <> gvs <> "\""
                 , if | Just e <- gv >>= \v -> M.lookup v (cfgEnv config)
                                      -> Just $ "      env: " ++ e
                      | previewGHC gv -> Just $ "      env: GHCHEAD=true"
-                     | null colls'   -> Nothing
-                     | otherwise     -> Just $ "      env: 'COLLECTIONS=" ++ intercalate "," colls' ++ "'"
+                     | otherwise     -> Nothing
                 , Just $ "      addons: {apt: {packages: [ghc-ppa-tools,cabal-install-" <> cvs <> ",ghc-" <> gvs <> xpkgs' <> "], sources: [hvr-ghc]}}"
                 ]
 
@@ -486,9 +472,6 @@ genTravisFromConfigs argv opts config prj@Project { prjPackages = pkgs } version
         [ sh $ "HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+).*/\\1 * 10000 + \\2 * 100 + \\3/') ))"
         , sh "echo $HCNUMVER"
         ]
-
-    unless (null colls) $
-       tellStrLn " - IFS=', ' read -a COLLS <<< \"$COLLECTIONS\""
 
     tellStrLns
         [ ""
@@ -571,20 +554,6 @@ genTravisFromConfigs argv opts config prj@Project { prjPackages = pkgs } version
 
     -- create cabal.project file
     generateCabalProject False
-
-    let pkgFilter = intercalate " | " $ map (wrap.pkgName) pkgs
-        wrap s = "grep -Fv \"" ++ s ++ " ==\""
-    unless (null colls) $ tellStrLnsRaw
-        [ "  - for COLL in \"${COLLS[@]}\"; do"
-        , "      echo \"== collection $COLL ==\";"
-        , "      ghc-travis collection ${COLL} > /dev/null || break;"
-        , "      ghc-travis collection ${COLL} | " ++ pkgFilter ++ " > cabal.project.freeze;"
-        , "      grep ' collection-id' cabal.project.freeze;"
-        , "      rm -rf dist-newstyle/;"
-        , "      $(CABAL} new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all;"
-        , "    done"
-        , ""
-        ]
 
     forM_ pkgs $ \Pkg{pkgDir} -> tellStrLns
         [ sh $ "if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then (cd \"" ++ pkgDir ++ "\" && autoreconf -i); fi"
@@ -923,22 +892,6 @@ genTravisFromConfigs argv opts config prj@Project { prjPackages = pkgs } version
 
     ghcOmittedOsxVersions :: String
     ghcOmittedOsxVersions = showVersions $ S.map Just omittedOsxVersions
-
-
-collToGhcVer :: String -> Version
-collToGhcVer cid = case simpleParse cid of
-  Nothing -> error ("invalid collection-id syntax " ++ show cid)
-  Just (PackageIdentifier n (versionNumbers -> v))
-    | display n /= "lts" -> error ("unknown collection " ++ show cid)
-    | isPrefixOf [0] v -> mkVersion [7,8,3]
-    | isPrefixOf [1] v -> mkVersion [7,8,4]
-    | isPrefixOf [2] v -> mkVersion [7,8,4]
-    | isPrefixOf [3] v -> mkVersion [7,10,2]
-    | isPrefixOf [4] v -> mkVersion [7,10,3]
-    | isPrefixOf [5] v -> mkVersion [7,10,3]
-    | isPrefixOf [6] v -> mkVersion [7,10,3]
-    | isPrefixOf [7] v -> mkVersion [8,0,1]
-    | otherwise -> error ("unknown collection " ++ show cid)
 
 -------------------------------------------------------------------------------
 -- Doctest
