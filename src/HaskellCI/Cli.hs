@@ -35,20 +35,18 @@ data Command
 -------------------------------------------------------------------------------
 
 data Options = Options
-    { optCollections    :: [String]
-    , optOutput         :: Maybe FilePath
+    { optOutput         :: Maybe FilePath
     , optConfig         :: Maybe FilePath
     , optConfigMorphism :: Config -> Config
     }
 
 instance Semigroup Options where
-    Options a b d e <> Options a' b' d' e' =
-        Options (a <> a') (b <|> b') (d <|> d') (e' . e)
+    Options b d e <> Options b' d' e' =
+        Options (b <|> b') (d <|> d') (e' . e)
 
 defaultOptions :: Options
 defaultOptions = Options
-    { optCollections    = []
-    , optOutput         = Nothing
+    { optOutput         = Nothing
     , optConfig         = Nothing
     , optConfigMorphism = id
     }
@@ -59,8 +57,7 @@ defaultOptions = Options
 
 optionsP :: O.Parser Options
 optionsP = Options
-    <$> pure []
-    <*> O.optional (O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Optput file (stdout if omitted)"))
+    <$> O.optional (O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Optput file (stdout if omitted)"))
     <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
     <*> runOptparseGrammar configGrammar
 
