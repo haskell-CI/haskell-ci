@@ -133,11 +133,11 @@ install:
   - if [ -f "servant-docs/configure.ac" ]; then (cd "servant-docs" && autoreconf -i); fi
   - if [ -f "servant-server/configure.ac" ]; then (cd "servant-server" && autoreconf -i); fi
   - rm -f cabal.project.freeze
-  - ${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project.empty-line" --dry
-  - "cat \"cabal.project.empty-line.freeze\" | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
-  - rm  "cabal.project.empty-line.freeze"
-  - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --project-file="cabal.project.empty-line" --dep -j2 all
-  - ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --project-file="cabal.project.empty-line" --dep -j2 all
+  - ${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH} --dry
+  - "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
+  - rm  cabal.project.freeze
+  - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all
+  - ${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all
   - rm -rf .ghc.environment.* "servant"/dist "servant-client"/dist "servant-docs"/dist "servant-server"/dist
   - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)
 
