@@ -109,7 +109,7 @@ install:
   - if [ -f "servant-docs/configure.ac" ]; then (cd "servant-docs" && autoreconf -i); fi
   - if [ -f "servant-server/configure.ac" ]; then (cd "servant-server" && autoreconf -i); fi
   - rm -f cabal.project.freeze
-  - ${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH} --dry
+  - ${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH}
   - "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
   - rm  cabal.project.freeze
   - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all

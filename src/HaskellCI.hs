@@ -572,7 +572,7 @@ genTravisFromConfigs argv config prj@Project { prjPackages = pkgs } versions' = 
     when (cfgInstallDeps config) $ do
         tellStrLns
             -- dump install plan
-            [ sh $ "${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH} --dry"
+            [ sh $ "${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH}"
             , sh $ "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
             , sh $ "rm  cabal.project.freeze"
 
