@@ -113,7 +113,7 @@ install:
   - cat cabal.project.local || true
   - if [ -f "./configure.ac" ]; then (cd "." && autoreconf -i); fi
   - rm -f cabal.project.freeze
-  - ${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH} --dry
+  - ${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH}
   - "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
   - rm  cabal.project.freeze
   - ${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all
