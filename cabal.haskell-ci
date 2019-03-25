@@ -66,6 +66,10 @@ doctest-options: --fast
 -- macOS job
 osx: 8.4.4
 
+-- Define per-job environment variables
+-- env: 8.4.4:FOO=bar,
+--      8.6.4:FOO=baz
+
 -- Constraint sets
 -- Package will be build with different constraints.
 -- This is useful to check compatibility with older versions of dependencies.
