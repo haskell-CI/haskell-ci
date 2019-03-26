@@ -116,6 +116,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- HCNUMVER, numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
         sh "HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+).*/\\1 * 10000 + \\2 * 100 + \\3/') ))"
         sh "echo $HCNUMVER"
+        -- verbose in .cabal/config is not respected
+        -- https://github.com/haskell/cabal/issues/5956
+        sh "CABAL=\"$CABAL -vnormal+nowrap+markoutput\""
 
     -- in install step we install tools and dependencies
     install <- runSh $ do
