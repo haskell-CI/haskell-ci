@@ -1,28 +1,24 @@
 {-# LANGUAGE ViewPatterns #-}
 module Main (main) where
 
-import HaskellCI hiding (main)
+import HaskellCI             hiding (main)
+import HaskellCI.Diagnostics (runDiagnosticsT)
 
-import Control.Applicative ((<$>), (<*>))
-import Control.Exception (ErrorCall(..), throwIO, try)
-import Control.Monad.Trans.Maybe
-import Control.Monad.Trans.Writer
-import Data.Algorithm.Diff (Diff (..), getGroupedDiff)
-import Data.IORef
-import Data.List (isPrefixOf, stripPrefix)
-import Data.Maybe (mapMaybe)
-import Data.Monoid (mconcat)
-import System.Directory (doesFileExist, removeFile, setCurrentDirectory)
-import System.Exit (ExitCode(..), exitFailure)
-import System.FilePath (addExtension, (</>))
-import System.IO (hPutStrLn, stderr)
-import Test.Tasty (TestName, TestTree, defaultMain, testGroup)
+import Control.Applicative        ((<$>), (<*>))
+import Control.Exception          (ErrorCall (..), throwIO)
+import Data.Algorithm.Diff        (Diff (..), getGroupedDiff)
+import Data.List                  (stripPrefix)
+import Data.Maybe                 (mapMaybe)
+import Data.Monoid                (mconcat)
+import System.Directory           (doesFileExist, setCurrentDirectory)
+import System.FilePath            (addExtension)
+import Test.Tasty                 (TestName, TestTree, defaultMain, testGroup)
 import Test.Tasty.Golden.Advanced (goldenTest)
-import Text.Read (readMaybe)
+import Text.Read                  (readMaybe)
 
-import qualified Data.ByteString as BS
+import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as BS8
-import qualified System.Console.ANSI as ANSI
+import qualified System.Console.ANSI   as ANSI
 
 main :: IO ()
 main = do
@@ -57,7 +53,7 @@ fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
     (argv, opts) <- makeTravisFlags
     let genConfig = travisFromConfigFile argv opts fp
-    execWriterT (runMaybeT genConfig)
+    runDiagnosticsT genConfig
   where
     outputRef = addExtension fp "travis.yml"
     errorRef = addExtension fp "stderr"
@@ -81,11 +77,16 @@ parseOpts argv = do
     (path, opts) <- parseTravis argv
     return (opts, path)
 
+data Result
+    = Success [String] [String]
+    | Failure [String]
+  deriving Eq
+
 cabalGoldenTest
     :: TestName
     -> FilePath
     -> FilePath
-    -> IO MakeTravisOutput
+    -> IO (Maybe [String], [String])
     -> TestTree
 cabalGoldenTest name outRef errRef act = goldenTest name readGolden act' cmp upd
   where
@@ -93,8 +94,8 @@ cabalGoldenTest name outRef errRef act = goldenTest name readGolden act' cmp upd
     readData fp = lines . BS8.unpack <$> BS.readFile fp
 
     act' = flip fmap act $ \r -> case r of
-        Success ws x -> Success (map formatDiagnostic ws) x
-        Failure errs -> Failure (map formatDiagnostic errs)
+        (Nothing, diags) -> Failure diags
+        (Just x, diags)  -> Success diags x
 
     readGolden = do
         refExists <- doesFileExist outRef
