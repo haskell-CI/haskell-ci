@@ -3,9 +3,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module HaskellCI.Sh (
     Sh (..),
+    isComment,
     MonadSh (..),
     sh,
-    ShM,
+    ShM (..),
     runSh,
     ShError (..),
     FromShError (..),
@@ -32,6 +33,10 @@ data Sh
     = Sh String       -- ^ command
     | Comment String  -- ^ comment
   deriving Show
+
+isComment :: Sh -> Bool
+isComment (Comment _) = True
+isComment (Sh _)      = False
 
 -------------------------------------------------------------------------------
 -- class
@@ -140,7 +145,3 @@ instance MonadSh ShM where
             | all isComment shs -> pure ()
             | otherwise         -> ShM $ \shs1 -> Right
                 (shs1 . (\shs2 -> Comment c : shs ++ shs2), ())
-
-isComment :: Sh -> Bool
-isComment (Comment _) = True
-isComment (Sh _)      = False

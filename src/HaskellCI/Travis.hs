@@ -43,6 +43,7 @@ import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Folds
+import HaskellCI.MonadErr
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
@@ -309,7 +310,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)
                 let allFlags = unwords (testFlag : benchFlag : constraintFlags)
 
-                foldedSh FoldConstraintSets ("Constraint set " ++ name) cfgFolds $ do
+                foldedSh' FoldConstraintSets name ("Constraint set " ++ name) cfgFolds $ do
                     shForCs $ "${CABAL} v2-build -w ${HC} " ++ allFlags ++ " all"
                     when (csRunTests cs) $
                         shForCs $ "${CABAL} v2-test -w ${HC} " ++ allFlags ++ " all"
@@ -392,8 +393,31 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     justIf True x  = Just x
     justIf False _ = Nothing
 
-    -- we temporarily disable folding
-    foldedSh _ c _ = commentedBlock c
+    -- TODO: should this be part of MonadSh ?
+    foldedSh label = foldedSh' label ""
+
+    -- https://github.com/travis-ci/docs-travis-ci-com/issues/949#issuecomment-276755003
+    -- https://github.com/travis-ci/travis-rubies/blob/9f7962a881c55d32da7c76baefc58b89e3941d91/build.sh#L38-L44
+    -- https://github.com/travis-ci/travis-build/blob/91bf066/lib/travis/build/shell/dsl.rb#L58-L63
+    foldedSh' :: Fold -> String -> String -> Set Fold -> ShM () -> ShM ()
+    foldedSh' label sfx plabel labels block
+        | label `S.notMember` labels = commentedBlock plabel block
+        | otherwise = case runSh block of
+            Left err  -> throwErr err
+            Right shs
+                | all isComment shs -> pure ()
+                | otherwise         -> ShM $ \shs1 -> Right $
+                    ( shs1
+                    . (Comment plabel :)
+                    . (Sh ("echo '" ++ plabel ++ "' && echo -en 'travis_fold:start:" ++ label' ++ "\\\\r'") :)
+                    . (shs ++)
+                    . (Sh ("echo -en 'travis_fold:end:" ++ label' ++ "\\\\r'") :)
+                    -- return ()
+                    , ()
+                    )
+      where
+        label' | null sfx  = showFold label
+               | otherwise = showFold label ++ "-" ++ sfx
 
     doctestEnabled = any (`C.withinRange` cfgDoctestEnabled cfgDoctest) versions'
 
