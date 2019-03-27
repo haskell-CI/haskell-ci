@@ -51,7 +51,6 @@ data Config = Config
     , cfgCopyFields          :: !CopyFields
     , cfgLocalGhcOptions     :: [String]
     , cfgCache               :: !Bool
-    , cfgNoise               :: !Bool
     , cfgInstallDeps         :: !Bool
     , cfgInstalled           :: [Installed]
     , cfgTests               :: !VersionRange
@@ -103,7 +102,6 @@ emptyConfig = Config
     , cfgLocalGhcOptions = []
     , cfgConstraintSets  = []
     , cfgCache           = True
-    , cfgNoise           = True
     , cfgInstalled       = []
     , cfgInstallDeps     = True
     , cfgTests           = anyVersion
@@ -147,8 +145,6 @@ configGrammar = Config
         ^^^ metahelp "OPTS" "--ghc-options for local packages"
     <*> C.booleanFieldDef     "cache"                                                         #cfgCache True
         ^^^ help "Disable caching"
-    <*> C.booleanFieldDef     "cabal-noise"                                                   #cfgNoise True
-        ^^^ help "Make cabal less noisy"
     <*> C.booleanFieldDef     "install-dependencies"                                          #cfgInstallDeps True
         ^^^ help "Skip separate dependency installation step"
     <*> C.monoidalFieldAla    "installed"                 (C.alaList C.FSep)                  #cfgInstalled

@@ -35,10 +35,12 @@ data Command
 -------------------------------------------------------------------------------
 
 data Options = Options
-    { optOutput         :: Maybe FilePath
+    { optOutput         :: Maybe Output
     , optConfig         :: Maybe FilePath
     , optConfigMorphism :: Config -> Config
     }
+
+data Output = OutputStdout | OutputFile FilePath
 
 instance Semigroup Options where
     Options b d e <> Options b' d' e' =
@@ -51,22 +53,32 @@ defaultOptions = Options
     , optConfigMorphism = id
     }
 
+optionsWithOutputFile :: FilePath -> Options
+optionsWithOutputFile fp = defaultOptions
+    { optOutput = Just (OutputFile fp)
+    }
+
 -------------------------------------------------------------------------------
 -- Parsers
 -------------------------------------------------------------------------------
 
 optionsP :: O.Parser Options
 optionsP = Options
-    <$> O.optional (O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Optput file (stdout if omitted)"))
+    <$> O.optional outputP
     <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
     <*> runOptparseGrammar configGrammar
 
+outputP :: O.Parser Output
+outputP =
+    OutputFile <$> O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Output file") <|>
+    O.flag' OutputStdout (O.long "stdout" <> O.help "Use stdout output")
+
 versionP :: O.Parser (a -> a)
-versionP = O.infoOption haskellCIVerStr (mconcat
-         [ O.long "version"
-         , O.short 'V'
-         , O.help "Print version information"
-         ])
+versionP = O.infoOption haskellCIVerStr $ mconcat
+    [ O.long "version"
+    , O.short 'V'
+    , O.help "Print version information"
+    ]
 
 haskellCIVerStr :: String
 haskellCIVerStr = CURRENT_PACKAGE_VERSION

@@ -84,7 +84,7 @@ main = do
             putStr $ unlines $ runDG configGrammar
 
         CommandRegenerate -> do
-            let fp = ".travis.yml" -- make configurable?
+            let fp = defaultTravisPath
             contents <- readFile fp
             case findArgv (lines contents) of
                 Nothing     -> do
@@ -92,7 +92,7 @@ main = do
                     exitFailure
                 Just argv   -> do
                     (f, opts') <- parseTravis argv
-                    doTravis argv f (opts' <> opts)
+                    doTravis argv f (optionsWithOutputFile defaultTravisPath <> opts' <> opts)
         CommandTravis f -> doTravis argv0 f opts
   where
     findArgv :: [String] -> Maybe [String]
@@ -110,14 +110,17 @@ main = do
         | Just v == ghcAlpha = "alpha"
         | otherwise = case ghcMajVer v of (x,y) -> show x ++ "." ++ show y
 
+defaultTravisPath :: FilePath
+defaultTravisPath = ".travis.yml"
+
 doTravis :: [String] -> FilePath -> Options -> IO ()
 doTravis args path opts = do
     ls <- travisFromConfigFile args opts path
     let contents = unlines ls
     case optOutput opts of
-        Nothing  -> writeFile ".travis.yml"
-        Just "-" -> putStr contents
-        Just fp  -> writeFile fp contents
+        Nothing              -> writeFile defaultTravisPath contents
+        Just OutputStdout    -> putStr contents
+        Just (OutputFile fp) -> writeFile fp contents
 
 travisFromConfigFile
     :: forall m. (MonadIO m, MonadDiagnostics m)
