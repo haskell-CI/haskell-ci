@@ -191,7 +191,6 @@ script:
   # Constraint sets
   - rm -rf cabal.project.local
   # Constraint set deepseq-1.4
-  # Constraint set deepseq-1.4
   - echo 'Constraint set deepseq-1.4' && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\r'
   - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} v2-build -w ${HC} --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all | color_cabal_output ; fi
   - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} v2-haddock -w ${HC} --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all | color_cabal_output ; fi

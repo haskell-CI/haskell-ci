@@ -327,14 +327,12 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             sh "rm -rf cabal.project.local"
 
             for_ cfgConstraintSets $ \cs -> do
-                let name = csName cs
-                comment $ "Constraint set " ++ name
-
-                let shForCs = shForJob (csGhcVersions cs)
-                let testFlag = if csTests cs then "--enable-tests" else "--disable-tests"
-                let benchFlag = if csBenchmarks cs then "--enable-benchmarks" else "--disable-benchmarks"
+                let name            = csName cs
+                let shForCs         = shForJob (csGhcVersions cs)
+                let testFlag        = if csTests cs then "--enable-tests" else "--disable-tests"
+                let benchFlag       = if csBenchmarks cs then "--enable-benchmarks" else "--disable-benchmarks"
                 let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)
-                let allFlags = unwords (testFlag : benchFlag : constraintFlags)
+                let allFlags        = unwords (testFlag : benchFlag : constraintFlags)
 
                 foldedSh' FoldConstraintSets name ("Constraint set " ++ name) cfgFolds $ do
                     shForCs $ cabal $ "v2-build -w ${HC} " ++ allFlags ++ " all"
