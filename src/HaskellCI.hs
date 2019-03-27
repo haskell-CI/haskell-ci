@@ -115,8 +115,9 @@ doTravis args path opts = do
     ls <- travisFromConfigFile args opts path
     let contents = unlines ls
     case optOutput opts of
-        Nothing -> putStr contents
-        Just fp -> writeFile fp contents
+        Nothing  -> writeFile ".travis.yml"
+        Just "-" -> putStr contents
+        Just fp  -> writeFile fp contents
 
 travisFromConfigFile
     :: forall m. (MonadIO m, MonadDiagnostics m)
