@@ -43,6 +43,7 @@ import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Folds
+import HaskellCI.MonadErr
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
@@ -106,7 +107,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- PATH
         sh "export PATH=\"$CABALHOME/bin:$PATH\""
         -- rootdir is useful for manual script additions
-        sh "ROOTDIR=$(pwd)"
+        sh "TOP=$(pwd)"
         -- macOS installing
         let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
         unless (null cfgOsx) $ do
@@ -115,6 +116,32 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- HCNUMVER, numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
         sh "HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+).*/\\1 * 10000 + \\2 * 100 + \\3/') ))"
         sh "echo $HCNUMVER"
+        -- verbose in .cabal/config is not respected
+        -- https://github.com/haskell/cabal/issues/5956
+        sh "CABAL=\"$CABAL -vnormal+nowrap+markoutput\""
+
+        -- Color cabal output
+        sh "set -o pipefail"
+        cat' ".colorful.awk"
+            [ "function blue(s) { printf \"\\033[0;34m\" s \"\\033[0m \" }"
+            , "BEGIN { state = \"output\"; }"
+            , "/^-----BEGIN CABAL OUTPUT-----$/ { state = \"cabal\" }"
+            , "/^-----END CABAL OUTPUT-----$/ { state = \"output\" }"
+            , "!/^(-----BEGIN CABAL OUTPUT-----|-----END CABAL OUTPUT-----)/ {"
+            , "  if (state == \"cabal\") {"
+            , "    print blue($0)"
+            , "  } else {"
+            , "    print $0"
+            , "  }"
+            , "}"
+            ]
+        sh "cat .colorful.awk"
+        sh $ unlines
+            [ "color_cabal_output () {"
+            , "  awk -f $TOP/.colorful.awk"
+            , "}"
+            ]
+        sh "echo text | color_cabal_output"
 
     -- in install step we install tools and dependencies
     install <- runSh $ do
@@ -151,7 +178,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             , "echo \"allow-newer: $(ghc-pkg list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1/g')\" >> $CABALHOME/.config"
             , ""
             ] ++
-            lines (catCmd "$CABALHOME/config"
+            lines (catCmd Double "$CABALHOME/config"
             [ "repository head.hackage"
             , "   url: http://head.hackage.haskell.org/"
             , "   secure: True"
@@ -187,14 +214,14 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 | C.isAnyVersion (cfgDoctestVersion cfgDoctest) = ""
                 | otherwise = " --constraint='doctest " ++ C.prettyShow (cfgDoctestVersion cfgDoctest) ++ "'"
         when doctestEnabled $ shForJob doctestJobVersionRange $
-            "${CABAL} new-install -w ${HC} -j2 doctest" ++ doctestVersionConstraint
+            cabal $ "v2-install -w ${HC} -j2 doctest" ++ doctestVersionConstraint
 
         -- Install hlint
         let hlintVersionConstraint
                 | C.isAnyVersion (cfgHLintVersion cfgHLint) = ""
                 | otherwise = " --constraint='hlint " ++ C.prettyShow (cfgHLintVersion cfgHLint) ++ "'"
         when (cfgHLintEnabled cfgHLint) $ shForJob (hlintJobVersionRange versions (cfgHLintJob cfgHLint)) $
-            "${CABAL} new-install -w ${HC} -j2 hlint" ++ hlintVersionConstraint
+            cabal $ "v2-install -w ${HC} -j2 hlint" ++ hlintVersionConstraint
 
         -- create cabal.project file
         generateCabalProject False
@@ -206,15 +233,15 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- Install dependencies
         when cfgInstallDeps $ do
             -- dump install plan
-            sh "${CABAL} new-freeze -w ${HC} ${TEST} ${BENCH}"
+            sh $ cabal "v2-freeze -w ${HC} ${TEST} ${BENCH}"
             sh "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
             sh "rm  cabal.project.freeze"
 
             -- install dependencies
-            sh "${CABAL} new-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all"
+            sh $ cabal "v2-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all"
 
             -- install dependencies for no-test-no-bench
-            shForJob cfgNoTestsNoBench "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all"
+            shForJob cfgNoTestsNoBench $ cabal "v2-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all"
 
     -- Here starts the actual work to be performed for the package under test;
     -- any command which exits with a non-zero exit code causes the build to fail.
@@ -223,7 +250,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         -- sdist
         foldedSh FoldSDist "Packaging..." cfgFolds $ do
-            sh "${CABAL} new-sdist all"
+            sh $ cabal "v2-sdist all"
 
         -- unpack
         foldedSh FoldUnpack "Unpacking..." cfgFolds $ do
@@ -236,17 +263,17 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- build no-tests no-benchmarks
         unless (equivVersionRanges C.noVersion cfgNoTestsNoBench) $ foldedSh FoldBuild "Building..." cfgFolds $ do
             comment "this builds all libraries and executables (without tests/benchmarks)"
-            shForJob cfgNoTestsNoBench "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all"
+            shForJob cfgNoTestsNoBench $ cabal "v2-build -w ${HC} --disable-tests --disable-benchmarks all"
 
         -- build everything
         foldedSh FoldBuildEverything "Building with tests and benchmarks..." cfgFolds $ do
             comment "build & run tests, build benchmarks"
-            sh "${CABAL} new-build -w ${HC} ${TEST} ${BENCH} all"
+            sh $ cabal "v2-build -w ${HC} ${TEST} ${BENCH} all"
 
-        -- cabal new-test fails if there are no test-suites.
+        -- cabal v2-test fails if there are no test-suites.
         when hasTests $ foldedSh FoldTest "Testing..." cfgFolds $ do
-            shForJob (C.intersectVersionRanges cfgTests cfgRunTests)
-                "${CABAL} new-test -w ${HC} ${TEST} ${BENCH} all"
+            shForJob (C.intersectVersionRanges cfgTests cfgRunTests) $
+                cabal "v2-test -w ${HC} ${TEST} ${BENCH} all"
 
         -- doctest
         when doctestEnabled $ foldedSh FoldDoctest "Doctest..." cfgFolds $ do
@@ -267,7 +294,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 prependSpace "" = ""
                 prependSpace xs = " " ++ xs
 
-            let hlintOptions = prependSpace $ maybe "" ("-h ${ROOTDIR}/" ++) (cfgHLintYaml cfgHLint) <+> unwords (cfgHLintOptions cfgHLint)
+            let hlintOptions = prependSpace $ maybe "" ("-h ${TOP}/" ++) (cfgHLintYaml cfgHLint) <+> unwords (cfgHLintOptions cfgHLint)
 
             for_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
                 for_ (hlintArgs pkgGpd) $ \args -> do
@@ -279,19 +306,19 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- cabal check
         when cfgCheck $ foldedSh FoldCheck "cabal check..." cfgFolds $ do
             for_ pkgs $ \Pkg{pkgName,pkgJobs} -> shForJob pkgJobs $
-                "(cd " ++ pkgName ++ "-* && ${CABAL} check)"
+                "(cd " ++ pkgName ++ "-* && ${CABAL} -vnormal check)"
 
         -- haddock
         when (hasLibrary && not (equivVersionRanges C.noVersion cfgHaddock)) $
             foldedSh FoldHaddock "haddock..." cfgFolds $
-                shForJob cfgHaddock "${CABAL} new-haddock -w ${HC} ${TEST} ${BENCH} all"
+                shForJob cfgHaddock $ cabal "v2-haddock -w ${HC} ${TEST} ${BENCH} all"
 
         -- unconstained build
         -- Have to build last, as we remove cabal.project.local
         unless (equivVersionRanges C.noVersion cfgUnconstrainted) $
             foldedSh FoldBuildInstalled "Building without installed constraints for packages in global-db..." cfgFolds $ do
                 shForJob cfgUnconstrainted "rm -f cabal.project.local"
-                shForJob cfgUnconstrainted "${CABAL} new-build -w ${HC} --disable-tests --disable-benchmarks all"
+                shForJob cfgUnconstrainted $ cabal "v2-build -w ${HC} --disable-tests --disable-benchmarks all"
 
         -- and now, as we don't have cabal.project.local;
         -- we can test with other constraint sets
@@ -309,12 +336,12 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)
                 let allFlags = unwords (testFlag : benchFlag : constraintFlags)
 
-                foldedSh FoldConstraintSets ("Constraint set " ++ name) cfgFolds $ do
-                    shForCs $ "${CABAL} v2-build -w ${HC} " ++ allFlags ++ " all"
+                foldedSh' FoldConstraintSets name ("Constraint set " ++ name) cfgFolds $ do
+                    shForCs $ cabal $ "v2-build -w ${HC} " ++ allFlags ++ " all"
                     when (csRunTests cs) $
-                        shForCs $ "${CABAL} v2-test -w ${HC} " ++ allFlags ++ " all"
+                        shForCs $ cabal $ "v2-test -w ${HC} " ++ allFlags ++ " all"
                     when (csHaddock cs) $
-                        shForCs $ "${CABAL} v2-haddock -w ${HC} " ++ allFlags ++ " all"
+                        shForCs $ cabal $ "v2-haddock -w ${HC} " ++ allFlags ++ " all"
 
     -- assemble travis configuration
     return Travis
@@ -392,8 +419,31 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     justIf True x  = Just x
     justIf False _ = Nothing
 
-    -- we temporarily disable folding
-    foldedSh _ c _ = commentedBlock c
+    -- TODO: should this be part of MonadSh ?
+    foldedSh label = foldedSh' label ""
+
+    -- https://github.com/travis-ci/docs-travis-ci-com/issues/949#issuecomment-276755003
+    -- https://github.com/travis-ci/travis-rubies/blob/9f7962a881c55d32da7c76baefc58b89e3941d91/build.sh#L38-L44
+    -- https://github.com/travis-ci/travis-build/blob/91bf066/lib/travis/build/shell/dsl.rb#L58-L63
+    foldedSh' :: Fold -> String -> String -> Set Fold -> ShM () -> ShM ()
+    foldedSh' label sfx plabel labels block
+        | label `S.notMember` labels = commentedBlock plabel block
+        | otherwise = case runSh block of
+            Left err  -> throwErr err
+            Right shs
+                | all isComment shs -> pure ()
+                | otherwise         -> ShM $ \shs1 -> Right $
+                    ( shs1
+                    . (Comment plabel :)
+                    . (Sh ("echo '" ++ plabel ++ "' && echo -en 'travis_fold:start:" ++ label' ++ "\\\\r'") :)
+                    . (shs ++)
+                    . (Sh ("echo -en 'travis_fold:end:" ++ label' ++ "\\\\r'") :)
+                    -- return ()
+                    , ()
+                    )
+      where
+        label' | null sfx  = showFold label
+               | otherwise = showFold label ++ "-" ++ sfx
 
     doctestEnabled = any (`C.withinRange` cfgDoctestEnabled cfgDoctest) versions'
 
@@ -403,6 +453,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     -- GHC versions which need head.hackage
     headGhcVers :: Set (Maybe C.Version)
     headGhcVers = S.filter previewGHC versions
+
+    cabal :: String -> String
+    cabal cmd = "${CABAL} " ++ cmd ++ " | color_cabal_output"
 
     forJob :: C.VersionRange -> String -> Maybe String
     forJob vr cmd
@@ -419,7 +472,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     shForJob :: C.VersionRange -> String -> ShM ()
     shForJob vr cmd = maybe (pure ()) sh (forJob vr cmd)
 
-    catForJob vr fp contents = shForJob vr (catCmd fp contents)
+    catForJob vr fp contents = shForJob vr (catCmd Double fp contents)
 
     generateCabalProjectFields :: Bool -> [C.PrettyField]
     generateCabalProjectFields dist = buildList $ do
@@ -516,9 +569,18 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         sh "cat cabal.project || true"
         sh "cat cabal.project.local || true"
 
-catCmd :: FilePath -> [String] -> String
-catCmd fp contents = unlines
-    [ "echo \"" ++ l ++ "\"" ++ replicate (maxLength - length l) ' ' ++ " >> " ++ fp
+data Quotes = Single | Double
+
+escape :: Quotes -> String -> String
+escape Single xs = "'" ++ concatMap f xs ++ "'" where
+    f '\0' = ""
+    f '\'' = "'\"'\"'"
+    f x    = [x]
+escape Double xs = show xs
+
+catCmd :: Quotes -> FilePath -> [String] -> String
+catCmd q fp contents = unlines
+    [ "echo " ++ escape q l ++ replicate (maxLength - length l) ' ' ++ " >> " ++ fp
     | l <- contents
     ]
   where
@@ -532,4 +594,10 @@ catCmd fp contents = unlines $
 -}
 
 cat :: FilePath -> [String] -> ShM ()
-cat fp contents = sh $ catCmd fp contents
+cat fp contents = sh $ catCmd Double fp contents
+
+cat' :: FilePath -> [String] -> ShM ()
+cat' fp contents = sh' [2016, 2129] $ catCmd Single fp contents
+-- SC2129: Consider using { cmd1; cmd2; } >> file instead of individual redirects
+-- SC2016: Expressions don't expand in single quotes
+-- that's the point!
