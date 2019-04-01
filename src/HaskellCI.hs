@@ -23,6 +23,7 @@ import Prelude ()
 import Prelude.Compat
 
 import Control.Monad             (forM_, liftM, unless, when)
+import Control.Monad.Catch       (MonadMask)
 import Control.Monad.IO.Class    (MonadIO (..))
 import Data.Function             (on)
 import Data.Generics.Labels ()
@@ -35,9 +36,11 @@ import Distribution.Compat.ReadP (readP_to_S)
 import Lens.Micro
 import System.Directory          (doesDirectoryExist, doesFileExist, setCurrentDirectory, canonicalizePath, makeRelativeToCurrentDirectory)
 import System.Environment        (getArgs)
-import System.Exit               (exitFailure)
+import System.Exit               (ExitCode(..), exitFailure)
 import System.FilePath.Posix     (takeDirectory, takeExtension, takeFileName, (</>))
-import System.IO                 (hPutStrLn, stderr)
+import System.IO                 (hClose, hFlush, hPutStr, hPutStrLn, stderr)
+import System.IO.Temp            (withSystemTempFile)
+import System.Process            (readProcessWithExitCode)
 import Text.Read                 (readMaybe)
 
 import Distribution.Compiler                  (CompilerFlavor (..))
@@ -132,7 +135,7 @@ doTravis args path opts = do
         Just (OutputFile fp) -> writeFile fp contents
 
 travisFromConfigFile
-    :: forall m. (MonadIO m, MonadDiagnostics m)
+    :: forall m. (MonadIO m, MonadDiagnostics m, MonadMask m)
     => [String]
     -> Options
     -> FilePath
@@ -146,7 +149,8 @@ travisFromConfigFile args opts path = do
         Right x     -> return x
         Left []     -> putStrLnErr "panic: checkVersions failed without errors"
         Left (e:es) -> putStrLnErrs (e :| es)
-    genTravisFromConfigs args config prj ghcs
+    ls <- genTravisFromConfigs args config prj ghcs
+    patchTravis config ls
   where
     isCabalProject :: Maybe FilePath
     isCabalProject
@@ -216,6 +220,44 @@ genTravisFromConfigs argv config prj versions' = do
                 , "# REGENDATA " ++ show argv
                 , "# EOF"
                 ]
+
+-- | Adjust the generated Travis YAML output with patch files, if specified.
+-- We do this in a temporary file in case the user did not pass --output (as
+-- it would be awkward to patch the generated output otherwise).
+patchTravis
+    :: (MonadIO m, MonadMask m)
+    => Config -> [String] -> m [String]
+patchTravis cfg ls
+  | null patches = pure ls
+  | otherwise =
+      withSystemTempFile ".travis.yml.tmp" $ \fp h -> liftIO $ do
+        hPutStr h $ unlines ls
+        hFlush h
+        forM_ patches $ applyPatch fp
+        hClose h
+        lines <$> readFile fp
+  where
+    patches :: [FilePath]
+    patches = cfgTravisPatches cfg
+
+    applyPatch :: FilePath -- ^ The temporary file path to patch
+               -> FilePath -- ^ The path of the .patch file
+               -> IO ()
+    applyPatch temp patch = do
+        exists <- doesFileExist patch
+        unless exists $ putStrLnErr $ "Cannot find " ++ patch
+        (ec, stdOut, stdErr) <-
+          readProcessWithExitCode "patch" [ "-i", patch
+                                          , "-s"
+                                          , temp
+                                          ] ""
+        case ec of
+          ExitSuccess -> pure ()
+          ExitFailure n -> putStrLnErr $ unlines
+            [ "patch returned exit code " ++ show n
+            , "Stdout: " ++ stdOut
+            , "Stderr: " ++ stdErr
+            ]
 
 configFromCabalFile
     :: (MonadIO m, MonadDiagnostics m)

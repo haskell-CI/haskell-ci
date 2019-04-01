@@ -28,6 +28,7 @@ main = do
         , fixtureGoldenTest "cabal.project.empty-line"
         , fixtureGoldenTest "cabal.project.fail-versions"
         , fixtureGoldenTest "cabal.project.messy"
+        , fixtureGoldenTest "cabal.project.travis-patch"
         , testGroup "copy-fields"
             [ fixtureGoldenTest "cabal.project.copy-fields.all"
             , fixtureGoldenTest "cabal.project.copy-fields.some"

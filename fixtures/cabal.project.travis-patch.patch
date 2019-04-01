@@ -1,0 +1,13 @@
+diff --git a/fixtures/cabal.project.travis-patch.travis.yml b/fixtures/cabal.project.travis-patch.travis.yml
+index 9a725c1..0554fed 100644
+--- a/fixtures/cabal.project.travis-patch.travis.yml
++++ b/fixtures/cabal.project.travis-patch.travis.yml
+@@ -8,7 +8,7 @@
+ #
+ language: c
+ dist: xenial
+-git:
++ git:
+   # whether to recursively clone submodules
+   submodules: false
+ cache:
