@@ -271,8 +271,8 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             sh $ cabal "v2-build -w ${HC} ${TEST} ${BENCH} all"
 
         -- cabal v2-test fails if there are no test-suites.
-        when hasTests $ foldedSh FoldTest "Testing..." cfgFolds $ do
-            shForJob (C.intersectVersionRanges cfgTests cfgRunTests) $
+        foldedSh FoldTest "Testing..." cfgFolds $ do
+            shForJob (C.intersectVersionRanges cfgTests $ C.intersectVersionRanges cfgRunTests hasTests) $
                 cabal "v2-test -w ${HC} ${TEST} ${BENCH} all"
 
         -- doctest
@@ -445,7 +445,14 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     doctestEnabled = any (`C.withinRange` cfgDoctestEnabled cfgDoctest) versions'
 
-    hasTests   = any (\Pkg{pkgGpd} -> not $ null $ C.condTestSuites pkgGpd) pkgs
+    -- version range which has tests
+    hasTests :: C.VersionRange
+    hasTests = foldr C.unionVersionRanges C.noVersion
+        [ pkgJobs
+        | Pkg{pkgGpd,pkgJobs} <- pkgs
+        , not $ null $ C.condTestSuites pkgGpd
+        ]
+
     hasLibrary = any (\Pkg{pkgGpd} -> isJust $ C.condLibrary pkgGpd) pkgs
 
     -- GHC versions which need head.hackage
