@@ -29,6 +29,8 @@ matrix:
     - compiler: ghc-8.8.1
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.8.1","cabal-install-2.4","fftw3-dev"]}}
       env: GHCHEAD=true
+    - compiler: ghc-8.6.5
+      addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.6.5","cabal-install-2.4","fftw3-dev"]}}
     - compiler: ghc-8.6.4
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.6.4","cabal-install-2.4","fftw3-dev"]}}
     - compiler: ghc-8.6.3
