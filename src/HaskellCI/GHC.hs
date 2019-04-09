@@ -17,12 +17,13 @@ knownGhcVersions = fmap mkVersion
     , [8,2,1],  [8,2,2]
     , [8,4,1],  [8,4,2], [8,4,3], [8,4,4]
     , [8,6,1],  [8,6,2], [8,6,3], [8,6,4]
+    , [8,8,1]
     ]
 
 ghcAlpha :: Maybe Version
-ghcAlpha = Nothing
--- ghcAlpha = Just (mkVersion [8,8,1])
---
+-- ghcAlpha = Nothing
+ghcAlpha = Just (mkVersion [8,8,1])
+
 dispGhcVersion :: Maybe Version -> String
 dispGhcVersion = maybe "head" C.prettyShow
 

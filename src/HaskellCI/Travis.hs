@@ -175,7 +175,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- (locally you want to add it to cabal.project)
         unless (S.null headGhcVers) $ sh $ unlines $
             [ "if $GHCHEAD; then"
-            , "echo \"allow-newer: $(ghc-pkg list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1/g')\" >> $CABALHOME/.config"
+            , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1/g')\" >> $CABALHOME/config"
             , ""
             ] ++
             lines (catCmd Double "$CABALHOME/config"
@@ -213,8 +213,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         let doctestVersionConstraint
                 | C.isAnyVersion (cfgDoctestVersion cfgDoctest) = ""
                 | otherwise = " --constraint='doctest " ++ C.prettyShow (cfgDoctestVersion cfgDoctest) ++ "'"
-        when doctestEnabled $ shForJob doctestJobVersionRange $
-            cabal $ "v2-install -w ${HC} -j2 doctest" ++ doctestVersionConstraint
+        when doctestEnabled $
+            shForJob (cfgDoctestEnabled cfgDoctest `C.intersectVersionRanges` doctestJobVersionRange) $
+                cabal $ "v2-install -w ${HC} -j2 doctest" ++ doctestVersionConstraint
 
         -- Install hlint
         let hlintVersionConstraint
