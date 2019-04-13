@@ -231,13 +231,13 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         for_ pkgs $ \Pkg{pkgDir} ->
             sh $ "if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then (cd \"" ++ pkgDir ++ "\" && autoreconf -i); fi"
 
+        -- dump install plan
+        sh $ cabal "v2-freeze -w ${HC} ${TEST} ${BENCH}"
+        sh "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
+        sh "rm  cabal.project.freeze"
+
         -- Install dependencies
         when cfgInstallDeps $ do
-            -- dump install plan
-            sh $ cabal "v2-freeze -w ${HC} ${TEST} ${BENCH}"
-            sh "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
-            sh "rm  cabal.project.freeze"
-
             -- install dependencies
             sh $ cabal "v2-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all"
 
