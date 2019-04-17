@@ -33,7 +33,7 @@ import Data.Semigroup            (Semigroup (..))
 import Data.Set                  (Set)
 import Distribution.Compat.ReadP (readP_to_S)
 import Lens.Micro
-import System.Directory          (doesDirectoryExist, doesFileExist)
+import System.Directory          (doesDirectoryExist, doesFileExist, setCurrentDirectory, canonicalizePath, makeRelativeToCurrentDirectory)
 import System.Environment        (getArgs)
 import System.Exit               (exitFailure)
 import System.FilePath.Posix     (takeDirectory, takeExtension, takeFileName, (</>))
@@ -84,15 +84,24 @@ main = do
             putStr $ unlines $ runDG configGrammar
 
         CommandRegenerate -> do
-            let fp = defaultTravisPath
+            let fp = case optOutput opts of
+                    Just (OutputFile fp') -> fp'
+                    _                     -> defaultTravisPath
+
+            -- read, and then change to the directory
             contents <- readFile fp
+            absFp <- canonicalizePath fp
+            let dir = takeDirectory fp
+            setCurrentDirectory dir
+            newFp <- makeRelativeToCurrentDirectory absFp
+
             case findArgv (lines contents) of
                 Nothing     -> do
                     hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ fp
                     exitFailure
                 Just argv   -> do
                     (f, opts') <- parseTravis argv
-                    doTravis argv f (optionsWithOutputFile defaultTravisPath <> opts' <> opts)
+                    doTravis argv f (optionsWithOutputFile newFp <> opts' <> opts)
         CommandTravis f -> doTravis argv0 f opts
   where
     findArgv :: [String] -> Maybe [String]
