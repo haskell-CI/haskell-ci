@@ -3,14 +3,16 @@
 -- | Most of client interface.
 module HaskellCI.Cli where
 
-import           Prelude                  ()
+import           Prelude                   ()
 import           Prelude.Compat
 
-import           Control.Applicative      ((<|>))
-import           System.Exit              (exitFailure)
-import           System.IO                (hPutStrLn, stderr)
+import           Control.Applicative       ((<|>))
+import           System.Exit               (exitFailure)
+import           System.IO                 (hPutStrLn, stderr)
+import           System.Path               (Absolute, FsPath (..), Path,
+                                            fromFilePath)
 
-import qualified Options.Applicative      as O
+import qualified Options.Applicative       as O
 
 import           HaskellCI.Config
 import           HaskellCI.OptparseGrammar
@@ -24,11 +26,10 @@ import           HaskellCI.OptparseGrammar
 -------------------------------------------------------------------------------
 
 data Command
-    = CommandTravis FilePath
+    = CommandTravis FsPath 
     | CommandRegenerate
     | CommandListGHC
     | CommandDumpConfig
-  deriving Show
 
 -------------------------------------------------------------------------------
 -- Options
@@ -36,11 +37,11 @@ data Command
 
 data Options = Options
     { optOutput         :: Maybe Output
-    , optConfig         :: Maybe FilePath
+    , optConfig         :: Maybe FsPath
     , optConfigMorphism :: Config -> Config
     }
 
-data Output = OutputStdout | OutputFile FilePath
+data Output = OutputStdout | OutputFile FsPath
 
 instance Semigroup Options where
     Options b d e <> Options b' d' e' =
@@ -53,9 +54,9 @@ defaultOptions = Options
     , optConfigMorphism = id
     }
 
-optionsWithOutputFile :: FilePath -> Options
+optionsWithOutputFile :: Path Absolute -> Options
 optionsWithOutputFile fp = defaultOptions
-    { optOutput = Just (OutputFile fp)
+    { optOutput = Just (OutputFile (FsPath fp))
     }
 
 -------------------------------------------------------------------------------
@@ -65,12 +66,12 @@ optionsWithOutputFile fp = defaultOptions
 optionsP :: O.Parser Options
 optionsP = Options
     <$> O.optional outputP
-    <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
+    <*> O.optional (fmap fromFilePath (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file")))
     <*> runOptparseGrammar configGrammar
 
 outputP :: O.Parser Output
 outputP =
-    OutputFile <$> O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Output file") <|>
+    OutputFile . fromFilePath <$> O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Output file") <|>
     O.flag' OutputStdout (O.long "stdout" <> O.help "Use stdout output")
 
 versionP :: O.Parser (a -> a)
@@ -96,14 +97,14 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
         , O.command "dump-config" $ O.info (pure CommandDumpConfig) $ O.progDesc "Dump cabal.haskell-ci config with default values"
         ]) <|> travisP
 
-    travisP = CommandTravis
+    travisP = CommandTravis . fromFilePath
         <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
 
 -------------------------------------------------------------------------------
 -- Parsing helpers
 -------------------------------------------------------------------------------
 
-parseTravis :: [String] -> IO (FilePath, Options)
+parseTravis :: [String] -> IO (FsPath, Options)
 parseTravis argv = case res of
     O.Success x -> return x
     O.Failure f -> case O.renderFailure f "haskell-ci" of
@@ -111,6 +112,6 @@ parseTravis argv = case res of
     O.CompletionInvoked _ -> exitFailure -- unexpected
   where
     res = O.execParserPure (O.prefs mempty) (O.info ((,) <$> cmdP <*> optionsP) mempty) argv
-    cmdP = O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
+    cmdP = fromFilePath <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
 
 

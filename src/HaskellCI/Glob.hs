@@ -6,7 +6,7 @@ import Control.Monad.IO.Class
 import Data.List (stripPrefix)
 import Distribution.Compat.ReadP
 import System.Directory (doesDirectoryExist, getDirectoryContents)
-import System.FilePath.Posix ((</>))
+import System.Path ((</>), Path, toFilePath, Absolute, fromUnrootedFilePath)
 
 -------------------------------------------------------------------------------
 -- Glob
@@ -110,24 +110,24 @@ isGlobEscapedChar '}'  = True
 isGlobEscapedChar ','  = True
 isGlobEscapedChar _    = False
 
-expandRelGlob :: MonadIO m => FilePath -> FilePathGlobRel -> m [FilePath]
-expandRelGlob root glob0 = liftIO $ go glob0 ""
+expandRelGlob :: MonadIO m => Path Absolute -> FilePathGlobRel -> m [Path Absolute]
+expandRelGlob root glob0 = liftIO $ go glob0 (fromUnrootedFilePath "")
   where
     go (GlobFile glob) dir = do
-      entries <- getDirectoryContents (root </> dir)
+      entries <- getDirectoryContents (toFilePath $ root </> dir)
       let files = filter (matchGlob glob) entries
-      return (map (dir </>) files)
+      return (map (\file -> root </> dir </> fromUnrootedFilePath file) files)
 
     go (GlobDir glob globPath) dir = do
-      entries <- getDirectoryContents (root </> dir)
+      entries <- getDirectoryContents (toFilePath $ root </> dir)
       subdirs <- filterM (\subdir -> doesDirectoryExist
-                                       (root </> dir </> subdir))
+                                       (toFilePath $ root </> dir </> fromUnrootedFilePath subdir))
                $ filter (matchGlob glob) entries
-      concat App.<$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
+      concat App.<$> mapM (\subdir -> go globPath (dir </> fromUnrootedFilePath subdir)) subdirs
 
-    go GlobDirTrailing dir = return [dir]
+    go GlobDirTrailing dir = return [root </> dir]
 
-matchGlob :: Glob -> FilePath -> Bool
+matchGlob :: Glob -> String -> Bool
 matchGlob = goStart
   where
     -- From the man page, glob(7):

@@ -19,52 +19,72 @@ module HaskellCI (
     travisFromConfigFile, Options (..), defaultOptions,
     ) where
 
-import Prelude ()
-import Prelude.Compat
+import           Prelude                                ()
+import           Prelude.Compat
 
-import Control.Monad             (forM_, liftM, unless, when)
-import Control.Monad.IO.Class    (MonadIO (..))
-import Data.Function             (on)
-import Data.Generics.Labels ()
-import Data.List                 (groupBy, intercalate, isPrefixOf, nub, nubBy, sort, sortBy, (\\))
-import Data.List.NonEmpty        (NonEmpty (..))
-import Data.Maybe                (isNothing, mapMaybe)
-import Data.Semigroup            (Semigroup (..))
-import Data.Set                  (Set)
-import Distribution.Compat.ReadP (readP_to_S)
-import Lens.Micro
-import System.Directory          (doesDirectoryExist, doesFileExist, setCurrentDirectory, canonicalizePath, makeRelativeToCurrentDirectory)
-import System.Environment        (getArgs)
-import System.Exit               (exitFailure)
-import System.FilePath.Posix     (takeDirectory, takeExtension, takeFileName, (</>))
-import System.IO                 (hPutStrLn, stderr)
-import Text.Read                 (readMaybe)
+import           Control.Monad                          (forM_, liftM, unless,
+                                                         when)
+import           Control.Monad.IO.Class                 (MonadIO (..))
+import           Data.Function                          (on)
+import           Data.Generics.Labels                   ()
+import           Data.List                              (groupBy, intercalate,
+                                                         isPrefixOf, nub, nubBy,
+                                                         sort, sortBy, (\\))
+import           Data.List.NonEmpty                     (NonEmpty (..))
+import           Data.Maybe                             (isNothing, mapMaybe)
+import           Data.Semigroup                         (Semigroup (..))
+import           Data.Set                               (Set)
+import           Distribution.Compat.ReadP              (readP_to_S)
+import           Lens.Micro
+import           System.Directory                       (canonicalizePath,
+                                                         doesDirectoryExist,
+                                                         doesFileExist,
+                                                         makeRelativeToCurrentDirectory,
+                                                         setCurrentDirectory)
+import           System.Environment                     (getArgs)
+import           System.Exit                            (exitFailure)
+import           System.IO                              (hPutStrLn, stderr)
+import           System.Path                            (Absolute, FsPath, Path,
+                                                         fromFilePath,
+                                                         fromUnrootedFilePath,
+                                                         makeAbsolute,
+                                                         takeDirectory,
+                                                         takeExtension,
+                                                         takeFileName, FileExt (..),
+                                                         toFilePath,
+                                                         toUnrootedFilePath,
+                                                         (</>))
+import           System.Path.Extras
+import           Text.Read                              (readMaybe)
 
-import Distribution.Compiler                  (CompilerFlavor (..))
-import Distribution.PackageDescription        (package, packageDescription, testedWith)
-import Distribution.PackageDescription.Parsec (readGenericPackageDescription)
-import Distribution.Text
-import Distribution.Version
+import           Distribution.Compiler                  (CompilerFlavor (..))
+import           Distribution.PackageDescription        (package,
+                                                         packageDescription,
+                                                         testedWith)
+import           Distribution.PackageDescription.Parsec (readGenericPackageDescription)
+import           Distribution.Text
+import           Distribution.Version
 
-import qualified Data.ByteString      as BS
-import qualified Data.Set             as S
-import qualified Data.Traversable     as T
-import qualified Distribution.Package as Pkg
-import qualified Options.Applicative  as O
+import qualified Data.ByteString                        as BS
+import qualified Data.Set                               as S
+import qualified Data.Traversable                       as T
+import qualified System.FilePath as Raw
+import qualified Distribution.Package                   as Pkg
+import qualified Options.Applicative                    as O
 
-import HaskellCI.Cli
-import HaskellCI.Config
-import HaskellCI.Config.Dump
-import HaskellCI.Jobs
-import HaskellCI.Diagnostics
-import HaskellCI.Extras
-import HaskellCI.GHC
-import HaskellCI.Glob
-import HaskellCI.Package
-import HaskellCI.Project
-import HaskellCI.TestedWith
-import HaskellCI.Travis
-import HaskellCI.YamlSyntax
+import           HaskellCI.Cli
+import           HaskellCI.Config
+import           HaskellCI.Config.Dump
+import           HaskellCI.Diagnostics
+import           HaskellCI.Extras
+import           HaskellCI.GHC
+import           HaskellCI.Glob
+import           HaskellCI.Jobs
+import           HaskellCI.Package
+import           HaskellCI.Project
+import           HaskellCI.TestedWith
+import           HaskellCI.Travis
+import           HaskellCI.YamlSyntax
 
 -------------------------------------------------------------------------------
 -- Main
@@ -89,20 +109,21 @@ main = do
                     _                     -> defaultTravisPath
 
             -- read, and then change to the directory
-            contents <- readFile fp
-            absFp <- canonicalizePath fp
-            let dir = takeDirectory fp
-            setCurrentDirectory dir
-            newFp <- makeRelativeToCurrentDirectory absFp
+            absFp <- makeAbsolute fp
+            contents <- readFile (toFilePath absFp)
+            let dir = takeDirectory absFp
 
             case findArgv (lines contents) of
                 Nothing     -> do
-                    hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ fp
+                    hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ toFilePath absFp
                     exitFailure
                 Just argv   -> do
-                    (f, opts') <- parseTravis argv
-                    doTravis argv f (optionsWithOutputFile newFp <> opts' <> opts)
-        CommandTravis f -> doTravis argv0 f opts
+                    (cfp, opts') <- parseTravis argv
+                    absCfp <- makeAbsolute cfp
+                    doTravis argv absCfp (optionsWithOutputFile absFp <> opts' <> opts)
+        CommandTravis f -> do
+            f' <- makeAbsolute f
+            doTravis argv0 f' opts
   where
     findArgv :: [String] -> Maybe [String]
     findArgv ls = do
@@ -119,23 +140,28 @@ main = do
         | Just v == ghcAlpha = "alpha"
         | otherwise = case ghcMajVer v of (x,y) -> show x ++ "." ++ show y
 
-defaultTravisPath :: FilePath
-defaultTravisPath = ".travis.yml"
+defaultTravisPath :: FsPath
+defaultTravisPath = fromFilePath ".travis.yml"
 
-doTravis :: [String] -> FilePath -> Options -> IO ()
+doTravis :: [String] -> Path Absolute -> Options -> IO ()
 doTravis args path opts = do
     ls <- travisFromConfigFile args opts path
     let contents = unlines ls
     case optOutput opts of
-        Nothing              -> writeFile defaultTravisPath contents
-        Just OutputStdout    -> putStr contents
-        Just (OutputFile fp) -> writeFile fp contents
+        Nothing              -> do
+            fp <- makeAbsolute defaultTravisPath
+            writeFile (toFilePath fp) contents
+        Just OutputStdout    ->
+            putStr contents
+        Just (OutputFile fp) -> do
+            fp' <- makeAbsolute fp
+            writeFile (toFilePath fp') contents
 
 travisFromConfigFile
     :: forall m. (MonadIO m, MonadDiagnostics m)
     => [String]
     -> Options
-    -> FilePath
+    -> Path Absolute
     -> m [String]
 travisFromConfigFile args opts path = do
     cabalFiles <- getCabalFiles
@@ -148,16 +174,18 @@ travisFromConfigFile args opts path = do
         Left (e:es) -> putStrLnErrs (e :| es)
     genTravisFromConfigs args config prj ghcs
   where
-    isCabalProject :: Maybe FilePath
+    isCabalProject :: Maybe (Path Absolute)
     isCabalProject
-        | "cabal.project" `isPrefixOf` takeFileName path = Just path
-        | otherwise = Nothing
+        | "cabal.project" `isPrefixOf` p = Just path
+        | otherwise                      = Nothing
+      where
+        p = toUnrootedFilePath $ takeFileName path
 
-    getCabalFiles :: m (Project FilePath)
+    getCabalFiles :: m (Project (Path Absolute))
     getCabalFiles
         | isNothing isCabalProject = return $ emptyProject & #prjPackages .~ [path]
         | otherwise = do
-            contents <- liftIO $ BS.readFile path
+            contents <- liftIO $ BS.readFile $ toFilePath path
             pkgs <- either putStrLnErr return $ parseProjectFile path contents
             over #prjPackages concat `liftM` T.mapM findProjectPackage pkgs
 
@@ -165,26 +193,28 @@ travisFromConfigFile args opts path = do
 
     -- See findProjectPackages in cabal-install codebase
     -- this is simple variant.
-    findProjectPackage :: String -> m [FilePath]
+    findProjectPackage :: String -> m [Path Absolute]
     findProjectPackage pkglocstr = do
-        mfp <- checkisFileGlobPackage pkglocstr `mplusMaybeT`
+        mfp <- checkIsFileGlobPackage pkglocstr `mplusMaybeT`
                checkIsSingleFilePackage pkglocstr
         maybe (putStrLnErr $ "bad package location: " ++ pkglocstr) return mfp
 
+    checkIsSingleFilePackage :: String -> m (Maybe [Path Absolute])
     checkIsSingleFilePackage pkglocstr = do
-        let abspath = rootdir </> pkglocstr
-        isFile <- liftIO $ doesFileExist abspath
-        isDir  <- liftIO $ doesDirectoryExist abspath
-        if | isFile && takeExtension pkglocstr == ".cabal" -> return (Just [abspath])
-           | isDir -> checkisFileGlobPackage (pkglocstr </> "*.cabal")
+        let abspath = rootdir </> fromUnrootedFilePath pkglocstr
+        isFile <- liftIO $ doesFileExist $ toFilePath abspath
+        isDir  <- liftIO $ doesDirectoryExist $ toFilePath abspath
+        if | isFile && Raw.takeExtension pkglocstr == ".cabal" -> return (Just [abspath])
+           | isDir -> checkIsFileGlobPackage (pkglocstr ++ "/" ++ "*.cabal")
            | otherwise -> return Nothing
 
     -- if it looks like glob, glob
-    checkisFileGlobPackage pkglocstr =
+    checkIsFileGlobPackage :: String -> m (Maybe [Path Absolute])
+    checkIsFileGlobPackage pkglocstr =
         case filter (null . snd) $ readP_to_S parseFilePathGlobRel pkglocstr of
             [(g, "")] -> do
                 files <- liftIO $ expandRelGlob rootdir g
-                let files' = filter ((== ".cabal") . takeExtension) files
+                let files' = filter ((== Just (FileExt ".cabal")) . takeExtension) files
                 -- if nothing is matched, skip.
                 if null files' then return Nothing else return (Just files')
             _         -> return Nothing
@@ -219,9 +249,9 @@ genTravisFromConfigs argv config prj versions' = do
 
 configFromCabalFile
     :: (MonadIO m, MonadDiagnostics m)
-    => Config -> FilePath -> m (Package, Set Version)
+    => Config -> Path Absolute -> m (Package, Set Version)
 configFromCabalFile cfg cabalFile = do
-    gpd <- liftIO $ readGenericPackageDescription maxBound cabalFile
+    gpd <- liftIO $ readGenericPackageDescription maxBound $ toFilePath cabalFile
 
     let compilers = testedWith $ packageDescription gpd
         pkgNameStr = display $ Pkg.pkgName $ package $ packageDescription gpd
@@ -238,7 +268,7 @@ configFromCabalFile cfg cabalFile = do
 
     when (null compilers) $ do
         putStrLnErr (unlines $
-                     [ "empty or missing top-level 'tested-with:' definition in " ++ cabalFile ++ " file; example definition:"
+                     [ "empty or missing top-level 'tested-with:' definition in " ++ toFilePath cabalFile ++ " file; example definition:"
                      , ""
                      , "tested-with: " ++ intercalate ", " [ "GHC==" ++ display v | v <- lastStableGhcVers ]
                      ])
@@ -285,6 +315,6 @@ configFromCabalFile cfg cabalFile = do
     isTwoDigitGhcVersion vr = isSpecificVersion vr >>= t
       where
         t v | [_,_] <- versionNumbers v = Just v
-        t _                             = Nothing
+        t _ = Nothing
 
     filterLastMajor = map maximum . groupBy ((==) `on` ghcMajVer)

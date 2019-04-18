@@ -11,17 +11,19 @@ import           Data.ByteString                              (ByteString)
 import           Data.Generics.Labels                         ()
 import           GHC.Generics                                 (Generic)
 import           Lens.Micro                                   (over)
+import           System.Path                                  (Absolute, Path,
+                                                               toFilePath)
 
 import qualified Data.Map.Strict                              as M
 import qualified Distribution.CabalSpecVersion                as C
 import qualified Distribution.FieldGrammar                    as C
+import qualified Distribution.Fields.Pretty                   as C
 import qualified Distribution.PackageDescription.FieldGrammar as C
 import qualified Distribution.Parsec.Common                   as C
 import qualified Distribution.Parsec.Newtypes                 as C
 import qualified Distribution.Parsec.Parser                   as C
 import qualified Distribution.Parsec.ParseResult              as C
 import qualified Distribution.Types.SourceRepo                as C
-import qualified Distribution.Fields.Pretty as C
 
 import           HaskellCI.Newtypes
 import           HaskellCI.Optimization
@@ -50,14 +52,14 @@ emptyProject = Project [] [] [] False Nothing OptimizationOn [] []
 -- >>> fmap prjPackages $ parseProjectFile "cabal.project" "packages: foo bar/*.cabal"
 -- Right ["foo","bar/*.cabal"]
 --
-parseProjectFile :: FilePath -> ByteString -> Either String (Project String)
+parseProjectFile :: Path Absolute -> ByteString -> Either String (Project String)
 parseProjectFile fp bs = do
     fields0 <- either (Left . show) Right $ C.readFields bs
     let (fields1, sections) = C.partitionFields fields0
     let fields2 = M.filterWithKey (\k _ -> k `elem` knownFields) fields1
     case C.runParseResult $ parse fields0 fields2 sections of
         (_, Right x)       -> return x
-        (ws, Left (_, es)) -> Left $ renderParseError fp bs es ws
+        (ws, Left (_, es)) -> Left $ renderParseError (toFilePath fp) bs es ws
   where
     knownFields = C.fieldGrammarKnownFieldList $ grammar []
 

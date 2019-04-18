@@ -13,6 +13,8 @@ import           Distribution.Types.VersionRange (VersionRange, anyVersion,
                                                   noVersion)
 import           GHC.Generics                    (Generic)
 import           Lens.Micro                      (over)
+import           System.Path                     (FsPath, makeAbsolute,
+                                                  toFilePath)
 
 import qualified Data.ByteString                 as BS
 import qualified Data.Map                        as M
@@ -194,8 +196,10 @@ configGrammar = Config
 -- Reading
 -------------------------------------------------------------------------------
 
-readConfigFile :: MonadIO m => FilePath -> m Config
-readConfigFile = liftIO . readAndParseFile parseConfigFile
+readConfigFile :: MonadIO m => FsPath -> m Config
+readConfigFile fp = liftIO $ do
+    fp' <- makeAbsolute fp
+    readAndParseFile parseConfigFile (toFilePath fp')
 
 parseConfigFile :: [C.Field C.Position] -> C.ParseResult Config
 parseConfigFile fields0 = do
