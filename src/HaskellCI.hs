@@ -246,18 +246,18 @@ patchTravis cfg ls
     applyPatch temp patch = do
         exists <- doesFileExist patch
         unless exists $ putStrLnErr $ "Cannot find " ++ patch
-        (ec, stdOut, stdErr) <-
-          readProcessWithExitCode "patch" [ "-i", patch
-                                          , "-s"
-                                          , temp
-                                          ] ""
+        (ec, stdOut, stdErr) <- readProcessWithExitCode
+            "patch" [ "--input", patch
+            , "--silent"
+            , temp
+            ] ""
         case ec of
-          ExitSuccess -> pure ()
-          ExitFailure n -> putStrLnErr $ unlines
-            [ "patch returned exit code " ++ show n
-            , "Stdout: " ++ stdOut
-            , "Stderr: " ++ stdErr
-            ]
+            ExitSuccess -> pure ()
+            ExitFailure n -> putStrLnErr $ unlines
+                [ "patch returned exit code " ++ show n
+                , "Stdout: " ++ stdOut
+                , "Stderr: " ++ stdErr
+                ]
 
 configFromCabalFile
     :: (MonadIO m, MonadDiagnostics m)
