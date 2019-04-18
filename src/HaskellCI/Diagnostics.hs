@@ -2,6 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module HaskellCI.Diagnostics where
 
+import Control.Monad.Catch       (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.IO.Class    (MonadIO)
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Control.Monad.Writer      (WriterT, runWriterT, tell)
@@ -29,7 +30,7 @@ instance MonadDiagnostics IO where
     putStrLnInfo = hPutStrLn stderr . ("*INFO* " ++)
 
 newtype DiagnosticsT m a = Diagnostics { unDiagnostics :: MaybeT (WriterT [String] m) a }
-  deriving (Functor, Applicative, Monad, MonadIO)
+  deriving (Functor, Applicative, Monad, MonadIO, MonadCatch, MonadMask, MonadThrow)
 
 runDiagnosticsT :: DiagnosticsT m a -> m (Maybe a, [String])
 runDiagnosticsT (Diagnostics m) = runWriterT (runMaybeT m)

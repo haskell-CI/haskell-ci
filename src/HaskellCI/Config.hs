@@ -71,6 +71,7 @@ data Config = Config
     , cfgLastInSeries        :: !Bool
     , cfgOsx                 :: S.Set Version
     , cfgApt                 :: S.Set String
+    , cfgTravisPatches       :: [FilePath]
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
@@ -122,6 +123,7 @@ emptyConfig = Config
     , cfgLastInSeries    = False
     , cfgOsx             = S.empty
     , cfgApt             = S.empty
+    , cfgTravisPatches   = []
     , cfgRawProject      = []
     }
 
@@ -185,6 +187,8 @@ configGrammar = Config
         ^^^ metahelp "JOB" "Jobs to additionally build with OSX"
     <*> C.monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    #cfgApt
         ^^^ metahelp "PKG" "Additional apt packages to install"
+    <*> C.monoidalFieldAla    "travis-patches"            (C.alaList' C.NoCommaFSep C.Token') #cfgTravisPatches
+        ^^^ metahelp "PATCH" ".patch files to apply to the generated Travis YAML file"
     <*> C.blurFieldGrammar #cfgDoctest doctestConfigGrammar
     <*> C.blurFieldGrammar #cfgHLint   hlintConfigGrammar
     <*> pure [] -- constraint sets
