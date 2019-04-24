@@ -380,7 +380,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             { tmInclude = buildList $ do
                 let tellJob :: Bool -> Maybe C.Version -> ListBuilder TravisJob ()
                     tellJob osx gv = do
-                        let cvs = dispGhcVersion $ gv >> cfgCabalInstallVersion
+                        let cvs = dispGhcVersion $ gv >>= correspondingCabalVersion cfgCabalInstallVersion
                         let gvs = dispGhcVersion gv
                         let pre | previewGHC gv = Just "GHCHEAD=true"
                                 | otherwise     = Nothing

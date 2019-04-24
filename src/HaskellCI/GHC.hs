@@ -20,6 +20,15 @@ knownGhcVersions = fmap mkVersion
     , [8,8,1]
     ]
 
+correspondingCabalVersion
+    :: Maybe Version  -- ^ Preferred Cabal Version
+    -> Version        -- ^ GHC Version
+    -> Maybe Version
+correspondingCabalVersion Nothing   _  = Nothing
+correspondingCabalVersion (Just cv) gv
+    | gv >= mkVersion [8,8] = Just $ max (mkVersion [3,0]) cv
+    | otherwise             = Just $ max (mkVersion [2,4]) cv
+
 ghcAlpha :: Maybe Version
 -- ghcAlpha = Nothing
 ghcAlpha = Just (mkVersion [8,8,1])
