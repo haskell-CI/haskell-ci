@@ -89,9 +89,10 @@ emptyConfig = Config
     , cfgTestedWith      = TestedWithUniform
     , cfgCopyFields      = CopyFieldsSome
     , cfgDoctest         = DoctestConfig
-        { cfgDoctestEnabled = noVersion
-        , cfgDoctestOptions = []
-        , cfgDoctestVersion = defaultDoctestVersion
+        { cfgDoctestEnabled    = noVersion
+        , cfgDoctestOptions    = []
+        , cfgDoctestVersion    = defaultDoctestVersion
+        , cfgDoctestFilterPkgs = []
         }
     , cfgHLint = HLintConfig
         { cfgHLintEnabled = False

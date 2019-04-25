@@ -163,6 +163,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             , "world-file:        $CABALHOME/world"
             , "extra-prog-path:   $CABALHOME/bin"
             , "symlink-bindir:    $CABALHOME/bin"
+            , "installdir:        $CABALHOME/bin"
             , "build-summary:     $CABALHOME/logs/build.log"
             , "store-dir:         $CABALHOME/store"
             , "install-dirs user"
@@ -279,6 +280,18 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- doctest
         when doctestEnabled $ foldedSh FoldDoctest "Doctest..." cfgFolds $ do
             let doctestOptions = unwords $ cfgDoctestOptions cfgDoctest
+            unless (null $ cfgDoctestFilterPkgs cfgDoctest) $ do
+                sh $ unlines $ concat
+                    [ [ "for ghcenv in .ghc.environment.*; do"
+                      , "mv $ghcenv ghcenv;"
+                      ]
+                    , cfgDoctestFilterPkgs cfgDoctest <&> \pn ->
+                        "grep -vE '^package-id " ++ C.unPackageName pn ++ "-([0-9]+(\\.[0-9]+)*)-' ghcenv > ghcenv.tmp; mv ghcenv.tmp ghcenv;"
+                    , [ "mv ghcenv $ghcenv;"
+                      , "cat $ghcenv;"
+                      , "done"
+                      ]
+                    ]
             for_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
                 for_ (doctestArgs pkgGpd) $ \args -> do
                     let args' = unwords args
