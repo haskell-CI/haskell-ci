@@ -565,7 +565,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 [ "for pkg in $($HCPKG list --simple-output); do"
                 , "echo $pkg"
                 , "| sed 's/-[^-]*$//'"
-                , "| grep -vE -- " ++ re
+                , "| (grep -vE -- " ++ re ++ " || true)"
                 , "| sed 's/^/constraints: /'"
                 , "| sed 's/$/ installed/'"
                 , ">> cabal.project.local; done"
