@@ -104,6 +104,16 @@ constraint-set deepseq-1.4
 --   all: Copy every property from the cabal.project file.
 copy-fields: some
 
+-- Configure haskell-ci's behavior when presented multiple packages (e.g., a
+-- cabal.project file that specifies multiple .cabal files), each of which
+-- having its own range of GHC versions in its tested-with stanza.
+-- Possible values are:
+--   uniform: Every package must have the same range of versions in its
+--            tested-with stanza. (Default)
+--   any:     Take the union of all packages' version ranges. This implies
+--            that different packages' version ranges can be disjoint.
+jobs-selection: uniform
+
 -- Include these fields "as is" in generated cabal.project
 raw-project
   keep-going: False
