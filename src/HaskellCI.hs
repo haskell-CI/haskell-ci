@@ -212,7 +212,7 @@ genTravisFromConfigs argv config prj versions' = do
     case makeTravis argv config prj jobVersions of
         Left err     -> putStrLnErr (show err) -- TODO
         Right travis -> do
-            describeJobs jobVersions
+            describeJobs (cfgTestedWith config) jobVersions (prjPackages prj)
             return $
                 lines (prettyYaml id $ reann (travisHeader argv ++) $ toYaml travis)
                 ++

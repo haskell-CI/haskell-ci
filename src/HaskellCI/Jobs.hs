@@ -2,15 +2,17 @@
 -- | Which jobs to generate. Also helper for diagnostics output.
 module HaskellCI.Jobs where
 
-import Control.Monad        (unless)
+import Control.Monad        (forM_, unless)
 import Data.Set             (Set)
-import Distribution.Version (Version)
+import Distribution.Version (Version, withinRange)
 
 import qualified Data.Set as S
 
 import HaskellCI.Config
 import HaskellCI.Diagnostics
 import HaskellCI.GHC
+import HaskellCI.Package
+import HaskellCI.TestedWith
 
 data JobVersions = JobVersions
     { versions           :: Set (Maybe Version)
@@ -19,9 +21,17 @@ data JobVersions = JobVersions
     , omittedOsxVersions :: Set Version
     }
 
-describeJobs :: MonadDiagnostics m => JobVersions -> m ()
-describeJobs JobVersions {..} = do
+describeJobs :: MonadDiagnostics m => TestedWithJobs -> JobVersions -> [Package] -> m ()
+describeJobs twj JobVersions {..} pkgs = do
     putStrLnInfo $ "Generating Travis-CI config for testing for GHC versions: " ++ ghcVersions
+    case twj of
+        TestedWithUniform -> pure ()
+        TestedWithAny     -> forM_ pkgs $ \pkg -> do
+            -- this omits HEAD version.
+            let vr = pkgJobs pkg
+            let vs = showVersions $ S.map Just $ S.filter (\v -> v `withinRange` vr) versions'
+            putStrLnInfo $ pkgName pkg ++ " " ++ ": " ++ vs
+
     unless (null osxVersions) $  do
         putStrLnInfo $ "Also OSX jobs for: " ++ ghcOsxVersions
         unless (S.null omittedOsxVersions) $
