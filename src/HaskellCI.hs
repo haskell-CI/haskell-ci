@@ -214,7 +214,7 @@ genTravisFromConfigs argv config prj versions' = do
         Right travis -> do
             describeJobs (cfgTestedWith config) jobVersions (prjPackages prj)
             return $
-                lines (prettyYaml id $ reann (travisHeader argv ++) $ toYaml travis)
+                lines (prettyYaml id $ reann (travisHeader (cfgInsertVersion config) argv ++) $ toYaml travis)
                 ++
                 [ ""
                 , "# REGENDATA " ++ show argv

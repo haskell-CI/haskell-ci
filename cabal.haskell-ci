@@ -114,6 +114,14 @@ copy-fields: some
 --            that different packages' version ranges can be disjoint.
 jobs-selection: uniform
 
+-- Controls whether the haskell-ci version should be inserted into the
+-- generated Travis YAML file. (Default: True)
+--
+-- We set this option to False here only to prevent version number churn in
+-- the commit history, as version numbers for haskell-ci HEAD change extremely
+-- frequently.
+insert-version: False
+
 -- Include these fields "as is" in generated cabal.project
 raw-project
   keep-going: False

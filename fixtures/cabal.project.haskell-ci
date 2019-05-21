@@ -1,0 +1,2 @@
+-- Common configuration options for .travis.yml files in fixtures/
+insert-version: False

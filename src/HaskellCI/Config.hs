@@ -72,6 +72,7 @@ data Config = Config
     , cfgOsx                 :: S.Set Version
     , cfgApt                 :: S.Set String
     , cfgTravisPatches       :: [FilePath]
+    , cfgInsertVersion       :: !Bool
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
@@ -125,6 +126,7 @@ emptyConfig = Config
     , cfgOsx             = S.empty
     , cfgApt             = S.empty
     , cfgTravisPatches   = []
+    , cfgInsertVersion   = True
     , cfgRawProject      = []
     }
 
@@ -190,6 +192,8 @@ configGrammar = Config
         ^^^ metahelp "PKG" "Additional apt packages to install"
     <*> C.monoidalFieldAla    "travis-patches"            (C.alaList' C.NoCommaFSep C.Token') #cfgTravisPatches
         ^^^ metahelp "PATCH" ".patch files to apply to the generated Travis YAML file"
+    <*> C.booleanFieldDef "insert-version"                                                    #cfgInsertVersion True
+        ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
     <*> C.blurFieldGrammar #cfgDoctest doctestConfigGrammar
     <*> C.blurFieldGrammar #cfgHLint   hlintConfigGrammar
     <*> pure [] -- constraint sets
