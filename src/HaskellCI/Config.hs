@@ -73,6 +73,7 @@ data Config = Config
     , cfgApt                 :: S.Set String
     , cfgTravisPatches       :: [FilePath]
     , cfgInsertVersion       :: !Bool
+    , cfgColor               :: !Bool
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
@@ -127,6 +128,7 @@ emptyConfig = Config
     , cfgApt             = S.empty
     , cfgTravisPatches   = []
     , cfgInsertVersion   = True
+    , cfgColor           = True
     , cfgRawProject      = []
     }
 
@@ -194,6 +196,8 @@ configGrammar = Config
         ^^^ metahelp "PATCH" ".patch files to apply to the generated Travis YAML file"
     <*> C.booleanFieldDef "insert-version"                                                    #cfgInsertVersion True
         ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
+    <*> C.booleanFieldDef     "color"                                                         #cfgColor True
+        ^^^ help "Disable coloring cabal output"
     <*> C.blurFieldGrammar #cfgDoctest doctestConfigGrammar
     <*> C.blurFieldGrammar #cfgHLint   hlintConfigGrammar
     <*> pure [] -- constraint sets

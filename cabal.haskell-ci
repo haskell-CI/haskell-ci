@@ -122,6 +122,10 @@ jobs-selection: uniform
 -- frequently.
 insert-version: False
 
+-- Controls whether the output of `cabal` invocations should be highlighted
+-- using special colors in the Travis output.
+color: True
+
 -- Include these fields "as is" in generated cabal.project
 raw-project
   keep-going: False

@@ -124,26 +124,27 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         -- Color cabal output
         sh "set -o pipefail"
-        cat' ".colorful.awk"
-            [ "function blue(s) { printf \"\\033[0;34m\" s \"\\033[0m \" }"
-            , "BEGIN { state = \"output\"; }"
-            , "/^-----BEGIN CABAL OUTPUT-----$/ { state = \"cabal\" }"
-            , "/^-----END CABAL OUTPUT-----$/ { state = \"output\" }"
-            , "!/^(-----BEGIN CABAL OUTPUT-----|-----END CABAL OUTPUT-----)/ {"
-            , "  if (state == \"cabal\") {"
-            , "    print blue($0)"
-            , "  } else {"
-            , "    print $0"
-            , "  }"
-            , "}"
-            ]
-        sh "cat .colorful.awk"
-        sh $ unlines
-            [ "color_cabal_output () {"
-            , "  awk -f $TOP/.colorful.awk"
-            , "}"
-            ]
-        sh "echo text | color_cabal_output"
+        when cfgColor $ do
+            cat' ".colorful.awk"
+                [ "function blue(s) { printf \"\\033[0;34m\" s \"\\033[0m \" }"
+                , "BEGIN { state = \"output\"; }"
+                , "/^-----BEGIN CABAL OUTPUT-----$/ { state = \"cabal\" }"
+                , "/^-----END CABAL OUTPUT-----$/ { state = \"output\" }"
+                , "!/^(-----BEGIN CABAL OUTPUT-----|-----END CABAL OUTPUT-----)/ {"
+                , "  if (state == \"cabal\") {"
+                , "    print blue($0)"
+                , "  } else {"
+                , "    print $0"
+                , "  }"
+                , "}"
+                ]
+            sh "cat .colorful.awk"
+            sh $ unlines
+                [ "color_cabal_output () {"
+                , "  awk -f $TOP/.colorful.awk"
+                , "}"
+                ]
+            sh "echo text | color_cabal_output"
 
     -- in install step we install tools and dependencies
     install <- runSh $ do
@@ -476,7 +477,10 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     headGhcVers = S.filter previewGHC versions
 
     cabal :: String -> String
-    cabal cmd = "${CABAL} " ++ cmd ++ " | color_cabal_output"
+    cabal cmd | cfgColor  = cabalCmd ++ " | color_cabal_output"
+              | otherwise = cabalCmd
+      where
+        cabalCmd = "${CABAL} " ++ cmd
 
     forJob :: C.VersionRange -> String -> Maybe String
     forJob vr cmd
