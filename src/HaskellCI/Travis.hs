@@ -182,7 +182,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         unless (S.null headGhcVers) $ sh $ unlines $
             [ "if $GHCHEAD; then"
             , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1/g')\" >> $CABALHOME/config"
-            , ""
             ] ++
             lines (catCmd Double "$CABALHOME/config"
             [ "repository head.hackage"
