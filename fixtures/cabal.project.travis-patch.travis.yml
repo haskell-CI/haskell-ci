@@ -109,6 +109,7 @@ install:
   - |
     echo "verbose: normal +nowrap +markoutput"          >> $CABALHOME/config
     echo "remote-build-reporting: anonymous"            >> $CABALHOME/config
+    echo "write-ghc-environment-files: always"          >> $CABALHOME/config
     echo "remote-repo-cache: $CABALHOME/packages"       >> $CABALHOME/config
     echo "logs-dir:          $CABALHOME/logs"           >> $CABALHOME/config
     echo "world-file:        $CABALHOME/world"          >> $CABALHOME/config
@@ -142,7 +143,6 @@ install:
   - |
     echo 'packages: "servant"' >> cabal.project
   - |
-    echo "write-ghc-environment-files: always" >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -166,7 +166,6 @@ script:
   - |
     echo 'packages: "servant-*/*.cabal"' >> cabal.project
   - |
-    echo "write-ghc-environment-files: always" >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true

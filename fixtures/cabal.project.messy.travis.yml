@@ -113,6 +113,7 @@ install:
   - |
     echo "verbose: normal +nowrap +markoutput"          >> $CABALHOME/config
     echo "remote-build-reporting: anonymous"            >> $CABALHOME/config
+    echo "write-ghc-environment-files: always"          >> $CABALHOME/config
     echo "remote-repo-cache: $CABALHOME/packages"       >> $CABALHOME/config
     echo "logs-dir:          $CABALHOME/logs"           >> $CABALHOME/config
     echo "world-file:        $CABALHOME/world"          >> $CABALHOME/config
@@ -149,7 +150,6 @@ install:
     echo 'packages: "servant-docs"' >> cabal.project
     echo 'packages: "servant-server"' >> cabal.project
   - |
-    echo "write-ghc-environment-files: always" >> cabal.project
   - "for pkg in deepseq; do echo \"constraints: $pkg installed\" >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -179,7 +179,6 @@ script:
     echo 'packages: "servant-docs-*/*.cabal"' >> cabal.project
     echo 'packages: "servant-server-*/*.cabal"' >> cabal.project
   - |
-    echo "write-ghc-environment-files: always" >> cabal.project
   - "for pkg in deepseq; do echo \"constraints: $pkg installed\" >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true

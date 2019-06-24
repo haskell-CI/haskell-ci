@@ -109,6 +109,7 @@ install:
   - |
     echo "verbose: normal +nowrap +markoutput"          >> $CABALHOME/config
     echo "remote-build-reporting: anonymous"            >> $CABALHOME/config
+    echo "write-ghc-environment-files: always"          >> $CABALHOME/config
     echo "remote-repo-cache: $CABALHOME/packages"       >> $CABALHOME/config
     echo "logs-dir:          $CABALHOME/logs"           >> $CABALHOME/config
     echo "world-file:        $CABALHOME/world"          >> $CABALHOME/config
@@ -145,13 +146,12 @@ install:
     echo 'packages: "servant-docs"' >> cabal.project
     echo 'packages: "servant-server"' >> cabal.project
   - |
-    echo "package servant"                                         >> cabal.project
-    echo "  tests: False"                                          >> cabal.project
-    echo ""                                                        >> cabal.project
-    echo "constraints:                 foundation >= 0.14"         >> cabal.project
-    echo "allow-newer:                 servant-js:servant"         >> cabal.project
-    echo "allow-newer:                 servant-js:servant-foreign" >> cabal.project
-    echo "write-ghc-environment-files: always"                     >> cabal.project
+    echo "package servant"                         >> cabal.project
+    echo "  tests: False"                          >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "constraints: foundation >= 0.14"         >> cabal.project
+    echo "allow-newer: servant-js:servant"         >> cabal.project
+    echo "allow-newer: servant-js:servant-foreign" >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant|servant-client|servant-docs|servant-server)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -181,13 +181,12 @@ script:
     echo 'packages: "servant-docs-*/*.cabal"' >> cabal.project
     echo 'packages: "servant-server-*/*.cabal"' >> cabal.project
   - |
-    echo "package servant"                                         >> cabal.project
-    echo "  tests: False"                                          >> cabal.project
-    echo ""                                                        >> cabal.project
-    echo "constraints:                 foundation >= 0.14"         >> cabal.project
-    echo "allow-newer:                 servant-js:servant"         >> cabal.project
-    echo "allow-newer:                 servant-js:servant-foreign" >> cabal.project
-    echo "write-ghc-environment-files: always"                     >> cabal.project
+    echo "package servant"                         >> cabal.project
+    echo "  tests: False"                          >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "constraints: foundation >= 0.14"         >> cabal.project
+    echo "allow-newer: servant-js:servant"         >> cabal.project
+    echo "allow-newer: servant-js:servant-foreign" >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant|servant-client|servant-docs|servant-server)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true

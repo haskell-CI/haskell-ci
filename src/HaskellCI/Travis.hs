@@ -162,6 +162,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         cat "$CABALHOME/config"
             [ "verbose: normal +nowrap +markoutput" -- https://github.com/haskell/cabal/issues/5956
             , "remote-build-reporting: anonymous"
+            , "write-ghc-environment-files: always"
             , "remote-repo-cache: $CABALHOME/packages"
             , "logs-dir:          $CABALHOME/logs"
             , "world-file:        $CABALHOME/world"
@@ -538,10 +539,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         -- raw-project is after local-ghc-options so we can override per package.
         traverse_ item cfgRawProject
-
-        -- mandatory cabal.project setup
-        -- this have to be last, so configuration doesn't override it.
-        item $ C.PrettyField "write-ghc-environment-files" $ PP.text "always"
 
     generateCabalProject :: Bool -> ShM ()
     generateCabalProject dist = do
