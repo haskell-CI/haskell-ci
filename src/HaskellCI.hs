@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP                 #-}
 {-# LANGUAGE MultiWayIf          #-}
-{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE OverloadedLabels    #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -22,9 +21,10 @@ module HaskellCI (
 import Prelude ()
 import Prelude.Compat
 
-import Control.Monad             (forM_, liftM, unless, when)
+import Control.Monad             (forM_, unless, when)
 import Control.Monad.Catch       (MonadMask)
 import Control.Monad.IO.Class    (MonadIO (..))
+import Data.Bitraversable        (bitraverse)
 import Data.Function             (on)
 import Data.Generics.Labels ()
 import Data.List                 (groupBy, intercalate, isPrefixOf, nub, nubBy, sort, sortBy, (\\))
@@ -32,6 +32,7 @@ import Data.List.NonEmpty        (NonEmpty (..))
 import Data.Maybe                (isNothing, mapMaybe)
 import Data.Semigroup            (Semigroup (..))
 import Data.Set                  (Set)
+import Data.Void                 (Void)
 import Distribution.Compat.ReadP (readP_to_S)
 import Lens.Micro
 import System.Directory          (doesDirectoryExist, doesFileExist, setCurrentDirectory, canonicalizePath, makeRelativeToCurrentDirectory)
@@ -157,13 +158,17 @@ travisFromConfigFile args opts path = do
         | "cabal.project" `isPrefixOf` takeFileName path = Just path
         | otherwise = Nothing
 
-    getCabalFiles :: m (Project FilePath)
+    getCabalFiles :: m (Project Void FilePath)
     getCabalFiles
         | isNothing isCabalProject = return $ emptyProject & #prjPackages .~ [path]
         | otherwise = do
             contents <- liftIO $ BS.readFile path
-            pkgs <- either putStrLnErr return $ parseProjectFile path contents
-            over #prjPackages concat `liftM` T.mapM findProjectPackage pkgs
+            prj  <- either putStrLnErr return $ parseProjectFile path contents
+            prj' <- bitraverse findOptProjectPackage findProjectPackage prj
+            return prj'
+                { prjPackages    = concat $ prjPackages prj' ++ prjOptPackages prj'
+                , prjOptPackages = []
+                }
 
     rootdir = takeDirectory path
 
@@ -174,6 +179,12 @@ travisFromConfigFile args opts path = do
         mfp <- checkisFileGlobPackage pkglocstr `mplusMaybeT`
                checkIsSingleFilePackage pkglocstr
         maybe (putStrLnErr $ "bad package location: " ++ pkglocstr) return mfp
+
+    findOptProjectPackage :: String -> m [FilePath]
+    findOptProjectPackage pkglocstr = do
+        mfp <- checkisFileGlobPackage pkglocstr `mplusMaybeT`
+               checkIsSingleFilePackage pkglocstr
+        maybe (return []) return mfp
 
     checkIsSingleFilePackage pkglocstr = do
         let abspath = rootdir </> pkglocstr
@@ -204,11 +215,11 @@ genTravisFromConfigs
     :: (Monad m, MonadDiagnostics m)
     => [String]
     -> Config
-    -> Project Package
+    -> Project Void Package
     -> Set Version
     -> m [String]
-genTravisFromConfigs argv config prj versions' = do
-    let jobVersions = makeJobVersions config versions'
+genTravisFromConfigs argv config prj vs = do
+    let jobVersions = makeJobVersions config vs
     case makeTravis argv config prj jobVersions of
         Left err     -> putStrLnErr (show err) -- TODO
         Right travis -> do
