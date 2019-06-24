@@ -7,31 +7,35 @@ module HaskellCI.Project (
     parseProjectFile,
     ) where
 
-import           Data.ByteString                              (ByteString)
-import           Data.Generics.Labels                         ()
-import           GHC.Generics                                 (Generic)
-import           Lens.Micro                                   (over)
+import  Data.Bifoldable      (Bifoldable (..))
+import  Data.Bifunctor       (Bifunctor (..))
+import  Data.Bitraversable   (Bitraversable (..), bifoldMapDefault, bimapDefault)
+import  Data.ByteString      (ByteString)
+import  Data.Generics.Labels ()
+import  GHC.Generics         (Generic)
+import  Lens.Micro           (over)
 
 import qualified Data.Map.Strict                              as M
 import qualified Distribution.CabalSpecVersion                as C
 import qualified Distribution.FieldGrammar                    as C
+import qualified Distribution.Fields.Pretty                   as C
 import qualified Distribution.PackageDescription.FieldGrammar as C
 import qualified Distribution.Parsec.Common                   as C
 import qualified Distribution.Parsec.Newtypes                 as C
 import qualified Distribution.Parsec.Parser                   as C
 import qualified Distribution.Parsec.ParseResult              as C
 import qualified Distribution.Types.SourceRepo                as C
-import qualified Distribution.Fields.Pretty as C
 
-import           HaskellCI.Newtypes
-import           HaskellCI.Optimization
-import           HaskellCI.ParsecError
+import HaskellCI.Newtypes
+import HaskellCI.Optimization
+import HaskellCI.ParsecError
 
 -- $setup
 -- >>> :seti -XOverloadedStrings
 
-data Project a = Project
+data Project b a = Project
     { prjPackages     :: [a]
+    , prjOptPackages  :: [b]
     , prjConstraints  :: [String]
     , prjAllowNewer   :: [String]
     , prjReorderGoals :: Bool
@@ -42,15 +46,23 @@ data Project a = Project
     }
   deriving (Show, Functor, Foldable, Traversable, Generic)
 
-emptyProject :: Project [a]
-emptyProject = Project [] [] [] False Nothing OptimizationOn [] []
+instance Bifunctor Project where bimap = bimapDefault
+instance Bifoldable Project where bifoldMap = bifoldMapDefault
+
+instance Bitraversable Project where
+    bitraverse f g prj = (\b a -> prj { prjPackages = a, prjOptPackages = b })
+        <$> traverse f (prjOptPackages prj)
+        <*> traverse g (prjPackages prj)
+
+emptyProject :: Project b a
+emptyProject = Project [] [] [] [] False Nothing OptimizationOn [] []
 
 -- | Parse project file. Extracts only few fields.
 --
 -- >>> fmap prjPackages $ parseProjectFile "cabal.project" "packages: foo bar/*.cabal"
 -- Right ["foo","bar/*.cabal"]
 --
-parseProjectFile :: FilePath -> ByteString -> Either String (Project String)
+parseProjectFile :: FilePath -> ByteString -> Either String (Project String String)
 parseProjectFile fp bs = do
     fields0 <- either (Left . show) Right $ C.readFields bs
     let (fields1, sections) = C.partitionFields fields0
@@ -66,7 +78,7 @@ parseProjectFile fp bs = do
         prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOrigFields
         foldr ($) prj <$> traverse parseSec (concat sections)
 
-    parseSec :: C.Section C.Position -> C.ParseResult (Project String -> Project String)
+    parseSec :: C.Section C.Position -> C.ParseResult (Project String String -> Project String String)
     parseSec (C.MkSection (C.Name _pos name) [] fields) | name == "source-repository-package" = do
         let fields' = fst $ C.partitionFields fields
         repo <- C.parseFieldGrammar C.cabalSpecLatest fields' (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused")
@@ -78,14 +90,14 @@ notPackages :: C.Field ann -> Bool
 notPackages (C.Field (C.Name _ "packages") _) = False
 notPackages _                                 = True
 
-
-grammar :: [C.PrettyField] -> C.ParsecFieldGrammar (Project String) (Project String)
+grammar :: [C.PrettyField] -> C.ParsecFieldGrammar (Project String String) (Project String String)
 grammar origFields = Project
-    <$> C.monoidalFieldAla "packages"      (C.alaList' C.FSep PackageLocation) #prjPackages
-    <*> C.monoidalFieldAla "constraints"   (C.alaList' C.CommaVCat NoCommas)   #prjConstraints
-    <*> C.monoidalFieldAla "allow-newer"   (C.alaList' C.CommaVCat NoCommas)   #prjAllowNewer
-    <*> C.booleanFieldDef  "reorder-goals"                                     #prjReorderGoals False
-    <*> C.optionalFieldAla "max-backjumps" Int'                                    #prjMaxBackjumps
-    <*> C.optionalFieldDef "optimization"                                      #prjOptimization OptimizationOn
+    <$> C.monoidalFieldAla "packages"          (C.alaList' C.FSep PackageLocation) #prjPackages
+    <*> C.monoidalFieldAla "optional-packages" (C.alaList' C.FSep PackageLocation) #prjOptPackages
+    <*> C.monoidalFieldAla "constraints"       (C.alaList' C.CommaVCat NoCommas)   #prjConstraints
+    <*> C.monoidalFieldAla "allow-newer"       (C.alaList' C.CommaVCat NoCommas)   #prjAllowNewer
+    <*> C.booleanFieldDef  "reorder-goals"                                         #prjReorderGoals False
+    <*> C.optionalFieldAla "max-backjumps"     Int'                                #prjMaxBackjumps
+    <*> C.optionalFieldDef "optimization"                                          #prjOptimization OptimizationOn
     <*> pure []
     <*> pure origFields

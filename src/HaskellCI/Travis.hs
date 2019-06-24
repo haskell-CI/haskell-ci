@@ -16,6 +16,7 @@ import Data.List            (foldl', intercalate, nub)
 import Data.Maybe           (fromMaybe, isJust)
 import Data.Set             (Set)
 import Lens.Micro
+import Data.Void (Void)
 
 import qualified Data.Map.Strict                               as M
 import qualified Data.Set                                      as S
@@ -83,7 +84,7 @@ travisHeader insertVersion argv =
 makeTravis
     :: [String]
     -> Config
-    -> Project Package
+    -> Project Void Package
     -> JobVersions
     -> Either ShError Travis -- TODO: writer
 makeTravis argv Config {..} prj JobVersions {..} = do
