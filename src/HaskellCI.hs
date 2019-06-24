@@ -218,8 +218,8 @@ genTravisFromConfigs
     -> Project Void Package
     -> Set Version
     -> m [String]
-genTravisFromConfigs argv config prj versions' = do
-    let jobVersions = makeJobVersions config versions'
+genTravisFromConfigs argv config prj vs = do
+    let jobVersions = makeJobVersions config vs
     case makeTravis argv config prj jobVersions of
         Left err     -> putStrLnErr (show err) -- TODO
         Right travis -> do
