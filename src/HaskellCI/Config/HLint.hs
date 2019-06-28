@@ -26,7 +26,7 @@ data HLintConfig = HLintConfig
   deriving (Show, Generic)
 
 defaultHLintVersion :: VersionRange
-defaultHLintVersion = withinVersion (mkVersion [2,1])
+defaultHLintVersion = withinVersion (mkVersion [2,2])
 
 -------------------------------------------------------------------------------
 -- HLintJob
