@@ -23,7 +23,6 @@ import qualified Distribution.Version                          as C
 import qualified Distribution.Types.BuildInfo.Lens          as L
 import qualified Distribution.Types.PackageDescription.Lens as L
 
-import HaskellCI.GHC (ghcAlpha)
 import HaskellCI.Config.HLint
 
 -------------------------------------------------------------------------------
@@ -91,7 +90,7 @@ hlintJobVersionRange vs HLintJobLatest = case S.maxView vs' of
     _                -> C.thisVersion $ C.mkVersion [0] -- if there are no jobs, we pick any.
   where
     -- remove GHC-HEAD and GHC-alpha
-    vs' = vs `S.difference` S.fromList [ ghcAlpha, Nothing ]
+    vs' = vs `S.difference` S.fromList [ Nothing ]
 hlintJobVersionRange _ (HLintJob v)   = C.thisVersion v
 
 hlintArgs :: C.GenericPackageDescription -> [[String]]

@@ -1,7 +1,7 @@
 -- | This module encodes what we know about GHC, including existing/supported versions.
 module HaskellCI.GHC where
 
-import           Distribution.Version (Version, mkVersion, versionNumbers)
+import           Distribution.Version (Version, mkVersion, versionNumbers, VersionRange, withinRange)
 
 import qualified Distribution.Pretty             as C
 
@@ -29,16 +29,12 @@ correspondingCabalVersion (Just cv) gv
     | gv >= mkVersion [8,8] = Just $ max (mkVersion [3,0]) cv
     | otherwise             = Just $ max (mkVersion [2,4]) cv
 
-ghcAlpha :: Maybe Version
--- ghcAlpha = Nothing
-ghcAlpha = Just (mkVersion [8,8,1])
-
 dispGhcVersion :: Maybe Version -> String
 dispGhcVersion = maybe "head" C.prettyShow
 
 -- | Alphas, RCs and HEAD.
-previewGHC :: Maybe Version -> Bool
-previewGHC = maybe True $ \v -> Just v == ghcAlpha || odd (snd (ghcMajVer v))
+previewGHC :: VersionRange -> Maybe Version -> Bool
+previewGHC vr = maybe True $ \v -> withinRange v vr || odd (snd (ghcMajVer v))
 
 ghcMajVer :: Version -> (Int,Int)
 ghcMajVer v
