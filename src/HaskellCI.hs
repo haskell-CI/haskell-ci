@@ -119,9 +119,8 @@ main = do
                     $ sort knownGhcVersions
 
     prettyMajVersion :: Version -> String
-    prettyMajVersion v
-        | Just v == ghcAlpha = "alpha"
-        | otherwise = case ghcMajVer v of (x,y) -> show x ++ "." ++ show y
+    prettyMajVersion v = case ghcMajVer v of
+        (x, y) -> show x ++ "." ++ show y
 
 defaultTravisPath :: FilePath
 defaultTravisPath = ".travis.yml"
@@ -331,7 +330,7 @@ configFromCabalFile cfg cabalFile = do
     lastStableGhcVers
         = nubBy ((==) `on` ghcMajVer)
         $ sortBy (flip compare)
-        $ filter (not . previewGHC . Just)
+        $ filter (not . previewGHC defaultHeadHackage . Just)
         $ knownGhcVersions
 
     isTwoDigitGhcVersion :: VersionRange -> Maybe Version

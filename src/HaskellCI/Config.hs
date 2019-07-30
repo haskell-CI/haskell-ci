@@ -29,6 +29,7 @@ import qualified Distribution.Parsec.Parser      as C
 import qualified Distribution.Parsec.ParseResult as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.Version      as C
+import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
 
 import           HaskellCI.Config.ConstraintSet
@@ -42,6 +43,9 @@ import           HaskellCI.Newtypes
 import           HaskellCI.OptionsGrammar
 import           HaskellCI.ParsecUtils
 import           HaskellCI.TestedWith
+
+defaultHeadHackage :: VersionRange
+defaultHeadHackage = C.orLaterVersion (C.mkVersion [8,9])
 
 -- TODO: split other blocks like DoctestConfig
 data Config = Config
@@ -59,6 +63,7 @@ data Config = Config
     , cfgHaddock             :: !VersionRange
     , cfgNoTestsNoBench      :: !VersionRange
     , cfgUnconstrainted      :: !VersionRange
+    , cfgHeadHackage         :: !VersionRange
     , cfgCheck               :: !Bool
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
@@ -114,6 +119,7 @@ emptyConfig = Config
     , cfgHaddock         = anyVersion
     , cfgNoTestsNoBench  = anyVersion
     , cfgUnconstrainted  = anyVersion
+    , cfgHeadHackage     = defaultHeadHackage
     , cfgCheck           = True
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
@@ -168,6 +174,8 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Build without tests and benchmarks"
     <*> rangeField            "unconstrained"                                                 #cfgUnconstrainted anyVersion
         ^^^ metahelp "RANGE" "Make unconstrained build"
+    <*> rangeField            "head-hackage"                                                  #cfgHeadHackage defaultHeadHackage
+        ^^^ metahelp "RANGE" "Use head.hackage repository. Also marks as allow-failures"
     <*> C.booleanFieldDef "cabal-check"                                                       #cfgCheck True
         ^^^ help "Disable cabal check run"
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches

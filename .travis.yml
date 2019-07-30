@@ -40,7 +40,7 @@ matrix:
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.0.2","cabal-install-2.4"]}}
     - compiler: ghc-head
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-head","cabal-install-head"]}}
-      env: GHCHEAD=true
+      env: HEADHACKAGE=true
     - compiler: ghc-8.4.4
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.4.4","cabal-install-2.4"]}}
       os: osx
@@ -83,7 +83,7 @@ install:
   - echo "$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]"
   - TEST=--enable-tests
   - BENCH=--enable-benchmarks
-  - GHCHEAD=${GHCHEAD-false}
+  - HEADHACKAGE=${HEADHACKAGE-false}
   - rm -f $CABALHOME/config
   - |
     echo "verbose: normal +nowrap +markoutput"          >> $CABALHOME/config
@@ -102,7 +102,7 @@ install:
     echo "repository hackage.haskell.org"               >> $CABALHOME/config
     echo "  url: http://hackage.haskell.org/"           >> $CABALHOME/config
   - |
-    if $GHCHEAD; then
+    if $HEADHACKAGE; then
     echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1/g')" >> $CABALHOME/config
     echo "repository head.hackage.ghc.haskell.org"                                        >> $CABALHOME/config
     echo "   url: https://ghc.gitlab.haskell.org/head.hackage/"                           >> $CABALHOME/config

@@ -155,7 +155,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         shForJob (C.invertVersionRange cfgTests) "TEST=--disable-tests"
         sh "BENCH=--enable-benchmarks"
         shForJob (C.invertVersionRange cfgBenchmarks) "BENCH=--disable-benchmarks"
-        sh "GHCHEAD=${GHCHEAD-false}"
+        sh "HEADHACKAGE=${HEADHACKAGE-false}"
 
         -- create ~/.cabal/config
         sh "rm -f $CABALHOME/config"
@@ -180,7 +180,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- Add head.hackage repository to ~/.cabal/config
         -- (locally you want to add it to cabal.project)
         unless (S.null headGhcVers) $ sh $ unlines $
-            [ "if $GHCHEAD; then"
+            [ "if $HEADHACKAGE; then"
             , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1/g')\" >> $CABALHOME/config"
             ] ++
             lines (catCmd Double "$CABALHOME/config"
@@ -399,8 +399,8 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                     tellJob osx gv = do
                         let cvs = dispGhcVersion $ gv >>= correspondingCabalVersion cfgCabalInstallVersion
                         let gvs = dispGhcVersion gv
-                        let pre | previewGHC gv = Just "GHCHEAD=true"
-                                | otherwise     = Nothing
+                        let pre | previewGHC cfgHeadHackage gv = Just "HEADHACKAGE=true"
+                                | otherwise                    = Nothing
 
                         item TravisJob
                             { tjCompiler = "ghc-" ++ gvs
@@ -475,7 +475,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     -- GHC versions which need head.hackage
     headGhcVers :: Set (Maybe C.Version)
-    headGhcVers = S.filter previewGHC versions
+    headGhcVers = S.filter (previewGHC cfgHeadHackage) versions
 
     cabal :: String -> String
     cabal cmd | cfgColor  = cabalCmd ++ " | color_cabal_output"
