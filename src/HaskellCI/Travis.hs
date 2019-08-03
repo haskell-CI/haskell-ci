@@ -124,7 +124,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         sh "CABAL=\"$CABAL -vnormal+nowrap+markoutput\""
 
         -- Color cabal output
-        sh "set -o pipefail"
         when cfgColor $ do
             cat' ".colorful.awk"
                 [ "function blue(s) { printf \"\\033[0;34m\" s \"\\033[0m \" }"
