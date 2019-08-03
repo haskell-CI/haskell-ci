@@ -129,7 +129,7 @@ instance MonadSh ShM where
             ]
       where
         res = runIdentity $ checkScript iface spec
-        iface = SC.SystemInterface $ \n -> return $ Left $ "cannot read file: " ++ n
+        iface = SC.mockedSystemInterface []
         spec  = SC.emptyCheckSpec
             { SC.csFilename          = "stdin"
             , SC.csScript            = cmd
