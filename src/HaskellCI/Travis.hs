@@ -150,7 +150,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         sh "CABAL=\"$CABAL -vnormal+nowrap+markoutput\""
 
         -- Color cabal output
-        sh "set -o pipefail"
+        sh' [2039] "set -o pipefail" -- SC2039: In POSIX sh, set option pipefail is undefined. Travis is bash, so it's fine :)
         when cfgColor $ do
             cat' ".colorful.awk"
                 [ "function blue(s) { printf \"\\033[0;34m\" s \"\\033[0m \" }"
