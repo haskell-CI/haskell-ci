@@ -2,22 +2,20 @@
 -- | Which jobs to generate. Also helper for diagnostics output.
 module HaskellCI.Jobs where
 
-import Control.Monad        (forM_, unless)
-import Data.Set             (Set)
-import Distribution.Version (Version, withinRange)
+import HaskellCI.Prelude
 
-import qualified Data.Set as S
+import qualified Data.Set            as S
+import qualified Distribution.Pretty as C
 
+import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Diagnostics
-import HaskellCI.GHC
 import HaskellCI.Package
 import HaskellCI.TestedWith
 
 data JobVersions = JobVersions
-    { versions           :: Set (Maybe Version)
-    , versions'          :: Set Version
-    , osxVersions        :: Set Version
+    { versions           :: Set CompilerVersion  -- ^ all jobs
+    , osxVersions        :: Set Version          -- ^ osx jobs: GHC only
     , omittedOsxVersions :: Set Version
     }
 
@@ -26,10 +24,10 @@ describeJobs twj JobVersions {..} pkgs = do
     putStrLnInfo $ "Generating Travis-CI config for testing for GHC versions: " ++ ghcVersions
     case twj of
         TestedWithUniform -> pure ()
-        TestedWithAny     -> forM_ pkgs $ \pkg -> do
+        TestedWithAny     -> for_ pkgs $ \pkg -> do
             -- this omits HEAD version.
             let vr = pkgJobs pkg
-            let vs = showVersions $ S.map Just $ S.filter (\v -> v `withinRange` vr) versions'
+            let vs = showVersions vr
             putStrLnInfo $ pkgName pkg ++ " " ++ ": " ++ vs
 
     unless (null osxVersions) $  do
@@ -37,30 +35,33 @@ describeJobs twj JobVersions {..} pkgs = do
         unless (S.null omittedOsxVersions) $
             putStrLnWarn $ "Not all GHC versions specified with --osx are generated: " ++ ghcOmittedOsxVersions
   where
-    showVersions :: Set (Maybe Version) -> String
-    showVersions = unwords . map dispGhcVersion . S.toList
+    showVersions :: Set CompilerVersion -> String
+    showVersions = unwords . map dispGhcVersionShort . S.toList
+
+    showVersionsV :: Set Version -> String
+    showVersionsV = unwords . map C.prettyShow . S.toList
 
     ghcVersions :: String
     ghcVersions = showVersions versions
 
     ghcOsxVersions :: String
-    ghcOsxVersions = showVersions $ S.map Just osxVersions
+    ghcOsxVersions = showVersionsV osxVersions
 
     ghcOmittedOsxVersions :: String
-    ghcOmittedOsxVersions = showVersions $ S.map Just omittedOsxVersions
+    ghcOmittedOsxVersions = showVersionsV omittedOsxVersions
 
-makeJobVersions :: Config -> Set Version -> JobVersions
+makeJobVersions :: Config -> Set CompilerVersion -> JobVersions
 makeJobVersions Config {..} versions' = JobVersions {..} where
     -- All jobs
-    versions :: Set (Maybe Version)
+    versions :: Set CompilerVersion
     versions
-        | cfgGhcHead = S.insert Nothing $ S.map Just versions'
-        | otherwise  = S.map Just versions'
+        | cfgGhcHead = S.insert GHCHead versions'
+        | otherwise  = versions'
 
     osxVersions' :: Set Version
     osxVersions' = cfgOsx
 
     osxVersions, omittedOsxVersions :: Set Version
-    (osxVersions, omittedOsxVersions) = S.partition (`S.member` versions') osxVersions'
+    (osxVersions, omittedOsxVersions) = S.partition (\x -> GHC x `S.member` versions') osxVersions'
 
 

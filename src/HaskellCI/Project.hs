@@ -7,13 +7,7 @@ module HaskellCI.Project (
     parseProjectFile,
     ) where
 
-import  Data.Bifoldable      (Bifoldable (..))
-import  Data.Bifunctor       (Bifunctor (..))
-import  Data.Bitraversable   (Bitraversable (..), bifoldMapDefault, bimapDefault)
-import  Data.ByteString      (ByteString)
-import  Data.Generics.Labels ()
-import  GHC.Generics         (Generic)
-import  Lens.Micro           (over)
+import HaskellCI.Prelude
 
 import qualified Data.Map.Strict                              as M
 import qualified Distribution.CabalSpecVersion                as C

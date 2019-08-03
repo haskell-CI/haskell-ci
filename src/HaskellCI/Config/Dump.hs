@@ -1,16 +1,14 @@
 module HaskellCI.Config.Dump where
 
-import           Prelude                     ()
-import           Prelude.Compat
+import HaskellCI.Prelude
 
-import           Data.Coerce                 (coerce)
-import           Distribution.Simple.Utils   (fromUTF8BS)
+import Distribution.Simple.Utils (fromUTF8BS)
 
 import qualified Distribution.Compat.Newtype as C
 import qualified Distribution.FieldGrammar   as C
 import qualified Distribution.Pretty         as C
 
-import           HaskellCI.OptionsGrammar
+import HaskellCI.OptionsGrammar
 
 -- TODO: with Cabal-2.6 this can be prettier, using Pretty.Field
 newtype DumpGrammar s a = DG { runDG :: [String] }

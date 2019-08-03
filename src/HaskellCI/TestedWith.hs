@@ -3,25 +3,24 @@ module HaskellCI.TestedWith (
     checkVersions,
     ) where
 
-import           Prelude                         ()
-import           Prelude.Compat
+import Prelude ()
+import Prelude.Compat
 
-import           Control.Applicative             ((<|>))
-import           Data.Generics.Labels            ()
-import           Data.List                       (intercalate)
-import           Data.Void                       (Void)
+import Control.Applicative  ((<|>))
+import Data.Generics.Labels ()
+import Data.List            (intercalate)
+import Data.Void            (Void)
 
 import qualified Data.Foldable                   as F
 import qualified Data.Set                        as S
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Parsec.Class       as C
 import qualified Distribution.Pretty             as C
-import qualified Distribution.Types.Version      as C
-import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
 
-import           HaskellCI.Package
-import           HaskellCI.Project
+import HaskellCI.Compiler
+import HaskellCI.Package
+import HaskellCI.Project
 
 data TestedWithJobs
     = TestedWithUniform
@@ -42,14 +41,14 @@ instance C.Pretty TestedWithJobs where
 
 checkVersions
     :: TestedWithJobs
-    -> Project Void (Package, S.Set C.Version)
-    -> Either [String] (S.Set C.Version, Project Void Package)
+    -> Project Void Package
+    -> Either [String] (S.Set CompilerVersion, Project Void Package)
 checkVersions TestedWithUniform = checkVersionsUniform
 checkVersions TestedWithAny     = checkVersionsAny
 
 checkVersionsUniform
-    :: Project Void (Package, S.Set C.Version)
-    -> Either [String] (S.Set C.Version, Project Void Package)
+    :: Project Void Package
+    -> Either [String] (S.Set CompilerVersion, Project Void Package)
 checkVersionsUniform prj | null (prjPackages prj) = Left ["Error reading cabal file(s)!"]
 checkVersionsUniform prj = do
     let (errors, names) = F.foldl' collectConfig mempty prj
@@ -57,18 +56,20 @@ checkVersionsUniform prj = do
     then Left errors
     else Right (allVersions, prj { prjPackages = names, prjOptPackages = [] })
   where
-    allVersions = F.foldMap snd prj
+    allVersions :: S.Set CompilerVersion
+    allVersions = F.foldMap pkgJobs prj
 
     collectConfig
         :: ([String], [Package])
-        -> (Package, S.Set C.Version)
+        -> Package
         -> ([String], [Package])
-    collectConfig aggregate (pkg, testWith) =
+    collectConfig aggregate pkg =
         aggregate <> (errors, [pkg])
       where
+        testWith = pkgJobs pkg
         symDiff a b = S.union a b `S.difference` S.intersection a b
         diff = symDiff testWith allVersions
-        missingVersions = map C.prettyShow $ S.toList diff
+        missingVersions = map dispGhcVersion $ S.toList diff
         errors | S.null diff = []
                | otherwise = pure $ mconcat
                     [ pkgName pkg
@@ -76,17 +77,11 @@ checkVersionsUniform prj = do
                     ] ++ intercalate "," missingVersions
 
 checkVersionsAny
-    :: Project Void (Package, S.Set C.Version)
-    -> Either [String] (S.Set C.Version, Project Void Package)
+    :: Project Void Package
+    -> Either [String] (S.Set CompilerVersion, Project Void Package)
 checkVersionsAny prj | null (prjPackages prj) = Left ["Error reading cabal file(s)!"]
 checkVersionsAny prj =
-    Right (allVersions, uncurry f <$> prj)
+    Right (allVersions, prj)
   where
-    allVersions = F.foldMap snd prj
-
-    f :: Package -> S.Set C.Version -> Package
-    f pkg vs = case S.toList vs of
-        []      -> pkg { pkgJobs = C.noVersion }
-        (v:vs') -> pkg { pkgJobs = foldr g (C.thisVersion v) vs' }
-
-    g = C.unionVersionRanges . C.thisVersion
+    allVersions :: S.Set CompilerVersion
+    allVersions = F.foldMap pkgJobs prj

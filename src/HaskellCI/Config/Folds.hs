@@ -2,9 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module HaskellCI.Config.Folds where
 
-import           Data.Char                       (isUpper, toLower)
-import           Data.Coerce                     (coerce)
-import           Data.List                       (intercalate)
+import HaskellCI.Prelude
 
 import qualified Data.Map.Strict                 as M
 import qualified Data.Set                        as S

@@ -3,12 +3,14 @@ module HaskellCI.OptionsGrammar (
     (C.^^^),
     )  where
 
+import HaskellCI.Prelude
+
 import qualified Distribution.Compat.Lens        as C
 import qualified Distribution.FieldGrammar       as C
 import qualified Distribution.Parsec.Field       as C
 import qualified Distribution.Types.VersionRange as C
 
-import           HaskellCI.Newtypes
+import HaskellCI.Newtypes
 
 class C.FieldGrammar p => OptionsGrammar p where
     metahelp :: String -> String -> p s a -> p s a

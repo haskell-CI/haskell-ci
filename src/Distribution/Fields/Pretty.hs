@@ -17,8 +17,10 @@ module Distribution.Fields.Pretty (
     prettySectionArgs,
     ) where
 
-import Data.Functor.Identity       (Identity (..))
-import Distribution.Pretty         (showToken)
+import Prelude
+
+import Data.Functor.Identity (Identity (..))
+import Distribution.Pretty   (showToken)
 
 import Distribution.Parsec.Field (FieldName)
 import Distribution.Simple.Utils (fromUTF8BS)

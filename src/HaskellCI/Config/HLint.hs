@@ -2,10 +2,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module HaskellCI.Config.HLint where
 
-import           Control.Applicative             ((<|>))
-import           Data.Generics.Labels            ()
-import           Distribution.Version
-import           GHC.Generics                    (Generic)
+import HaskellCI.Prelude
+
+import Distribution.Version (withinVersion)
 
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.FieldGrammar       as C

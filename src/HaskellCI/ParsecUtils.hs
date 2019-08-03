@@ -1,9 +1,10 @@
 module HaskellCI.ParsecUtils where
 
-import           Control.Monad                   (unless)
-import           System.Directory                (doesFileExist)
-import           System.Exit                     (exitFailure)
-import           System.IO                       (hPutStr, stderr)
+import HaskellCI.Prelude
+
+import System.Directory (doesFileExist)
+import System.Exit      (exitFailure)
+import System.IO        (hPutStr, stderr)
 
 import qualified Data.ByteString                 as BS
 import qualified Distribution.Parsec.Common      as C
@@ -12,7 +13,7 @@ import qualified Distribution.Parsec.Parser      as C
 import qualified Distribution.Parsec.ParseResult as C
 import qualified Text.Parsec                     as P
 
-import           HaskellCI.ParsecError
+import HaskellCI.ParsecError
 
 readAndParseFile
     :: ([C.Field C.Position] -> C.ParseResult a)  -- ^ File fields to final value parser

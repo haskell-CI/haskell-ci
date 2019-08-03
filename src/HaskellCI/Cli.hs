@@ -3,17 +3,15 @@
 -- | Most of client interface.
 module HaskellCI.Cli where
 
-import           Prelude                  ()
-import           Prelude.Compat
+import HaskellCI.Prelude
 
-import           Control.Applicative      ((<|>))
-import           System.Exit              (exitFailure)
-import           System.IO                (hPutStrLn, stderr)
+import System.Exit (exitFailure)
+import System.IO   (hPutStrLn, stderr)
 
-import qualified Options.Applicative      as O
+import qualified Options.Applicative as O
 
-import           HaskellCI.Config
-import           HaskellCI.OptparseGrammar
+import HaskellCI.Config
+import HaskellCI.OptparseGrammar
 
 #ifndef CURRENT_PACKAGE_VERSION
 #define CURRENT_PACKAGE_VERSION "???"

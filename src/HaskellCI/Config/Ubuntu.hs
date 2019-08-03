@@ -1,5 +1,7 @@
 module HaskellCI.Config.Ubuntu where
 
+import HaskellCI.Prelude
+
 import qualified Distribution.Parsec.Class as C
 import qualified Distribution.Pretty       as C
 import qualified Text.PrettyPrint          as PP

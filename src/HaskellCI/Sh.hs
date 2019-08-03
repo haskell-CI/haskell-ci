@@ -12,11 +12,9 @@ module HaskellCI.Sh (
     FromShError (..),
     ) where
 
-import Control.Monad (ap)
-import Control.Exception (Exception)
+import HaskellCI.Prelude
 
 #ifdef MIN_VERSION_ShellCheck
-import           Data.Functor.Identity (Identity (..))
 import           ShellCheck.Checker    (checkScript)
 import qualified ShellCheck.Interface  as SC
 #endif
@@ -61,6 +59,7 @@ sh = sh'
     , 2002 -- SC2002: Useless cat. Consider 'cmd < file | ..' or 'cmd file | ..' instead.
     -- TODO: because HEREDOC doesn't work
     , 2129 -- SC2129: Consider using { cmd1; cmd2; } >> file instead of individual redirects
+    , 2154 -- SC2154: PKGDIR_splitmix is referenced but not assigned.
     ]
 
 -------------------------------------------------------------------------------

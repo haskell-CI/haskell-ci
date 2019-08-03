@@ -6,6 +6,7 @@
 #
 language: c
 dist: bionic
+sudo: required
 git:
   # whether to recursively clone submodules
   submodules: false
@@ -30,24 +31,26 @@ matrix:
   include:
     - compiler: ghc-8.6.5
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.6.5","cabal-install-2.4"]}}
-    - compiler: ghc-8.6.4
-      addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.6.4","cabal-install-2.4"]}}
     - compiler: ghc-8.4.4
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.4.4","cabal-install-2.4"]}}
     - compiler: ghc-8.2.2
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.2.2","cabal-install-2.4"]}}
-    - compiler: ghc-8.0.2
-      addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.0.2","cabal-install-2.4"]}}
     - compiler: ghc-head
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-head","cabal-install-head"]}}
-      env: HEADHACKAGE=true
     - compiler: ghc-8.4.4
       addons: {"apt":{"sources":["hvr-ghc"],"packages":["ghc-8.4.4","cabal-install-2.4"]}}
       os: osx
   allow_failures:
     - compiler: ghc-head
 before_install:
+  - |
+    if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    sudo add-apt-repository -y ppa:hvr/ghc;
+    sudo apt-get update;
+    sudo apt-get install $CC cabal-install-3.0;
+    fi
   - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
+  - WITHCOMPILER="-w $HC"
   - HCPKG="$HC-pkg"
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
@@ -55,8 +58,8 @@ before_install:
   - export PATH="$CABALHOME/bin:$PATH"
   - TOP=$(pwd)
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then brew update; brew upgrade python@3; curl https://haskell.futurice.com/haskell-on-macos.py | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${TRAVIS_COMPILER}; fi
-  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; HCPKG=${HC/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi
-  - HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\.([0-9]+)\.([0-9]+).*/\1 * 10000 + \2 * 100 + \3/') ))
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; WITHCOMPILER="-w $HC"; HCPKG=${HC/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi
+  - "HCNUMVER=$(${HC} --numeric-version|perl -ne '/^(\\d+)\\.(\\d+)\\.(\\d+)(\\.(\\d+))?$/; print(10000 * $1 + 100 * $2 + ($3 == 0 ? $5 != 1 : $3))')"
   - echo $HCNUMVER
   - CABAL="$CABAL -vnormal+nowrap+markoutput"
   - set -o pipefail
@@ -83,7 +86,8 @@ install:
   - echo "$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]"
   - TEST=--enable-tests
   - BENCH=--enable-benchmarks
-  - HEADHACKAGE=${HEADHACKAGE-false}
+  - HEADHACKAGE=false
+  - if [ $HCNUMVER -gt 80605 ] ; then HEADHACKAGE=true ; fi
   - rm -f $CABALHOME/config
   - |
     echo "verbose: normal +nowrap +markoutput"          >> $CABALHOME/config
@@ -119,13 +123,13 @@ install:
   - cat $CABALHOME/config
   - rm -fv cabal.project cabal.project.local cabal.project.freeze
   - travis_retry ${CABAL} v2-update -v
-  - ${CABAL} v2-install -w ${HC} -j2 doctest --constraint='doctest ==0.16.*' | color_cabal_output
-  - if [ $HCNUMVER -eq 80605 ] ; then ${CABAL} v2-install -w ${HC} -j2 hlint --constraint='hlint ==2.1.*' | color_cabal_output ; fi
+  - ${CABAL} v2-install $WITHCOMPILER -j2 doctest --constraint='doctest ==0.16.*' | color_cabal_output
+  - if [ $HCNUMVER -eq 80605 ] ; then ${CABAL} v2-install $WITHCOMPILER -j2 hlint --constraint='hlint ==2.1.*' | color_cabal_output ; fi
   # Generate cabal.project
   - rm -rf cabal.project cabal.project.local cabal.project.freeze
   - touch cabal.project
   - |
-    echo 'packages: "."' >> cabal.project
+    echo "packages: ." >> cabal.project
   - |
     echo "package haskell-ci"     >> cabal.project
     echo "  ghc-options: -Werror" >> cabal.project
@@ -138,11 +142,11 @@ install:
   - cat cabal.project || true
   - cat cabal.project.local || true
   - if [ -f "./configure.ac" ]; then (cd "." && autoreconf -i); fi
-  - ${CABAL} v2-freeze -w ${HC} ${TEST} ${BENCH} | color_cabal_output
+  - ${CABAL} v2-freeze $WITHCOMPILER ${TEST} ${BENCH} | color_cabal_output
   - "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
   - rm  cabal.project.freeze
-  - ${CABAL} v2-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all | color_cabal_output
-  - ${CABAL} v2-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all | color_cabal_output
+  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} --dep -j2 all | color_cabal_output
+  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --dep -j2 all | color_cabal_output
 script:
   - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)
   # Packaging...
@@ -150,12 +154,14 @@ script:
   # Unpacking...
   - mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/
   - cd ${DISTDIR} || false
-  - find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \;
+  - find . -maxdepth 1 -type f -name '*.tar.gz' -exec tar -xvf '{}' \;
+  - find . -maxdepth 1 -type f -name '*.tar.gz' -exec rm       '{}' \;
+  - PKGDIR_haskell_ci="$(find . -maxdepth 1 -type d -regex '.*/haskell-ci-[0-9.]*')"
   # Generate cabal.project
   - rm -rf cabal.project cabal.project.local cabal.project.freeze
   - touch cabal.project
   - |
-    echo 'packages: "haskell-ci-*/*.cabal"' >> cabal.project
+    echo "packages: ${PKGDIR_haskell_ci}" >> cabal.project
   - |
     echo "package haskell-ci"     >> cabal.project
     echo "  ghc-options: -Werror" >> cabal.project
@@ -169,28 +175,28 @@ script:
   - cat cabal.project.local || true
   # Building...
   # this builds all libraries and executables (without tests/benchmarks)
-  - ${CABAL} v2-build -w ${HC} --disable-tests --disable-benchmarks all | color_cabal_output
+  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all | color_cabal_output
   # Building with tests and benchmarks...
   # build & run tests, build benchmarks
-  - ${CABAL} v2-build -w ${HC} ${TEST} ${BENCH} all | color_cabal_output
+  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} all | color_cabal_output
   # Testing...
-  - ${CABAL} v2-test -w ${HC} ${TEST} ${BENCH} all | color_cabal_output
+  - ${CABAL} v2-test $WITHCOMPILER ${TEST} ${BENCH} all | color_cabal_output
   # Doctest...
-  - (cd haskell-ci-* && doctest --fast -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src)
+  - (cd ${PKGDIR_haskell_ci} && doctest --fast -XNoImplicitPrelude -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src)
   # HLint..
-  - if [ $HCNUMVER -eq 80605 ] ; then (cd haskell-ci-* && hlint -h ${TOP}/.hlint.yaml -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable src) ; fi
-  - if [ $HCNUMVER -eq 80605 ] ; then (cd haskell-ci-* && hlint -h ${TOP}/.hlint.yaml cli) ; fi
+  - if [ $HCNUMVER -eq 80605 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml -XNoImplicitPrelude -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src) ; fi
+  - if [ $HCNUMVER -eq 80605 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml cli) ; fi
   # cabal check...
-  - (cd haskell-ci-* && ${CABAL} -vnormal check)
+  - (cd ${PKGDIR_haskell_ci} && ${CABAL} -vnormal check)
   # Building without installed constraints for packages in global-db...
   - rm -f cabal.project.local
-  - ${CABAL} v2-build -w ${HC} --disable-tests --disable-benchmarks all | color_cabal_output
+  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all | color_cabal_output
   # Constraint sets
   - rm -rf cabal.project.local
   # Constraint set deepseq-1.4
   - echo 'Constraint set deepseq-1.4' && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\r'
-  - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} v2-build -w ${HC} --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all | color_cabal_output ; fi
-  - if [ $HCNUMVER -ge 70800 ] && [ $HCNUMVER -lt 71000 ]  ||  [ $HCNUMVER -eq 80202 ] ; then ${CABAL} v2-haddock -w ${HC} --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all | color_cabal_output ; fi
+  - if [ $HCNUMVER -ge 80202 ] && [ $HCNUMVER -lt 80404 ] ; then ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all | color_cabal_output ; fi
+  - if [ $HCNUMVER -ge 80202 ] && [ $HCNUMVER -lt 80404 ] ; then ${CABAL} v2-haddock $WITHCOMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all | color_cabal_output ; fi
   - echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\r'
 
 # REGENDATA ["--output=.travis.yml","--config=cabal.haskell-ci","haskell-ci.cabal"]

@@ -1,11 +1,11 @@
 module HaskellCI.Config.Jobs where
 
-import Control.Applicative ((<|>))
+import HaskellCI.Prelude
 
-import qualified Distribution.Pretty             as C
-import qualified Text.PrettyPrint                as PP
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Parsec.Class       as C
+import qualified Distribution.Pretty             as C
+import qualified Text.PrettyPrint                as PP
 
 -- | Jobs
 --

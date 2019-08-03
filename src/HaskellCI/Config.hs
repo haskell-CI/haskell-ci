@@ -4,15 +4,11 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module HaskellCI.Config where
 
-import           Control.Monad.IO.Class          (MonadIO (..))
-import           Data.Coerce                     (coerce)
-import           Data.Generics.Labels            ()
-import           Distribution.Simple.Utils       (fromUTF8BS)
-import           Distribution.Types.Version      (Version)
-import           Distribution.Types.VersionRange (VersionRange, anyVersion,
-                                                  noVersion)
-import           GHC.Generics                    (Generic)
-import           Lens.Micro                      (over)
+import HaskellCI.Prelude
+
+import Distribution.Simple.Utils       (fromUTF8BS)
+import Distribution.Types.Version      (Version)
+import Distribution.Types.VersionRange (VersionRange, anyVersion, noVersion)
 
 import qualified Data.ByteString                 as BS
 import qualified Data.Map                        as M
@@ -32,18 +28,18 @@ import qualified Distribution.Types.Version      as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
 
-import           HaskellCI.Config.ConstraintSet
-import           HaskellCI.Config.CopyFields
-import           HaskellCI.Config.Doctest
-import           HaskellCI.Config.Folds
-import           HaskellCI.Config.HLint
-import           HaskellCI.Config.Installed
-import           HaskellCI.Config.Jobs
-import           HaskellCI.Config.Ubuntu
-import           HaskellCI.Newtypes
-import           HaskellCI.OptionsGrammar
-import           HaskellCI.ParsecUtils
-import           HaskellCI.TestedWith
+import HaskellCI.Config.ConstraintSet
+import HaskellCI.Config.CopyFields
+import HaskellCI.Config.Doctest
+import HaskellCI.Config.Folds
+import HaskellCI.Config.HLint
+import HaskellCI.Config.Installed
+import HaskellCI.Config.Jobs
+import HaskellCI.Config.Ubuntu
+import HaskellCI.Newtypes
+import HaskellCI.OptionsGrammar
+import HaskellCI.ParsecUtils
+import HaskellCI.TestedWith
 
 defaultHeadHackage :: VersionRange
 defaultHeadHackage = C.orLaterVersion (C.mkVersion [8,9])

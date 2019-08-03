@@ -8,10 +8,7 @@ module HaskellCI.Tools (
     hlintArgs,
     ) where
 
-import Data.Generics.Labels ()
-import Data.List            (nub)
-import Data.Set             (Set)
-import Lens.Micro
+import HaskellCI.Prelude
 
 import qualified Data.Set                                      as S
 import qualified Distribution.PackageDescription               as C
@@ -23,14 +20,15 @@ import qualified Distribution.Version                          as C
 import qualified Distribution.Types.BuildInfo.Lens          as L
 import qualified Distribution.Types.PackageDescription.Lens as L
 
+import HaskellCI.Compiler
 import HaskellCI.Config.HLint
 
 -------------------------------------------------------------------------------
 -- Doctest
 -------------------------------------------------------------------------------
 
-doctestJobVersionRange :: C.VersionRange
-doctestJobVersionRange = C.orLaterVersion $ C.mkVersion [8,0]
+doctestJobVersionRange :: CompilerRange
+doctestJobVersionRange = RangeGHC /\ Range (C.orLaterVersion $ C.mkVersion [8,0])
 
 -- | Modules arguments to the library
 --
@@ -84,14 +82,14 @@ executableModuleArgs e
 -- HLint
 -------------------------------------------------------------------------------
 
-hlintJobVersionRange :: Set (Maybe C.Version) -> HLintJob -> C.VersionRange
+hlintJobVersionRange :: Set CompilerVersion -> HLintJob -> CompilerRange
 hlintJobVersionRange vs HLintJobLatest = case S.maxView vs' of
-    Just (Just v, _) -> C.thisVersion v
-    _                -> C.thisVersion $ C.mkVersion [0] -- if there are no jobs, we pick any.
+    Just (v, _) -> RangePoints (S.singleton (GHC v))
+    _           -> RangePoints S.empty
   where
-    -- remove GHC-HEAD and GHC-alpha
-    vs' = vs `S.difference` S.fromList [ Nothing ]
-hlintJobVersionRange _ (HLintJob v)   = C.thisVersion v
+    -- remove non GHC versions
+    vs' = S.fromList $ mapMaybe (maybeGHC Nothing Just) $ S.toList $ vs
+hlintJobVersionRange _ (HLintJob v)   = RangePoints (S.singleton (GHC v))
 
 hlintArgs :: C.GenericPackageDescription -> [[String]]
 hlintArgs gpd = nub $

@@ -1,12 +1,12 @@
 module HaskellCI.Glob where
 
-import Control.Applicative as App ((<$>))
-import Control.Monad (void, filterM, liftM2)
-import Control.Monad.IO.Class
-import Data.List (stripPrefix)
+import HaskellCI.Prelude
+
+import Control.Applicative       as App ((<$>))
+import Control.Monad             (filterM, liftM2, void)
 import Distribution.Compat.ReadP
-import System.Directory (doesDirectoryExist, getDirectoryContents)
-import System.FilePath.Posix ((</>))
+import System.Directory          (doesDirectoryExist, getDirectoryContents)
+import System.FilePath.Posix     ((</>))
 
 -------------------------------------------------------------------------------
 -- Glob

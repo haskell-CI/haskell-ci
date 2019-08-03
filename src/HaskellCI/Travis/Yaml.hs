@@ -4,18 +4,15 @@
 -- | @travis.yaml@ structure.
 module HaskellCI.Travis.Yaml where
 
-import Control.Monad      (unless)
-import Data.Foldable      (for_)
-import Data.List.NonEmpty (NonEmpty (..))
-import Data.String        (fromString)
+import           HaskellCI.Prelude
 
-import qualified Data.Aeson         as Aeson
-import qualified Data.List.NonEmpty as NE
+import qualified Data.Aeson              as Aeson
+import qualified Data.List.NonEmpty      as NE
 
-import HaskellCI.Config.Ubuntu
-import HaskellCI.List
-import HaskellCI.Sh
-import HaskellCI.YamlSyntax
+import           HaskellCI.Config.Ubuntu
+import           HaskellCI.List
+import           HaskellCI.Sh
+import           HaskellCI.YamlSyntax
 
 -------------------------------------------------------------------------------
 -- Data
@@ -149,6 +146,7 @@ instance ToYaml Travis where
     toYaml Travis {..} = ykeyValuesFilt []
         [ "language"       ~> fromString travisLanguage
         , "dist"           ~> fromString (showUbuntu travisUbuntu)
+        , "sudo"           ~> fromString "required"
         , "git"            ~> toYaml travisGit
         , "branches"       ~> toYaml travisBranches
         , "notifications"  ~> toYaml travisNotifications
