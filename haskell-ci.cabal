@@ -87,6 +87,7 @@ library haskell-ci-internal
     HaskellCI.Config.HLint
     HaskellCI.Config.Installed
     HaskellCI.Config.Jobs
+    HaskellCI.Config.Ubuntu
     HaskellCI.Diagnostics
     HaskellCI.Extras
     HaskellCI.GHC

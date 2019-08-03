@@ -12,6 +12,7 @@ import Data.String        (fromString)
 import qualified Data.Aeson         as Aeson
 import qualified Data.List.NonEmpty as NE
 
+import HaskellCI.Config.Ubuntu
 import HaskellCI.List
 import HaskellCI.Sh
 import HaskellCI.YamlSyntax
@@ -21,19 +22,19 @@ import HaskellCI.YamlSyntax
 -------------------------------------------------------------------------------
 
 data Travis = Travis
-    { travisLanguage      :: String
-    , travisDist          :: String
-    , travisGit           :: TravisGit
-    , travisCache         :: TravisCache
-    , travisBranches      :: TravisBranches
-    , travisNotifications :: TravisNotifications
-    , travisServices      :: [String]
-    , travisAddons        :: TravisAddons
-    , travisMatrix        :: TravisMatrix
-    , travisBeforeCache   :: [Sh]
-    , travisBeforeInstall :: [Sh]
-    , travisInstall       :: [Sh]
-    , travisScript        :: [Sh]
+    { travisUbuntu        :: !Ubuntu
+    , travisLanguage      :: !String
+    , travisGit           :: !TravisGit
+    , travisCache         :: !TravisCache
+    , travisBranches      :: !TravisBranches
+    , travisNotifications :: !TravisNotifications
+    , travisServices      :: ![String]
+    , travisAddons        :: !TravisAddons
+    , travisMatrix        :: !TravisMatrix
+    , travisBeforeCache   :: ![Sh]
+    , travisBeforeInstall :: ![Sh]
+    , travisInstall       :: ![Sh]
+    , travisScript        :: ![Sh]
     }
   deriving Show
 
@@ -147,7 +148,7 @@ isEmpty _                 = False
 instance ToYaml Travis where
     toYaml Travis {..} = ykeyValuesFilt []
         [ "language"       ~> fromString travisLanguage
-        , "dist"           ~> fromString travisDist
+        , "dist"           ~> fromString (showUbuntu travisUbuntu)
         , "git"            ~> toYaml travisGit
         , "branches"       ~> toYaml travisBranches
         , "notifications"  ~> toYaml travisNotifications
@@ -214,7 +215,7 @@ instance ToYaml TravisAllowFailure where
 instance ToYaml TravisAddons where
     toYaml TravisAddons {..} = ykeyValuesFilt [] $ buildList $ do
         -- no apt on purpose
-        for_ taPostgres $ \p -> 
+        for_ taPostgres $ \p ->
             item $ "postgresql" ~> fromString p
 
 -------------------------------------------------------------------------------

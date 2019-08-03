@@ -39,6 +39,7 @@ import           HaskellCI.Config.Folds
 import           HaskellCI.Config.HLint
 import           HaskellCI.Config.Installed
 import           HaskellCI.Config.Jobs
+import           HaskellCI.Config.Ubuntu
 import           HaskellCI.Newtypes
 import           HaskellCI.OptionsGrammar
 import           HaskellCI.ParsecUtils
@@ -51,6 +52,7 @@ defaultHeadHackage = C.orLaterVersion (C.mkVersion [8,9])
 data Config = Config
     { cfgCabalInstallVersion :: Maybe Version
     , cfgJobs                :: Maybe Jobs
+    , cfgUbuntu              :: !Ubuntu
     , cfgTestedWith          :: !TestedWithJobs
     , cfgCopyFields          :: !CopyFields
     , cfgLocalGhcOptions     :: [String]
@@ -93,6 +95,7 @@ emptyConfig :: Config
 emptyConfig = Config
     { cfgCabalInstallVersion = defaultCabalInstallVersion
     , cfgJobs            = Nothing
+    , cfgUbuntu          = Xenial
     , cfgTestedWith      = TestedWithUniform
     , cfgCopyFields      = CopyFieldsSome
     , cfgDoctest         = DoctestConfig
@@ -150,6 +153,8 @@ configGrammar = Config
         ^^^ metahelp "VERSION" "cabal-install version for all jobs"
     <*> C.optionalField       "jobs"                                                          #cfgJobs
         ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
+    <*> C.optionalFieldDef    "ubuntu"                                                        #cfgUbuntu Xenial
+        ^^^ metahelp "UBUNTU" "ubuntu image (xenial, bionic)"
     <*> C.optionalFieldDef    "jobs-selection"                                                #cfgTestedWith TestedWithUniform
         ^^^ metahelp "uniform|any" "Jobs selection across packages"
     <*> C.optionalFieldDef    "copy-fields"                                                   #cfgCopyFields CopyFieldsSome

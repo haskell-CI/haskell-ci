@@ -5,7 +5,7 @@
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
 language: c
-dist: xenial
+dist: bionic
 git:
   # whether to recursively clone submodules
   submodules: false

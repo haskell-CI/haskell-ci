@@ -362,7 +362,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     -- assemble travis configuration
     return Travis
         { travisLanguage      = "c"
-        , travisDist          = "xenial"
+        , travisUbuntu        = cfgUbuntu
         , travisGit           = TravisGit
             { tgSubmodules = False
             }
