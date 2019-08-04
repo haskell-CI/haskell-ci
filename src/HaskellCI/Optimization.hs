@@ -1,6 +1,6 @@
 module HaskellCI.Optimization where
 
-import Control.Applicative ((<|>))
+import HaskellCI.Prelude
 
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Parsec.Class       as C
@@ -20,7 +20,7 @@ instance C.Parsec Optimization where
 
         ite t _ True  = t
         ite _ f False = f
-    
+
 instance C.Pretty Optimization where
     pretty OptimizationOn        = C.pretty True
     pretty OptimizationOff       = C.pretty False

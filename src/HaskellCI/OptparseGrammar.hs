@@ -5,12 +5,11 @@ module HaskellCI.OptparseGrammar (
     runOptparseGrammar,
     ) where
 
-import           Prelude                     ()
-import           Prelude.Compat
+import HaskellCI.Prelude
 
-import           Control.Applicative         (many)
-import           Data.Foldable               (asum)
-import           Distribution.Simple.Utils   (fromUTF8BS)
+import Control.Applicative       (many)
+import Data.Foldable             (asum)
+import Distribution.Simple.Utils (fromUTF8BS)
 
 import qualified Distribution.Compat.Lens    as C
 import qualified Distribution.Compat.Newtype as C
@@ -21,8 +20,7 @@ import qualified Distribution.Pretty         as C
 import qualified Distribution.Version        as C
 import qualified Options.Applicative         as O
 
-import           HaskellCI.OptionsGrammar
-import           HaskellCI.Version
+import HaskellCI.OptionsGrammar
 
 data SomeParser s where
     SP :: (Maybe String -> Maybe String -> O.Parser (s -> s)) -> SomeParser s

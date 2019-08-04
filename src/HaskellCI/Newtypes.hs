@@ -1,13 +1,8 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
 module HaskellCI.Newtypes where
 
-import           Control.Applicative             (liftA2, (<|>))
-import           Data.Char                       (isSpace)
-import           Data.Coerce                     (coerce)
-import           Data.Functor.Identity           (Identity (..))
-import           Data.Proxy                      (Proxy (..))
+import HaskellCI.Prelude
 
 import qualified Data.Set                        as S
 import qualified Distribution.Compat.CharParsing as C
@@ -18,8 +13,6 @@ import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.Version      as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
-
-import           HaskellCI.Version
 
 -------------------------------------------------------------------------------
 -- PackageLocation

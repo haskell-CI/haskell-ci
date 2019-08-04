@@ -18,52 +18,39 @@ module HaskellCI (
     travisFromConfigFile, Options (..), defaultOptions,
     ) where
 
-import Prelude ()
-import Prelude.Compat
+import HaskellCI.Prelude
 
-import Control.Monad             (forM_, unless, when)
-import Control.Monad.Catch       (MonadMask)
-import Control.Monad.IO.Class    (MonadIO (..))
-import Data.Bitraversable        (bitraverse)
-import Data.Function             (on)
-import Data.Generics.Labels ()
-import Data.List                 (groupBy, intercalate, isPrefixOf, nub, nubBy, sort, sortBy, (\\))
-import Data.List.NonEmpty        (NonEmpty (..))
-import Data.Maybe                (isNothing, mapMaybe)
-import Data.Semigroup            (Semigroup (..))
-import Data.Set                  (Set)
-import Data.Void                 (Void)
+import Data.List                 (intercalate, isPrefixOf, nub, nubBy, sort, sortBy, (\\))
 import Distribution.Compat.ReadP (readP_to_S)
-import Lens.Micro
-import System.Directory          (doesDirectoryExist, doesFileExist, setCurrentDirectory, canonicalizePath, makeRelativeToCurrentDirectory)
+import System.Directory          (canonicalizePath, doesDirectoryExist, doesFileExist, makeRelativeToCurrentDirectory, setCurrentDirectory)
 import System.Environment        (getArgs)
-import System.Exit               (ExitCode(..), exitFailure)
+import System.Exit               (ExitCode (..), exitFailure)
 import System.FilePath.Posix     (takeDirectory, takeExtension, takeFileName, (</>))
 import System.IO                 (hClose, hFlush, hPutStr, hPutStrLn, stderr)
 import System.IO.Temp            (withSystemTempFile)
 import System.Process            (readProcessWithExitCode)
-import Text.Read                 (readMaybe)
 
-import Distribution.Compiler                  (CompilerFlavor (..))
 import Distribution.PackageDescription        (package, packageDescription, testedWith)
 import Distribution.PackageDescription.Parsec (readGenericPackageDescription)
 import Distribution.Text
 import Distribution.Version
 
-import qualified Data.ByteString      as BS
-import qualified Data.Set             as S
-import qualified Data.Traversable     as T
-import qualified Distribution.Package as Pkg
-import qualified Options.Applicative  as O
+import qualified Data.ByteString       as BS
+import qualified Data.List.NonEmpty    as NE
+import qualified Data.Set              as S
+import qualified Data.Traversable      as T
+import qualified Distribution.Compiler as Compiler
+import qualified Distribution.Package  as Pkg
+import qualified Options.Applicative   as O
 
+import HaskellCI.Compiler
 import HaskellCI.Cli
 import HaskellCI.Config
 import HaskellCI.Config.Dump
-import HaskellCI.Jobs
+import HaskellCI.Config.Ubuntu
 import HaskellCI.Diagnostics
-import HaskellCI.Extras
-import HaskellCI.GHC
 import HaskellCI.Glob
+import HaskellCI.Jobs
 import HaskellCI.Package
 import HaskellCI.Project
 import HaskellCI.TestedWith
@@ -81,9 +68,9 @@ main = do
     case cmd of
         CommandListGHC -> do
             putStrLn $ "Supported GHC versions:"
-            forM_ groupedVersions $ \(v, vs) -> do
+            for_ groupedVersions $ \(v, vs) -> do
                 putStr $ prettyMajVersion v ++ ": "
-                putStrLn $ intercalate ", " (map display vs)
+                putStrLn $ intercalate ", " (map display $ toList vs)
         CommandDumpConfig -> do
             putStr $ unlines $ runDG configGrammar
 
@@ -113,8 +100,8 @@ main = do
         l <- findMaybe (afterInfix "REGENDATA") ls
         readMaybe l
 
-    groupedVersions :: [(Version, [Version])]
-    groupedVersions = map ((\vs -> (head vs, vs)) . sortBy (flip compare))
+    groupedVersions :: [(Version, NonEmpty Version)]
+    groupedVersions = map ((\vs -> (head vs, vs)) . NE.sortBy (flip compare))
                     . groupBy ((==) `on` ghcMajVer)
                     $ sort knownGhcVersions
 
@@ -149,7 +136,14 @@ travisFromConfigFile args opts path = do
         Right x     -> return x
         Left []     -> putStrLnErr "panic: checkVersions failed without errors"
         Left (e:es) -> putStrLnErrs (e :| es)
-    ls <- genTravisFromConfigs args config prj ghcs
+
+    when (any isGHCJS ghcs && cfgUbuntu config /= Bionic) $
+        putStrLnErr "GHCJS jobs require ubuntu: bionic"
+
+    let prj' | cfgGhcHead config = over (mapped . #pkgJobs) (S.insert GHCHead) prj
+             | otherwise         = prj
+
+    ls <- genTravisFromConfigs args config prj' ghcs
     patchTravis config ls
   where
     isCabalProject :: Maybe FilePath
@@ -215,7 +209,7 @@ genTravisFromConfigs
     => [String]
     -> Config
     -> Project Void Package
-    -> Set Version
+    -> Set CompilerVersion
     -> m [String]
 genTravisFromConfigs argv config prj vs = do
     let jobVersions = makeJobVersions config vs
@@ -243,7 +237,7 @@ patchTravis cfg ls
       withSystemTempFile ".travis.yml.tmp" $ \fp h -> liftIO $ do
         hPutStr h $ unlines ls
         hFlush h
-        forM_ patches $ applyPatch fp
+        for_ patches $ applyPatch fp
         hClose h
         lines <$> readFile fp
   where
@@ -271,18 +265,24 @@ patchTravis cfg ls
 
 configFromCabalFile
     :: (MonadIO m, MonadDiagnostics m)
-    => Config -> FilePath -> m (Package, Set Version)
+    => Config -> FilePath -> m Package
 configFromCabalFile cfg cabalFile = do
     gpd <- liftIO $ readGenericPackageDescription maxBound cabalFile
 
     let compilers = testedWith $ packageDescription gpd
         pkgNameStr = display $ Pkg.pkgName $ package $ packageDescription gpd
 
-    let unknownComps = nub [ c | (c,_) <- compilers, c /= GHC ]
-        ghcVerConstrs = [ vc | (GHC,vc) <- compilers ]
-        ghcVerConstrs' = simplifyVersionRange $ foldr unionVersionRanges noVersion ghcVerConstrs
-        twoDigitGhcVerConstrs = mapMaybe isTwoDigitGhcVersion ghcVerConstrs :: [Version]
+    let unknownComps = nub [ c | (c,_) <- compilers, c /= Compiler.GHC, c /= Compiler.GHCJS ]
+
+        ghcVerConstrs   = [ vc | (Compiler.GHC,vc) <- compilers ]
+        ghcVerConstrs'  = simplifyVersionRange $ foldr unionVersionRanges noVersion ghcVerConstrs
         specificGhcVers = nub $ mapMaybe isSpecificVersion ghcVerConstrs
+
+        ghcjsVerConstrs   = [ vc | (Compiler.GHCJS,vc) <- compilers ]
+        ghcjsVerConstrs'  = simplifyVersionRange $ foldr unionVersionRanges noVersion ghcjsVerConstrs
+        specificGhcjsVers = nub $ mapMaybe isSpecificVersion ghcjsVerConstrs
+
+        twoDigitGhcVerConstrs = mapMaybe isTwoDigitGhcVersion ghcVerConstrs :: [Version]
 
     unless (null twoDigitGhcVerConstrs) $ do
         putStrLnWarn $ "'tested-with:' uses two digit GHC versions (which don't match any existing GHC version): " ++ intercalate ", " (map display twoDigitGhcVerConstrs)
@@ -308,29 +308,44 @@ configFromCabalFile cfg cabalFile = do
         putStrLnErr "'tested-with:' allows /any/ 'GHC' version"
 
     let unknownGhcVers = sort $ specificGhcVers \\ knownGhcVersions
-
     unless (null unknownGhcVers) $ do
         putStrLnErr ("'tested-with:' specifically refers to unknown 'GHC' versions: "
                      ++ intercalate ", " (map display unknownGhcVers) ++ "\n"
                      ++ "Known GHC versions: " ++ intercalate ", " (map display knownGhcVersions))
 
+    let unknownGhcjsVers = sort $ specificGhcjsVers \\ knownGhcjsVersions
+    unless (null unknownGhcjsVers) $ do
+        putStrLnErr ("'tested-with:' specifically refers to unknown 'GHCJS' versions: "
+                     ++ intercalate ", " (map display unknownGhcjsVers) ++ "\n"
+                     ++ "Known GHCJS versions: " ++ intercalate ", " (map display knownGhcjsVersions))
+
     let knownGhcVersions'
             | cfgLastInSeries cfg = filterLastMajor knownGhcVersions
             | otherwise           = knownGhcVersions
 
-    let testedGhcVersions = filter (`withinRange` ghcVerConstrs') knownGhcVersions'
+    let testedGhcVersions   = filter (`withinRange` ghcVerConstrs') knownGhcVersions'
+    let testedGhcjsVersions = filter (`withinRange` ghcjsVerConstrs') knownGhcjsVersions
 
     when (null testedGhcVersions) $ do
         putStrLnErr "no known GHC version is allowed by the 'tested-with' specification"
 
-    let pkg = Pkg pkgNameStr anyVersion (takeDirectory cabalFile) gpd
+    let compilerRange :: Set CompilerVersion
+        compilerRange = S.fromList $
+            [ GHC v
+            | v <- testedGhcVersions
+            ] ++
+            [ GHCJS v
+            | v <- testedGhcjsVersions
+            ]
 
-    return (pkg, S.fromList testedGhcVersions)
+    let pkg = Pkg pkgNameStr compilerRange (takeDirectory cabalFile) gpd
+
+    return pkg
   where
     lastStableGhcVers
         = nubBy ((==) `on` ghcMajVer)
         $ sortBy (flip compare)
-        $ filter (not . previewGHC defaultHeadHackage . Just)
+        $ filter (not . previewGHC defaultHeadHackage . GHC)
         $ knownGhcVersions
 
     isTwoDigitGhcVersion :: VersionRange -> Maybe Version

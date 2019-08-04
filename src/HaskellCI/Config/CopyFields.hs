@@ -2,6 +2,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module HaskellCI.Config.CopyFields where
 
+import HaskellCI.Prelude
+
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Parsec.Class       as C
 import qualified Distribution.Pretty             as C

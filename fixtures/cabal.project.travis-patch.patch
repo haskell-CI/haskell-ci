@@ -6,6 +6,7 @@ index 9a725c1..0554fed 100644
  #
  language: c
  dist: xenial
+ sudo: required
 -git:
 + git:
    # whether to recursively clone submodules

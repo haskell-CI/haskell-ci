@@ -8,15 +8,8 @@ module HaskellCI.Travis (
     travisHeader,
     ) where
 
-import Control.Applicative  ((<|>))
-import Control.Monad        (unless, when)
-import Data.Foldable        (for_, toList, traverse_)
-import Data.Generics.Labels ()
-import Data.List            (foldl', intercalate, nub)
-import Data.Maybe           (fromMaybe, isJust)
-import Data.Set             (Set)
-import Lens.Micro
-import Data.Void (Void)
+import HaskellCI.Prelude
+import Prelude           (head)
 
 import qualified Data.Map.Strict                               as M
 import qualified Data.Set                                      as S
@@ -39,25 +32,26 @@ import qualified Distribution.Types.BuildInfo.Lens          as L
 import qualified Distribution.Types.PackageDescription.Lens as L
 
 import HaskellCI.Cli
+import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Folds
-import HaskellCI.MonadErr
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
-import HaskellCI.GHC
+import HaskellCI.Config.Ubuntu
 import HaskellCI.Jobs
 import HaskellCI.List
+import HaskellCI.MonadErr
 import HaskellCI.Optimization
 import HaskellCI.Package
 import HaskellCI.Project
 import HaskellCI.Sh
+import HaskellCI.ShVersionRange
 import HaskellCI.Tools
 import HaskellCI.Travis.Yaml
-import HaskellCI.Version
 
 -------------------------------------------------------------------------------
 -- Travis header
@@ -101,7 +95,39 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     -- before install: we set up the environment, install GHC/cabal on OSX
     beforeInstall <- runSh $ do
+        when (anyGHCJS || isBionic) $ sh $ unlines $
+            [ "if [ \"$TRAVIS_OS_NAME\" = \"linux\" ]; then" ] ++
+            [ "sudo add-apt-repository -y ppa:hvr/ghc;" | isBionic ] ++
+            [ "sudo add-apt-repository -y ppa:hvr/ghcjs;" | anyGHCJS ] ++
+            [ x
+            | x <- [ "sudo apt-get update;"
+                   , "sudo apt-get install $CC cabal-install-3.0;" ++
+                     if S.null cfgApt
+                     then ""
+                     else " " ++ unwords (S.toList cfgApt)
+                   ]
+            , anyGHCJS || isBionic
+            ] ++
+            [ "fi" ]
+
         sh "HC=$(echo \"/opt/$CC/bin/ghc\" | sed 's/-/\\//')"
+        sh "WITHCOMPILER=\"-w $HC\""
+
+        when anyGHCJS $ sh $ unlines
+            [ "if echo $CC | grep -q ghcjs; then"
+            , "    GHCJS=true"
+            , "    HC=${HC}js"
+            , "    WITHCOMPILER=\"--ghcjs ${WITHCOMPILER}js\""
+            , "else"
+            , "    GHCJS=false;"
+            , "fi"
+            ]
+
+        -- Hack: happy needs ghc
+        when anyGHCJS $ do
+            shForJob RangeGHCJS $ "sudo apt-get install -y ghc-8.6.5"
+            shForJob RangeGHCJS $ "PATH=\"/opt/ghc/8.6.5/bin:$PATH\""
+
         sh "HCPKG=\"$HC-pkg\""
         sh "unset CC"
         -- cabal
@@ -115,16 +141,16 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
         unless (null cfgOsx) $ do
             sh $ "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then brew update; brew upgrade python@3; curl " ++ haskellOnMacos ++ " | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${TRAVIS_COMPILER}; fi"
-            sh' [2034,2039] "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; HCPKG=${HC/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi"
+            sh' [2034,2039] "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; WITHCOMPILER=\"-w $HC\"; HCPKG=${HC/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi"
         -- HCNUMVER, numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
-        sh "HCNUMVER=$(( $(${HC} --numeric-version|sed -E 's/([0-9]+)\\.([0-9]+)\\.([0-9]+).*/\\1 * 10000 + \\2 * 100 + \\3/') ))"
+        sh "HCNUMVER=$(${HC} --numeric-version|perl -ne '/^(\\d+)\\.(\\d+)\\.(\\d+)(\\.(\\d+))?$/; print(10000 * $1 + 100 * $2 + ($3 == 0 ? $5 != 1 : $3))')"
         sh "echo $HCNUMVER"
         -- verbose in .cabal/config is not respected
         -- https://github.com/haskell/cabal/issues/5956
         sh "CABAL=\"$CABAL -vnormal+nowrap+markoutput\""
 
         -- Color cabal output
-        sh "set -o pipefail"
+        sh' [2039] "set -o pipefail" -- SC2039: In POSIX sh, set option pipefail is undefined. Travis is bash, so it's fine :)
         when cfgColor $ do
             cat' ".colorful.awk"
                 [ "function blue(s) { printf \"\\033[0;34m\" s \"\\033[0m \" }"
@@ -151,11 +177,16 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     install <- runSh $ do
         sh "${CABAL} --version"
         sh "echo \"$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]\""
+        when anyGHCJS $ do
+            sh "node --version"
+            sh "echo $GHCJS"
+
         sh "TEST=--enable-tests"
-        shForJob (C.invertVersionRange cfgTests) "TEST=--disable-tests"
+        shForJob (invertCompilerRange $ Range cfgTests) "TEST=--disable-tests"
         sh "BENCH=--enable-benchmarks"
-        shForJob (C.invertVersionRange cfgBenchmarks) "BENCH=--disable-benchmarks"
-        sh "HEADHACKAGE=${HEADHACKAGE-false}"
+        shForJob (invertCompilerRange $ Range cfgBenchmarks) "BENCH=--disable-benchmarks"
+        sh "HEADHACKAGE=false"
+        shForJob (Range cfgHeadHackage \/ RangePoints (S.singleton GHCHead)) "HEADHACKAGE=true"
 
         -- create ~/.cabal/config
         sh "rm -f $CABALHOME/config"
@@ -201,7 +232,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         -- GHC jobs
         for_ (cfgJobs >>= ghcJobs) $ \m -> do
-            catForJob (C.orLaterVersion (C.mkVersion [7,8])) "$CABALHOME/config"
+            catForJob (Range $ C.orLaterVersion (C.mkVersion [7,8])) "$CABALHOME/config"
                 [ "program-default-options"
                 , "  ghc-options: -j" ++ show m
                 ]
@@ -219,15 +250,19 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 | C.isAnyVersion (cfgDoctestVersion cfgDoctest) = ""
                 | otherwise = " --constraint='doctest " ++ C.prettyShow (cfgDoctestVersion cfgDoctest) ++ "'"
         when doctestEnabled $
-            shForJob (cfgDoctestEnabled cfgDoctest `C.intersectVersionRanges` doctestJobVersionRange) $
-                cabal $ "v2-install -w ${HC} -j2 doctest" ++ doctestVersionConstraint
+            shForJob (Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange) $
+                cabal $ "v2-install $WITHCOMPILER -j2 doctest" ++ doctestVersionConstraint
 
         -- Install hlint
         let hlintVersionConstraint
                 | C.isAnyVersion (cfgHLintVersion cfgHLint) = ""
                 | otherwise = " --constraint='hlint " ++ C.prettyShow (cfgHLintVersion cfgHLint) ++ "'"
         when (cfgHLintEnabled cfgHLint) $ shForJob (hlintJobVersionRange versions (cfgHLintJob cfgHLint)) $
-            cabal $ "v2-install -w ${HC} -j2 hlint" ++ hlintVersionConstraint
+            cabal $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
+
+        -- Install happy
+        when anyGHCJS $ do
+            shForJob RangeGHCJS "${CABAL} v2-install -w ghc-8.6.5 happy"
 
         -- create cabal.project file
         generateCabalProject False
@@ -237,17 +272,17 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             sh $ "if [ -f \"" ++ pkgDir ++ "/configure.ac\" ]; then (cd \"" ++ pkgDir ++ "\" && autoreconf -i); fi"
 
         -- dump install plan
-        sh $ cabal "v2-freeze -w ${HC} ${TEST} ${BENCH}"
+        sh $ cabal "v2-freeze $WITHCOMPILER ${TEST} ${BENCH}"
         sh "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
         sh "rm  cabal.project.freeze"
 
         -- Install dependencies
         when cfgInstallDeps $ do
             -- install dependencies
-            sh $ cabal "v2-build -w ${HC} ${TEST} ${BENCH} --dep -j2 all"
+            sh $ cabal "v2-build $WITHCOMPILER ${TEST} ${BENCH} --dep -j2 all"
 
             -- install dependencies for no-test-no-bench
-            shForJob cfgNoTestsNoBench $ cabal "v2-build -w ${HC} --disable-tests --disable-benchmarks --dep -j2 all"
+            shForJob (Range cfgNoTestsNoBench) $ cabal "v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --dep -j2 all"
 
     -- Here starts the actual work to be performed for the package under test;
     -- any command which exits with a non-zero exit code causes the build to fail.
@@ -262,24 +297,28 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         foldedSh FoldUnpack "Unpacking..." cfgFolds $ do
             sh "mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/"
             sh "cd ${DISTDIR} || false" -- fail explicitly, makes SC happier
-            sh "find . -maxdepth 1 -name '*.tar.gz' -exec tar -xvf '{}' \\;"
+            sh "find . -maxdepth 1 -type f -name '*.tar.gz' -exec tar -xvf '{}' \\;"
+            sh "find . -maxdepth 1 -type f -name '*.tar.gz' -exec rm       '{}' \\;"
+
+            for_ pkgs $ \Pkg{pkgName} -> do
+                sh $ pkgNameDirVariable' pkgName ++ "=\"$(find . -maxdepth 1 -type d -regex '.*/" ++ pkgName ++ "-[0-9.]*')\""
 
             generateCabalProject True
 
         -- build no-tests no-benchmarks
         unless (equivVersionRanges C.noVersion cfgNoTestsNoBench) $ foldedSh FoldBuild "Building..." cfgFolds $ do
             comment "this builds all libraries and executables (without tests/benchmarks)"
-            shForJob cfgNoTestsNoBench $ cabal "v2-build -w ${HC} --disable-tests --disable-benchmarks all"
+            shForJob (Range cfgNoTestsNoBench) $ cabal "v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all"
 
         -- build everything
         foldedSh FoldBuildEverything "Building with tests and benchmarks..." cfgFolds $ do
             comment "build & run tests, build benchmarks"
-            sh $ cabal "v2-build -w ${HC} ${TEST} ${BENCH} all"
+            sh $ cabal "v2-build $WITHCOMPILER ${TEST} ${BENCH} all"
 
         -- cabal v2-test fails if there are no test-suites.
         foldedSh FoldTest "Testing..." cfgFolds $ do
-            shForJob (C.intersectVersionRanges cfgTests $ C.intersectVersionRanges cfgRunTests hasTests) $
-                cabal "v2-test -w ${HC} ${TEST} ${BENCH} all"
+            shForJob (RangeGHC /\ Range (cfgTests /\ cfgRunTests) /\ hasTests) $
+                cabal "v2-test $WITHCOMPILER ${TEST} ${BENCH} all"
 
         -- doctest
         when doctestEnabled $ foldedSh FoldDoctest "Doctest..." cfgFolds $ do
@@ -299,9 +338,11 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             for_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
                 for_ (doctestArgs pkgGpd) $ \args -> do
                     let args' = unwords args
-                    let vr = cfgDoctestEnabled cfgDoctest `C.intersectVersionRanges` doctestJobVersionRange `C.intersectVersionRanges` pkgJobs
+                    let vr = Range (cfgDoctestEnabled cfgDoctest)
+                          /\ doctestJobVersionRange
+                          /\ RangePoints pkgJobs
                     unless (null args) $ shForJob  vr $
-                        "(cd " ++ pkgName ++ "-* && doctest " ++ doctestOptions ++ " " ++ args' ++ ")"
+                        "(cd " ++ pkgNameDirVariable pkgName ++ " && doctest " ++ doctestOptions ++ " " ++ args' ++ ")"
 
         -- hlint
         when (cfgHLintEnabled cfgHLint) $ foldedSh FoldHLint "HLint.." cfgFolds $ do
@@ -318,25 +359,25 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 for_ (hlintArgs pkgGpd) $ \args -> do
                     let args' = unwords args
                     unless (null args) $
-                        shForJob (hlintJobVersionRange versions (cfgHLintJob cfgHLint) `C.intersectVersionRanges` pkgJobs) $
-                        "(cd " ++ pkgName ++ "-* && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
+                        shForJob (hlintJobVersionRange versions (cfgHLintJob cfgHLint) /\ RangePoints pkgJobs) $
+                        "(cd " ++ pkgNameDirVariable pkgName ++ " && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
 
         -- cabal check
         when cfgCheck $ foldedSh FoldCheck "cabal check..." cfgFolds $ do
-            for_ pkgs $ \Pkg{pkgName,pkgJobs} -> shForJob pkgJobs $
-                "(cd " ++ pkgName ++ "-* && ${CABAL} -vnormal check)"
+            for_ pkgs $ \Pkg{pkgName,pkgJobs} -> shForJob (RangePoints pkgJobs) $
+                "(cd " ++ pkgNameDirVariable pkgName ++ " && ${CABAL} -vnormal check)"
 
         -- haddock
         when (hasLibrary && not (equivVersionRanges C.noVersion cfgHaddock)) $
             foldedSh FoldHaddock "haddock..." cfgFolds $
-                shForJob cfgHaddock $ cabal "v2-haddock -w ${HC} ${TEST} ${BENCH} all"
+                shForJob (RangeGHC /\ Range cfgHaddock) $ cabal "v2-haddock $WITHCOMPILER ${TEST} ${BENCH} all"
 
         -- unconstained build
         -- Have to build last, as we remove cabal.project.local
         unless (equivVersionRanges C.noVersion cfgUnconstrainted) $
             foldedSh FoldBuildInstalled "Building without installed constraints for packages in global-db..." cfgFolds $ do
-                shForJob cfgUnconstrainted "rm -f cabal.project.local"
-                shForJob cfgUnconstrainted $ cabal "v2-build -w ${HC} --disable-tests --disable-benchmarks all"
+                shForJob (Range cfgUnconstrainted) "rm -f cabal.project.local"
+                shForJob (Range cfgUnconstrainted) $ cabal "v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all"
 
         -- and now, as we don't have cabal.project.local;
         -- we can test with other constraint sets
@@ -346,23 +387,23 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
             for_ cfgConstraintSets $ \cs -> do
                 let name            = csName cs
-                let shForCs         = shForJob (csGhcVersions cs)
+                let shForCs         = shForJob (Range (csGhcVersions cs))
                 let testFlag        = if csTests cs then "--enable-tests" else "--disable-tests"
                 let benchFlag       = if csBenchmarks cs then "--enable-benchmarks" else "--disable-benchmarks"
                 let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)
                 let allFlags        = unwords (testFlag : benchFlag : constraintFlags)
 
                 foldedSh' FoldConstraintSets name ("Constraint set " ++ name) cfgFolds $ do
-                    shForCs $ cabal $ "v2-build -w ${HC} " ++ allFlags ++ " all"
+                    shForCs $ cabal $ "v2-build $WITHCOMPILER " ++ allFlags ++ " all"
                     when (csRunTests cs) $
-                        shForCs $ cabal $ "v2-test -w ${HC} " ++ allFlags ++ " all"
+                        shForCs $ cabal $ "v2-test $WITHCOMPILER " ++ allFlags ++ " all"
                     when (csHaddock cs) $
-                        shForCs $ cabal $ "v2-haddock -w ${HC} " ++ allFlags ++ " all"
+                        shForCs $ cabal $ "v2-haddock $WITHCOMPILER " ++ allFlags ++ " all"
 
     -- assemble travis configuration
     return Travis
         { travisLanguage      = "c"
-        , travisDist          = "xenial"
+        , travisUbuntu        = cfgUbuntu
         , travisGit           = TravisGit
             { tgSubmodules = False
             }
@@ -395,20 +436,20 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             }
         , travisMatrix        = TravisMatrix
             { tmInclude = buildList $ do
-                let tellJob :: Bool -> Maybe C.Version -> ListBuilder TravisJob ()
+                let tellJob :: Bool -> CompilerVersion -> ListBuilder TravisJob ()
                     tellJob osx gv = do
-                        let cvs = dispGhcVersion $ gv >>= correspondingCabalVersion cfgCabalInstallVersion
+                        let cvs = dispCabalVersion $ correspondingCabalVersion cfgCabalInstallVersion gv
                         let gvs = dispGhcVersion gv
-                        let pre | previewGHC cfgHeadHackage gv = Just "HEADHACKAGE=true"
-                                | otherwise                    = Nothing
 
                         item TravisJob
-                            { tjCompiler = "ghc-" ++ gvs
+                            { tjCompiler = gvs
                             , tjOS       = if osx then "osx" else "linux"
-                            , tjEnv      = (gv >>= \v -> M.lookup v cfgEnv) <|> pre
+                            , tjEnv      = case gv of
+                                GHC v -> M.lookup v cfgEnv
+                                _     -> Nothing
                             , tjAddons   = TravisAddons
                                 { taApt = TravisApt
-                                    { taPackages = ("ghc-" ++ gvs) : ("cabal-install-" ++ cvs) : S.toList cfgApt
+                                    { taPackages = gvs : ("cabal-install-" ++ cvs) : S.toList cfgApt
                                     , taSources  = ["hvr-ghc"]
                                     }
                                 , taPostgres = Nothing
@@ -416,11 +457,12 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                             }
 
                 for_ (reverse $ S.toList versions) $ tellJob False
-                for_ (reverse $ S.toList osxVersions) $ tellJob True . Just
+                for_ (reverse $ S.toList osxVersions) $ tellJob True . GHC
 
             , tmAllowFailures =
-                [ TravisAllowFailure $ "ghc-" ++ dispGhcVersion compiler
-                | compiler <- S.toList $ headGhcVers `S.union` S.map Just (S.filter (`C.withinRange` cfgAllowFailures) versions')
+                [ TravisAllowFailure $ dispGhcVersion compiler
+                | compiler <- toList versions
+                , previewGHC cfgHeadHackage compiler || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
                 ]
             }
         , travisBeforeCache   = beforeCache
@@ -430,13 +472,16 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         }
   where
     pkgs = prjPackages prj
-    projectName = fromMaybe (pkgName $ head pkgs) cfgProjectName
+    projectName = fromMaybe (pkgName $ Prelude.head pkgs) cfgProjectName
 
     justIf True x  = Just x
     justIf False _ = Nothing
 
     -- TODO: should this be part of MonadSh ?
     foldedSh label = foldedSh' label ""
+
+    isBionic = cfgUbuntu == Bionic
+    anyGHCJS = any isGHCJS versions
 
     -- https://github.com/travis-ci/docs-travis-ci-com/issues/949#issuecomment-276755003
     -- https://github.com/travis-ci/travis-rubies/blob/9f7962a881c55d32da7c76baefc58b89e3941d91/build.sh#L38-L44
@@ -461,11 +506,11 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         label' | null sfx  = showFold label
                | otherwise = showFold label ++ "-" ++ sfx
 
-    doctestEnabled = any (`C.withinRange` cfgDoctestEnabled cfgDoctest) versions'
+    doctestEnabled = any (maybeGHC False (`C.withinRange` cfgDoctestEnabled cfgDoctest)) versions
 
     -- version range which has tests
-    hasTests :: C.VersionRange
-    hasTests = foldr C.unionVersionRanges C.noVersion
+    hasTests :: CompilerRange
+    hasTests = RangePoints $ S.unions
         [ pkgJobs
         | Pkg{pkgGpd,pkgJobs} <- pkgs
         , not $ null $ C.condTestSuites pkgGpd
@@ -474,7 +519,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     hasLibrary = any (\Pkg{pkgGpd} -> isJust $ C.condLibrary pkgGpd) pkgs
 
     -- GHC versions which need head.hackage
-    headGhcVers :: Set (Maybe C.Version)
+    headGhcVers :: Set CompilerVersion
     headGhcVers = S.filter (previewGHC cfgHeadHackage) versions
 
     cabal :: String -> String
@@ -483,19 +528,19 @@ makeTravis argv Config {..} prj JobVersions {..} = do
       where
         cabalCmd = "${CABAL} " ++ cmd
 
-    forJob :: C.VersionRange -> String -> Maybe String
+    forJob :: CompilerRange -> String -> Maybe String
     forJob vr cmd
-        | all (`C.withinRange` vr) versions'       = Just cmd
-        | not $ any (`C.withinRange` vr) versions' = Nothing
-        | otherwise                                = Just $ unwords
+        | all (`compilerWithinRange` vr) versions       = Just cmd
+        | not $ any (`compilerWithinRange` vr) versions = Nothing
+        | otherwise                                     = Just $ unwords
             [ "if"
-            , ghcVersionPredicate vr
+            , compilerVersionPredicate versions vr
             , "; then"
             , cmd
             , "; fi"
             ]
 
-    shForJob :: C.VersionRange -> String -> ShM ()
+    shForJob :: CompilerRange -> String -> ShM ()
     shForJob vr cmd = maybe (pure ()) sh (forJob vr cmd)
 
     catForJob vr fp contents = shForJob vr (catCmd Double fp contents)
@@ -548,10 +593,10 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         sh $ unlines
             [ cmd
             | pkg <- pkgs
-            , let p | dist      = pkgName pkg ++ "-*/*.cabal"
+            , let p | dist      = pkgNameDirVariable (pkgName pkg)
                     | otherwise = pkgDir pkg
-            , cmd <- toList $ forJob (pkgJobs pkg) $
-                "echo 'packages: \"" ++ p ++ "\"' >> cabal.project"
+            , cmd <- toList $ forJob (RangePoints $ pkgJobs pkg) $
+                "echo \"packages: " ++ p ++ "\" >> cabal.project"
             ]
 
         cat "cabal.project" $ lines $ C.showFields' 2 $ generateCabalProjectFields dist
@@ -590,6 +635,16 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         sh "cat cabal.project || true"
         sh "cat cabal.project.local || true"
+
+pkgNameDirVariable' :: String -> String
+pkgNameDirVariable' n = "PKGDIR_" ++ map f n where
+    f '-' = '_'
+    f c   = c
+
+pkgNameDirVariable :: String -> String
+pkgNameDirVariable n = "${PKGDIR_" ++ map f n ++ "}" where
+    f '-' = '_'
+    f c   = c
 
 data Quotes = Single | Double
 

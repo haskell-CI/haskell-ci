@@ -9,8 +9,8 @@ import Prelude.Compat
 
 import           Distribution.Compat.Lens
 import           Distribution.Compat.Newtype
-import           Distribution.Parsec.Field   (FieldName)
 import           Distribution.Fields.Pretty  (PrettyField (..))
+import           Distribution.Parsec.Field   (FieldName)
 import           Distribution.Pretty         (Pretty (..))
 import           Distribution.Simple.Utils   (toUTF8BS)
 import           Text.PrettyPrint            (Doc)

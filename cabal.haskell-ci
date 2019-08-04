@@ -1,6 +1,10 @@
 -- Most settings can be given as command line arguments
 -- Config file is convenient if you maintain large amount of packages
 
+-- Supported: xenial and bionic;
+-- though bionic doesn't seem to be officially supported by Travis
+ubuntu: bionic
+
 jobs: 2:2
 
 -- Add GHC head job

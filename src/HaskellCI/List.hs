@@ -5,6 +5,8 @@ module HaskellCI.List (
     item,
     ) where
 
+import HaskellCI.Prelude
+
 import Control.Monad (ap)
 
 newtype ListBuilder x a = LB { unLB :: ([x] -> [x]) -> ([x] -> [x], a) }

@@ -1,12 +1,15 @@
 module HaskellCI.Package where
 
+import HaskellCI.Prelude
+
 import qualified Distribution.Types.GenericPackageDescription as C
-import qualified Distribution.Types.VersionRange              as C
+
+import HaskellCI.Compiler
 
 data Package = Pkg
     { pkgName :: String
-    , pkgJobs :: C.VersionRange
+    , pkgJobs :: Set CompilerVersion
     , pkgDir  :: FilePath
     , pkgGpd  :: C.GenericPackageDescription
     }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)

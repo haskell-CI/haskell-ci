@@ -2,16 +2,15 @@ module HaskellCI.ParsecError (
     renderParseError,
     ) where
 
-import           Prelude                    ()
-import           Prelude.Compat
+import Prelude ()
+import Prelude.Compat
 
-import           Distribution.Parsec.Common (PError (..), PWarning (..),
-                                             Position (..), showPos, zeroPos)
-import           Distribution.Simple.Utils  (fromUTF8BS)
-import           System.FilePath            (normalise)
+import Distribution.Parsec.Common (PError (..), PWarning (..), Position (..), showPos, zeroPos)
+import Distribution.Simple.Utils  (fromUTF8BS)
+import System.FilePath            (normalise)
 
-import qualified Data.ByteString            as BS
-import qualified Data.ByteString.Char8      as BS8
+import qualified Data.ByteString       as BS
+import qualified Data.ByteString.Char8 as BS8
 
 -- | Render parse error highlighting the part of the input file.
 renderParseError

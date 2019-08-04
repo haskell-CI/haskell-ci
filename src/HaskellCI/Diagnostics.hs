@@ -1,13 +1,9 @@
-{-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module HaskellCI.Diagnostics where
 
-import Control.Monad.Catch       (MonadCatch, MonadMask, MonadThrow)
-import Control.Monad.IO.Class    (MonadIO)
+import HaskellCI.Prelude
+
 import Control.Monad.Trans.Maybe (MaybeT (..))
 import Control.Monad.Writer      (WriterT, runWriterT, tell)
-import Data.Foldable             (for_)
-import Data.List.NonEmpty        (NonEmpty, toList)
 import System.Exit               (exitFailure)
 import System.IO                 (hPutStrLn, stderr)
 
@@ -30,7 +26,8 @@ instance MonadDiagnostics IO where
     putStrLnInfo = hPutStrLn stderr . ("*INFO* " ++)
 
 newtype DiagnosticsT m a = Diagnostics { unDiagnostics :: MaybeT (WriterT [String] m) a }
-  deriving (Functor, Applicative, Monad, MonadIO, MonadCatch, MonadMask, MonadThrow)
+  deriving stock (Functor)
+  deriving newtype (Applicative, Monad, MonadIO, MonadCatch, MonadMask, MonadThrow)
 
 runDiagnosticsT :: DiagnosticsT m a -> m (Maybe a, [String])
 runDiagnosticsT (Diagnostics m) = runWriterT (runMaybeT m)

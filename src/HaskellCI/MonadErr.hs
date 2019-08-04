@@ -2,6 +2,8 @@
 {-# LANGUAGE FunctionalDependencies #-}
 module HaskellCI.MonadErr where
 
+import HaskellCI.Prelude
+
 -- | 'MonadErr' is 'MonadError' without @catch@
 class Monad m => MonadErr e m | m -> e where
     throwErr :: e -> m a

@@ -2,14 +2,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module HaskellCI.Config.ConstraintSet where
 
-import           Data.Generics.Labels         ()
-import           Distribution.Version
-import           GHC.Generics                 (Generic)
+import HaskellCI.Prelude
 
 import qualified Distribution.FieldGrammar    as C
 import qualified Distribution.Parsec.Newtypes as C
 
-import           HaskellCI.Newtypes
+import HaskellCI.Newtypes
 
 data ConstraintSet = ConstraintSet
     { csName        :: String

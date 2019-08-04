@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.3.20190730
+version:            0.3.20190804
 synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@haskell-ci@) for [Travis-CI](https://travis-ci.org/) for continuous-integration testing of Haskell Cabal packages.
@@ -29,7 +29,7 @@ author:             Herbert Valerio Riedel, Oleg Grenrus
 maintainer:         hvr@gnu.org
 category:           Development
 build-type:         Simple
-tested-with:        GHC ==8.6.4 || ==8.4.4 || ==8.2.2 || ==8.0.2 || ==8.6.5
+tested-with:        GHC ==8.6.5 || ==8.4.4 || ==8.2.2
 extra-source-files:
   CHANGELOG.md
   fixtures/cabal.haskell-ci
@@ -78,6 +78,7 @@ library haskell-ci-internal
   exposed-modules:
     HaskellCI
     HaskellCI.Cli
+    HaskellCI.Compiler
     HaskellCI.Config
     HaskellCI.Config.ConstraintSet
     HaskellCI.Config.CopyFields
@@ -87,9 +88,8 @@ library haskell-ci-internal
     HaskellCI.Config.HLint
     HaskellCI.Config.Installed
     HaskellCI.Config.Jobs
+    HaskellCI.Config.Ubuntu
     HaskellCI.Diagnostics
-    HaskellCI.Extras
-    HaskellCI.GHC
     HaskellCI.Glob
     HaskellCI.Jobs
     HaskellCI.List
@@ -101,13 +101,14 @@ library haskell-ci-internal
     HaskellCI.Package
     HaskellCI.ParsecError
     HaskellCI.ParsecUtils
+    HaskellCI.Prelude
     HaskellCI.Project
     HaskellCI.Sh
+    HaskellCI.ShVersionRange
     HaskellCI.TestedWith
     HaskellCI.Tools
     HaskellCI.Travis
     HaskellCI.Travis.Yaml
-    HaskellCI.Version
     HaskellCI.YamlSyntax
 
   -- vendored from Cabal development version
@@ -121,10 +122,15 @@ library haskell-ci-internal
 
   hs-source-dirs:     src
   default-extensions:
+    NoImplicitPrelude
+    DeriveAnyClass
     DeriveFoldable
     DeriveFunctor
     DeriveGeneric
     DeriveTraversable
+    DerivingStrategies
+    GeneralizedNewtypeDeriving
+    ScopedTypeVariables
 
   other-extensions:
     CPP
@@ -133,7 +139,7 @@ library haskell-ci-internal
     ViewPatterns
 
   build-depends:
-    , base          >=4.9      && <4.13
+    , base          >=4.10     && <4.13
     , bytestring    ^>=0.10.8.1
     , Cabal         ^>=2.4
     , containers    ^>=0.5.7.1 || ^>=0.6.0.1
@@ -157,6 +163,7 @@ library haskell-ci-internal
     , exceptions            ^>=0.10.0
     , generic-lens          ^>=1.1.0.0
     , HsYAML                ^>=0.1.1.3
+    , lattices              ^>=2
     , microlens             ^>=0.4.10
     , optparse-applicative  ^>=0.14.3.0
     , temporary             ^>=1.3
@@ -166,7 +173,7 @@ library haskell-ci-internal
 
   -- ShellCheck. Would need newer transformers for older GHC
   if (flag(shellcheck) && impl(ghc >=7.10 && <8.7))
-    build-depends: ShellCheck ==0.6.0
+    build-depends: ShellCheck ==0.7.0
 
 executable haskell-ci
   main-is:          Main.hs
