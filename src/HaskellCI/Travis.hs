@@ -262,7 +262,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         -- Install happy
         when anyGHCJS $ do
-            shForJob RangeGHCJS "${CABAL} v2-install -w ghc-8.6.5 happy"
+            shForJob RangeGHCJS "(cd /tmp && ${CABAL} v2-install -w ghc-8.6.5 happy)"
 
         -- create cabal.project file
         generateCabalProject False
