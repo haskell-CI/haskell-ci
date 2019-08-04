@@ -101,10 +101,10 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             [ "sudo add-apt-repository -y ppa:hvr/ghcjs;" | anyGHCJS ] ++
             [ x
             | x <- [ "sudo apt-get update;"
-                   , "sudo apt-get install $CC cabal-install-3.0;" ++
-                     if S.null cfgApt
+                   , "sudo apt-get install $CC cabal-install-3.0" ++
+                     (if S.null cfgApt
                      then ""
-                     else " " ++ unwords (S.toList cfgApt)
+                     else " " ++ unwords (S.toList cfgApt)) ++ ";"
                    ]
             , anyGHCJS || isBionic
             ] ++
