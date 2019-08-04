@@ -68,7 +68,7 @@ doctest-options: --fast
 -- doctest-version: ==0.13.*
 
 -- macOS job
-osx: 8.4.4
+osx: 8.4.4 8.6.5
 
 -- Define per-job environment variables
 -- env: 8.4.4:FOO=bar,

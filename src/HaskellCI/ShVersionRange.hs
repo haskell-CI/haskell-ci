@@ -22,7 +22,7 @@ compilerVersionPredicate :: Set CompilerVersion -> CompilerRange -> String
 compilerVersionPredicate cvs cr
     | S.null ghcjsS = wideToString $ freeToWide ghcFree
     | otherwise     = wideToString $ freeToWide $
-        (Var "$GHCJS" /\ ghcjsFree) \/ (Var "! $GHCJS") /\ ghcFree
+        (Var "$GHCJS" /\ ghcjsFree) \/ (Var "! $GHCJS" /\ ghcFree)
   where
     R hdS ghcS ghcjsS = partitionCompilerVersions cvs
     R hdR ghcR ghcjsR = simplifyCompilerRange cr
