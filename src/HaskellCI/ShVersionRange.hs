@@ -4,44 +4,59 @@ module HaskellCI.ShVersionRange (
 
 import HaskellCI.Prelude
 
+import Algebra.Lattice (bottom, top, joins)
+import Algebra.Heyting.Free (Free (..))
+import Algebra.Lattice.Wide (Wide (..))
+
+import qualified Algebra.Heyting.Free as F
+import qualified Algebra.Lattice.Wide as W
 import qualified Data.Set             as S
 import qualified Distribution.Version as C
 
 import HaskellCI.Compiler
 
+-- $setup
+-- >>> import Distribution.Pretty (prettyShow)
+
 compilerVersionPredicate :: Set CompilerVersion -> CompilerRange -> String
 compilerVersionPredicate cvs cr
-    | S.null ghcjsS                         = ghcString
-    | S.null ghcjsS'                        = "! $GHCJS && { " ++ ghcString ++ "; }"
-    | all (`C.withinRange` ghcRange) ghcjsS = ghcString
-    -- TODO: This assumes there's only one GHCJS version :)
-    | otherwise = "$GHCJS || { " ++ ghcString ++ "; }"
+    | S.null ghcjsS = wideToString $ freeToWide ghcFree
+    | otherwise     = wideToString $ freeToWide $
+        (Var "$GHCJS" /\ ghcjsFree) \/ (Var "! $GHCJS") /\ ghcFree
   where
     R hdS ghcS ghcjsS = partitionCompilerVersions cvs
     R hdR ghcR ghcjsR = simplifyCompilerRange cr
 
+    -- GHCJS
+
     ghcjsS' = S.filter (`C.withinRange` ghcjsR) ghcjsS
+
+    ghcjsFree :: Free String
+    ghcjsFree = ghcVersionPredicate ghcjsRange
+
+    ghcjsRange = case S.toList ghcjsS' of
+        []  -> C.noVersion
+        [_] -> C.anyVersion
+        _   -> error "multiple GHCJS versions unsupported"
 
     -- GHC + GHC HEAD
 
-    ghcString = ghcVersionPredicate (ghcHeadRange \/ ghcRange)
+    ghcFree :: Free String
+    ghcFree = ghcVersionPredicate (ghcHeadRange \/ ghcRange)
 
     -- GHC
 
+    ghcD = roundDown ghcS
     ghcS' = S.filter (`C.withinRange` ghcR) ghcS
 
     findGhc :: Version -> VersionRange
-    findGhc v = case (S.lookupLE v ghcS, S.lookupGT v ghcS) of
+    findGhc v = case (S.lookupLE v ghcD, S.lookupGT v ghcD) of
         (Nothing, _)      -> C.noVersion
-        (Just u, Nothing) -> C.thisVersion u
+        (Just u, Nothing) -> C.orLaterVersion u
         (Just u, Just w)  -> C.orLaterVersion u /\ C.earlierVersion w
 
     ghcRange :: VersionRange
-    ghcRange = case S.toList ghcS of
-        []                         -> C.noVersion
-        [v] | C.withinRange v ghcR -> C.thisVersion v
-            | otherwise            -> C.noVersion
-        _                          -> foldr (\/) C.noVersion $ map findGhc $ S.toList ghcS'
+    ghcRange = foldr (\/) C.noVersion $ map findGhc $ S.toList ghcS'
 
     -- GHC HEAD
 
@@ -74,26 +89,26 @@ simplifyCompilerRange (RangePoints vs) = foldr f (R False C.noVersion C.noVersio
     f (GHCJS v) (R hd ghc ghcjs) = R hd ghc (C.thisVersion v \/ ghcjs)
     f GHCHead   (R _  ghc ghcjs) = R True ghc ghcjs
 
-ghcVersionPredicate :: C.VersionRange -> String
+ghcVersionPredicate :: C.VersionRange -> Free String
 ghcVersionPredicate vr
-    | equivVersionRanges C.noVersion vr  = "false"
-    | equivVersionRanges C.anyVersion vr = "true"
+    | equivVersionRanges C.noVersion vr  = bottom
+    | equivVersionRanges C.anyVersion vr = top
     | otherwise                          = ghcVersionPredicate' vr
 
-ghcVersionPredicate' :: C.VersionRange -> String
+ghcVersionPredicate' :: C.VersionRange -> Free String
 ghcVersionPredicate' = conj . C.asVersionIntervals
   where
-    conj = intercalate "  ||  " . map disj
+    conj = joins . map disj
 
-    disj :: C.VersionInterval -> String
+    disj :: C.VersionInterval -> Free String
     disj (C.LowerBound v C.InclusiveBound, C.UpperBound u C.InclusiveBound)
-        | v == u                = "[ $HCNUMVER -eq " ++ f v ++ " ]"
+        | v == u                = Var ("[ $HCNUMVER -eq " ++ f v ++ " ]")
     disj (lb, C.NoUpperBound)
-        | isInclZero lb         = "true"
-        | otherwise             = lower lb
+        | isInclZero lb         = top
+        | otherwise             = Var (lower lb)
     disj (lb, C.UpperBound v b)
-        | isInclZero lb         = upper v b
-        | otherwise             = lower lb ++ " && " ++ upper v b
+        | isInclZero lb         = Var (upper v b)
+        | otherwise             = Var (lower lb) /\ Var (upper v b)
 
     isInclZero (C.LowerBound v C.InclusiveBound) = v == C.mkVersion [0]
     isInclZero (C.LowerBound _ C.ExclusiveBound) = False
@@ -106,9 +121,102 @@ ghcVersionPredicate' = conj . C.asVersionIntervals
 
     f = ghcVersionToString
 
+-------------------------------------------------------------------------------
+-- Utilities
+-------------------------------------------------------------------------------
+
 ghcVersionToString :: C.Version -> String
 ghcVersionToString v =  case C.versionNumbers v of
     []        -> "0"
     [x]       -> show (x * 10000)
     [x,y]     -> show (x * 10000 + y * 100)
     (x:y:z:_) -> show (x * 10000 + y * 100 + z)
+
+-- | Round down a first version in major series.
+--
+-- >>> let rd = map prettyShow . S.toList . roundDown . S.fromList . map C.mkVersion
+--
+-- >>> rd []
+-- []
+--
+-- >>> rd [ [8,0,2] ]
+-- ["8.0","8.0.3"]
+--
+-- >>> rd [ [8,0,2], [8,2,2], [8,4,4], [8,6,5], [8,8,1] ]
+-- ["8.0","8.2","8.4","8.6","8.8","8.8.2"]
+--
+-- >>> rd [ [8,6,1], [8,6,2], [8,6,3], [8,6,4], [8,6,5] ]
+-- ["8.6","8.6.2","8.6.3","8.6.4","8.6.5","8.6.6"]
+--
+roundDown :: Set Version -> Set Version
+roundDown = go S.empty . S.toList where
+    go !acc []      = acc
+    go !acc [v]
+        | S.member m acc = S.insert v $ S.insert (up v) acc
+        | otherwise      = S.insert m $ S.insert (up v) acc
+      where
+        m = let (x,y) = ghcMajVer v in C.mkVersion [x,y]
+    go !acc (v:vs)
+        | S.member m acc = go (S.insert v acc) vs
+        | otherwise      = go (S.insert m acc) vs
+      where
+        m = let (x,y) = ghcMajVer v in C.mkVersion [x,y]
+
+    up v = C.mkVersion $ case C.versionNumbers v of
+        []     -> [1]
+        (x:xs) -> up' x xs
+
+    up' x []     = [x + 1]
+    up' x (y:ys) = x : up' y ys
+
+wideToString :: Wide String -> String
+wideToString W.Bottom     = "false"
+wideToString W.Top        = "top"
+wideToString (W.Middle x) = x
+
+
+freeToWide :: Free String -> Wide String
+freeToWide z
+    | z == top    = top
+    | z == bottom = bottom
+    | otherwise   = Middle (go 0 z)
+  where
+    go :: Int -> Free String -> String
+    go _ (Var x)  = x
+    go _ F.Bottom = "false"
+    go _ F.Top    = "true"
+
+    go d (x :/\: y) = parens (d > 3)
+        $ go 4 x ++ " && " ++ go 3 y
+    go d (x :\/: y) = parens (d > 2)
+        $ go 3 x ++ " || " ++ go 2 y
+
+    go d (x :=>: y) = parens (d > 2)
+        $ "! { " ++ go 0 x ++ " ; } || " ++ go 2 y
+
+    parens :: Bool -> String -> String
+    parens True  s = "{ " ++ s ++ "; }"
+    parens False s = s
+
+-------------------------------------------------------------------------------
+-- PosNeg
+-------------------------------------------------------------------------------
+
+{-
+data PosNeg a = Pos a | Neg a
+  deriving (Eq, Ord, Show, Functor)
+
+neg :: PosNeg a -> PosNeg a
+neg (Pos x) = Neg x
+neg (Neg x) = Pos x
+
+instance Applicative PosNeg where
+    pure  = Pos
+    (<*>) = ap
+
+instance Monad PosNeg where
+    return = pure
+
+    Pos x >>= f = f x
+    Neg x >>= f = neg (f x)
+-}

@@ -22,4 +22,4 @@ accept : build
 	cabal new-run -w $(HC) --enable-tests golden -- --accept
 
 doctest :
-	doctest --fast -XScopedTypeVariables -XDerivingStrategies -XGeneralizedNewtypeDeriving -XDeriveAnyClass -XNoImplicitPrelude -XDeriveFunctor -XDeriveFoldable -XDeriveTraversable -XDeriveGeneric src
+	doctest --fast -XBangPatterns -XScopedTypeVariables -XDerivingStrategies -XGeneralizedNewtypeDeriving -XDeriveAnyClass -XNoImplicitPrelude -XDeriveFunctor -XDeriveFoldable -XDeriveTraversable -XDeriveGeneric src

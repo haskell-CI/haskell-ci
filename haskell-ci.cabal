@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.3.20190804
+version:            0.3.20190804.2
 synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@haskell-ci@) for [Travis-CI](https://travis-ci.org/) for continuous-integration testing of Haskell Cabal packages.
@@ -122,6 +122,7 @@ library haskell-ci-internal
 
   hs-source-dirs:     src
   default-extensions:
+    BangPatterns
     NoImplicitPrelude
     DeriveAnyClass
     DeriveFoldable
