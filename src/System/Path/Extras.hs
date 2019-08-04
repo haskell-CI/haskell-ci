@@ -1,5 +1,6 @@
 module System.Path.Extras where
 
+{-
 import System.Path.Unsafe (Path (..))
 import System.Path (Absolute, Unrooted)
 
@@ -11,3 +12,4 @@ makeRelative (Path a) (Path b) = Path (Native.makeRelative a b)
 
 getCurrentDirectory :: IO (Path Absolute)
 getCurrentDirectory = Path <$> Native.getCurrentDirectory
+-}
