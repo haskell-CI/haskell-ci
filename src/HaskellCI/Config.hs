@@ -149,8 +149,8 @@ configGrammar = Config
         ^^^ metahelp "VERSION" "cabal-install version for all jobs"
     <*> C.optionalField       "jobs"                                                          #cfgJobs
         ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
-    <*> C.optionalFieldDef    "ubuntu"                                                        #cfgUbuntu Xenial
-        ^^^ metahelp "UBUNTU" "ubuntu image (xenial, bionic)"
+    <*> C.optionalFieldDef    "distribution"                                                  #cfgUbuntu Xenial
+        ^^^ metahelp "DIST" "distribution version (xenial, bionic)"
     <*> C.optionalFieldDef    "jobs-selection"                                                #cfgTestedWith TestedWithUniform
         ^^^ metahelp "uniform|any" "Jobs selection across packages"
     <*> C.optionalFieldDef    "copy-fields"                                                   #cfgCopyFields CopyFieldsSome
