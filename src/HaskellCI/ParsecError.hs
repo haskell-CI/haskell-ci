@@ -5,9 +5,9 @@ module HaskellCI.ParsecError (
 import Prelude ()
 import Prelude.Compat
 
-import Distribution.Parsec.Common (PError (..), PWarning (..), Position (..), showPos, zeroPos)
-import Distribution.Simple.Utils  (fromUTF8BS)
-import System.FilePath            (normalise)
+import Distribution.Parsec       (PError (..), PWarning (..), Position (..), showPos, zeroPos)
+import Distribution.Simple.Utils (fromUTF8BS)
+import System.FilePath           (normalise)
 
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as BS8

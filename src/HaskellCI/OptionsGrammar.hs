@@ -7,7 +7,7 @@ import HaskellCI.Prelude
 
 import qualified Distribution.Compat.Lens        as C
 import qualified Distribution.FieldGrammar       as C
-import qualified Distribution.Parsec.Field       as C
+import qualified Distribution.Fields             as C
 import qualified Distribution.Types.VersionRange as C
 
 import HaskellCI.Newtypes

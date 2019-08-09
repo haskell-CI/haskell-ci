@@ -2,9 +2,9 @@ module HaskellCI.Config.Ubuntu where
 
 import HaskellCI.Prelude
 
-import qualified Distribution.Parsec.Class as C
-import qualified Distribution.Pretty       as C
-import qualified Text.PrettyPrint          as PP
+import qualified Distribution.Parsec as C
+import qualified Distribution.Pretty as C
+import qualified Text.PrettyPrint    as PP
 
 data Ubuntu = Xenial | Bionic
   deriving (Eq, Ord, Show)

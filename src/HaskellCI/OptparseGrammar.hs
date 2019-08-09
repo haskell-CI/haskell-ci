@@ -14,8 +14,8 @@ import Distribution.Simple.Utils (fromUTF8BS)
 import qualified Distribution.Compat.Lens    as C
 import qualified Distribution.Compat.Newtype as C
 import qualified Distribution.FieldGrammar   as C
-import qualified Distribution.Parsec.Class   as C
-import qualified Distribution.Parsec.Field   as C
+import qualified Distribution.Fields         as C
+import qualified Distribution.Parsec         as C
 import qualified Distribution.Pretty         as C
 import qualified Distribution.Version        as C
 import qualified Options.Applicative         as O
@@ -71,7 +71,14 @@ instance C.FieldGrammar OptparseGrammar where
     knownField _         = pure ()
     deprecatedSince _  _ = id
     availableSince _ _   = id
+    removedIn _ _        = id
     hiddenField          = id
+
+    freeTextField fn l = OG
+        [ SP $ \m h -> setOptionalOG l $ O.strOption $ optionMods fn m h ]
+
+    freeTextFieldDef fn l = OG
+        [ SP $ \m h -> setOG l $ O.strOption $ optionMods fn m h ]
 
 instance OptionsGrammar OptparseGrammar where
     help h (OG ps) = OG

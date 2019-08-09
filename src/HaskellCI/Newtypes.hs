@@ -7,7 +7,7 @@ import HaskellCI.Prelude
 import qualified Data.Set                        as S
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Compat.Newtype     as C
-import qualified Distribution.Parsec.Class       as C
+import qualified Distribution.Parsec             as C
 import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.Version      as C
@@ -19,10 +19,7 @@ import qualified Text.PrettyPrint                as PP
 -------------------------------------------------------------------------------
 
 newtype PackageLocation = PackageLocation String
-
-instance C.Newtype PackageLocation [Char] where
-    pack = coerce
-    unpack = coerce
+  deriving anyclass (C.Newtype String)
 
 -- | This is a bit tricky since it has to cover globs which have embedded @,@
 -- chars. But we don't just want to parse strictly as a glob since we want to
@@ -63,10 +60,7 @@ instance C.Pretty PackageLocation where
 -------------------------------------------------------------------------------
 
 newtype NoCommas = NoCommas String
-
-instance C.Newtype NoCommas [Char] where
-    pack = coerce
-    unpack = coerce
+  deriving anyclass (C.Newtype String)
 
 instance C.Parsec NoCommas where
     parsec = NoCommas <$> liftA2 (:) (C.satisfy (not . isSpace)) (C.munch (/= ','))
@@ -79,10 +73,7 @@ instance C.Pretty NoCommas where
 -------------------------------------------------------------------------------
 
 newtype HeadVersion = HeadVersion { getHeadVersion :: Maybe C.Version }
-
-instance C.Newtype HeadVersion (Maybe C.Version) where
-    pack = coerce
-    unpack = coerce
+  deriving anyclass (C.Newtype (Maybe C.Version))
 
 instance C.Parsec HeadVersion where
     parsec = HeadVersion Nothing <$ C.string "head" <|>
@@ -97,10 +88,7 @@ instance C.Pretty HeadVersion where
 -------------------------------------------------------------------------------
 
 newtype Int' = Int' Int
-
-instance C.Newtype Int' Int where
-    pack = coerce
-    unpack = coerce
+  deriving anyclass (C.Newtype Int)
 
 instance C.Parsec Int' where
     parsec = Int' <$> C.integral
@@ -113,10 +101,7 @@ instance C.Pretty Int' where
 -------------------------------------------------------------------------------
 
 newtype Range = Range C.VersionRange
-
-instance C.Newtype Range C.VersionRange where
-    pack = coerce
-    unpack = coerce
+  deriving anyclass (C.Newtype C.VersionRange)
 
 instance C.Parsec Range where
     parsec = fmap Range $ C.parsec <|> fromBool <$> C.parsec where
@@ -134,6 +119,7 @@ instance C.Pretty Range where
 -------------------------------------------------------------------------------
 
 newtype AlaSet sep b a = AlaSet { getAlaSet :: S.Set a }
+  deriving anyclass (C.Newtype (S.Set a))
 
 alaSet :: sep -> S.Set a -> AlaSet sep (Identity a) a
 alaSet _ = AlaSet
@@ -142,30 +128,12 @@ alaSet _ = AlaSet
 alaSet' :: sep -> (a -> b) -> S.Set a -> AlaSet sep b a
 alaSet' _ _ = AlaSet
 
-instance C.Newtype (AlaSet sep wrapper a) (S.Set a) where
-    pack = AlaSet
-    unpack = getAlaSet
+instance (C.Newtype a b, Ord a, C.Sep sep, C.Parsec b) => C.Parsec (AlaSet sep b a) where
+    parsec   = C.pack . S.fromList . map (C.unpack :: b -> a) <$> C.parseSep (hack (Proxy :: Proxy sep)) C.parsec
 
-instance (C.Newtype b a, Ord a, Sep sep, C.Parsec b) => C.Parsec (AlaSet sep b a) where
-    parsec   = C.pack . S.fromList . map (C.unpack :: b -> a) <$> parseSep (Proxy :: Proxy sep) C.parsec
+instance (C.Newtype a b, C.Sep sep, C.Pretty b) => C.Pretty (AlaSet sep b a) where
+    pretty = C.prettySep (hack (Proxy :: Proxy sep)) . map (C.pretty . (C.pack :: a -> b)) . S.toList . C.unpack
 
-instance (C.Newtype b a, Sep sep, C.Pretty b) => C.Pretty (AlaSet sep b a) where
-    pretty = prettySep (Proxy :: Proxy sep) . map (C.pretty . (C.pack :: a -> b)) . S.toList . C.unpack
-
--------------------------------------------------------------------------------
--- From Cabal
--------------------------------------------------------------------------------
-
-class    Sep sep  where
-    prettySep :: Proxy sep -> [PP.Doc] -> PP.Doc
-    parseSep :: C.CabalParsing m => Proxy sep -> m a -> m [a]
-
-instance Sep C.CommaVCat where
-    prettySep  _ = PP.vcat . PP.punctuate PP.comma
-    parseSep   _ = C.parsecLeadingCommaList
-instance Sep C.CommaFSep where
-    prettySep _ = PP.fsep . PP.punctuate PP.comma
-    parseSep   _ = C.parsecLeadingCommaList
-instance Sep C.NoCommaFSep where
-    prettySep _   = PP.fsep
-    parseSep  _ p = C.many (p <* C.spaces)
+-- Someone (= me) forgot to export Distribution.Parsec.Newtypes.P
+hack :: Proxy a -> proxy a
+hack _ = undefined

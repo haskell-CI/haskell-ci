@@ -4,9 +4,9 @@ import HaskellCI.Prelude
 
 import Control.Applicative       as App ((<$>))
 import Control.Monad             (filterM, liftM2, void)
-import Distribution.Compat.ReadP
 import System.Directory          (doesDirectoryExist, getDirectoryContents)
 import System.FilePath.Posix     ((</>))
+import Text.ParserCombinators.ReadP
 
 -------------------------------------------------------------------------------
 -- Glob
@@ -58,7 +58,7 @@ data FilePathRoot
    | FilePathHomeDir
   deriving (Eq, Show)
 
-parseFilePathGlobRel :: ReadP r FilePathGlobRel
+parseFilePathGlobRel :: ReadP FilePathGlobRel
 parseFilePathGlobRel =
       parseGlob >>= \globpieces ->
           asDir globpieces
@@ -79,7 +79,7 @@ parseFilePathGlobRel =
                    (c:_) | isGlobEscapedChar c -> pfail
                    _                           -> return ())
 
-parseGlob :: ReadP r Glob
+parseGlob :: ReadP Glob
 parseGlob = many1 parsePiece
   where
     parsePiece = literal +++ wildcard +++ union'
@@ -97,10 +97,10 @@ parseGlob = many1 parsePiece
                                 && c /= '/' && c /= '\\')
     escape  = char '\\' >> satisfy isGlobEscapedChar
 
-    litchars1 :: ReadP r [Char]
+    litchars1 :: ReadP [Char]
     litchars1 = liftM2 (:) litchar litchars
 
-    litchars :: ReadP r [Char]
+    litchars :: ReadP [Char]
     litchars = litchars1 <++ return []
 
 isGlobEscapedChar :: Char -> Bool
