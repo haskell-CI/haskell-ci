@@ -6,12 +6,11 @@ import System.Directory (doesFileExist)
 import System.Exit      (exitFailure)
 import System.IO        (hPutStr, stderr)
 
-import qualified Data.ByteString                 as BS
-import qualified Distribution.Parsec.Common      as C
-import qualified Distribution.Parsec.LexerMonad  as C
-import qualified Distribution.Parsec.Parser      as C
-import qualified Distribution.Parsec.ParseResult as C
-import qualified Text.Parsec                     as P
+import qualified Data.ByteString                as BS
+import qualified Distribution.Fields            as C
+import qualified Distribution.Fields.LexerMonad as C (toPWarnings)
+import qualified Distribution.Parsec            as C
+import qualified Text.Parsec                    as P
 
 import HaskellCI.ParsecError
 

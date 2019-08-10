@@ -12,12 +12,10 @@ import HaskellCI.Prelude
 import qualified Data.Map.Strict                              as M
 import qualified Distribution.CabalSpecVersion                as C
 import qualified Distribution.FieldGrammar                    as C
-import qualified Distribution.Fields.Pretty                   as C
+import qualified Distribution.Fields                          as C
 import qualified Distribution.PackageDescription.FieldGrammar as C
-import qualified Distribution.Parsec.Common                   as C
+import qualified Distribution.Parsec                          as C
 import qualified Distribution.Parsec.Newtypes                 as C
-import qualified Distribution.Parsec.Parser                   as C
-import qualified Distribution.Parsec.ParseResult              as C
 import qualified Distribution.Types.SourceRepo                as C
 
 import HaskellCI.Newtypes
@@ -36,9 +34,9 @@ data Project b a = Project
     , prjMaxBackjumps :: Maybe Int
     , prjOptimization :: Optimization
     , prjSourceRepos  :: [C.SourceRepo]
-    , prjOrigFields   :: [C.PrettyField]
+    , prjOrigFields   :: [C.PrettyField ()]
     }
-  deriving (Show, Functor, Foldable, Traversable, Generic)
+  deriving (Functor, Foldable, Traversable, Generic)
 
 instance Bifunctor Project where bimap = bimapDefault
 instance Bifoldable Project where bifoldMap = bifoldMapDefault
@@ -68,7 +66,7 @@ parseProjectFile fp bs = do
     knownFields = C.fieldGrammarKnownFieldList $ grammar []
 
     parse origFields fields sections = do
-        let prettyOrigFields = C.fromParsecFields $ filter notPackages origFields
+        let prettyOrigFields = map void $ C.fromParsecFields $ filter notPackages origFields
         prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOrigFields
         foldr ($) prj <$> traverse parseSec (concat sections)
 
@@ -84,7 +82,7 @@ notPackages :: C.Field ann -> Bool
 notPackages (C.Field (C.Name _ "packages") _) = False
 notPackages _                                 = True
 
-grammar :: [C.PrettyField] -> C.ParsecFieldGrammar (Project String String) (Project String String)
+grammar :: [C.PrettyField ()] -> C.ParsecFieldGrammar (Project String String) (Project String String)
 grammar origFields = Project
     <$> C.monoidalFieldAla "packages"          (C.alaList' C.FSep PackageLocation) #prjPackages
     <*> C.monoidalFieldAla "optional-packages" (C.alaList' C.FSep PackageLocation) #prjOptPackages

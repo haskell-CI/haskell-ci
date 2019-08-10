@@ -3,7 +3,7 @@ module HaskellCI.Optimization where
 import HaskellCI.Prelude
 
 import qualified Distribution.Compat.CharParsing as C
-import qualified Distribution.Parsec.Class       as C
+import qualified Distribution.Parsec             as C
 import qualified Distribution.Pretty             as C
 import qualified Text.PrettyPrint                as PP
 

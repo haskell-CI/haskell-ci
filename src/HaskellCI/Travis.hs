@@ -13,14 +13,14 @@ import Prelude           (head)
 
 import qualified Data.Map.Strict                               as M
 import qualified Data.Set                                      as S
+import qualified Distribution.CabalSpecVersion                 as C
 import qualified Distribution.FieldGrammar                     as C
-import qualified Distribution.FieldGrammar.Pretty3             as C3
+import qualified Distribution.FieldGrammar.Pretty              as C
 import qualified Distribution.Fields.Pretty                    as C
 import qualified Distribution.Package                          as C
 import qualified Distribution.PackageDescription               as C
 import qualified Distribution.PackageDescription.Configuration as C
 import qualified Distribution.PackageDescription.FieldGrammar  as C
-import qualified Distribution.ParseUtils                       as PU (showToken)
 import qualified Distribution.Pretty                           as C
 import qualified Distribution.Types.GenericPackageDescription  as C
 import qualified Distribution.Types.SourceRepo                 as C
@@ -545,7 +545,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     catForJob vr fp contents = shForJob vr (catCmd Double fp contents)
 
-    generateCabalProjectFields :: Bool -> [C.PrettyField]
+    generateCabalProjectFields :: Bool -> [C.PrettyField ()]
     generateCabalProjectFields dist = buildList $ do
         -- copy files from original cabal.project
         case cfgCopyFields of
@@ -554,32 +554,32 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             CopyFieldsSome -> do
                 for_ (prjConstraints prj) $ \xs -> do
                     let s = concat (lines xs)
-                    item $ C.PrettyField "constraints" $ PP.text s
+                    item $ C.PrettyField () "constraints" $ PP.text s
 
                 for_ (prjAllowNewer prj) $ \xs -> do
                     let s = concat (lines xs)
-                    item $ C.PrettyField "allow-newer" $ PP.text s
+                    item $ C.PrettyField () "allow-newer" $ PP.text s
 
                 when (prjReorderGoals prj) $
-                    item $ C.PrettyField "reorder-goals" $ PP.text "True"
+                    item $ C.PrettyField () "reorder-goals" $ PP.text "True"
 
                 for_ (prjMaxBackjumps prj) $ \bj ->
-                    item $ C.PrettyField "max-backjumps" $ PP.text $ show bj
+                    item $ C.PrettyField () "max-backjumps" $ PP.text $ show bj
 
                 case prjOptimization prj of
                     OptimizationOn      -> return ()
-                    OptimizationOff     -> item $ C.PrettyField "optimization" $ PP.text "False"
-                    OptimizationLevel l -> item $ C.PrettyField "optimization" $ PP.text $ show l
+                    OptimizationOff     -> item $ C.PrettyField () "optimization" $ PP.text "False"
+                    OptimizationLevel l -> item $ C.PrettyField () "optimization" $ PP.text $ show l
 
                 for_ (prjSourceRepos prj) $ \repo ->
-                    item $ C.PrettySection "source-repository-package" [] $
-                        C3.prettyFieldGrammar3 (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused") repo
+                    item $ C.PrettySection () "source-repository-package" [] $
+                        C.prettyFieldGrammar C.cabalSpecLatest (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused") repo
 
         -- local ghc-options
         unless (null cfgLocalGhcOptions) $ for_ pkgs $ \Pkg{pkgName} -> do
-            let s = unwords $ map (show . PU.showToken) cfgLocalGhcOptions
-            item $ C.PrettySection "package" [PP.text pkgName] $ buildList $
-                item $ C.PrettyField "ghc-options" $ PP.text s
+            let s = unwords $ map (show . C.showToken) cfgLocalGhcOptions
+            item $ C.PrettySection () "package" [PP.text pkgName] $ buildList $
+                item $ C.PrettyField () "ghc-options" $ PP.text s
 
         -- raw-project is after local-ghc-options so we can override per package.
         traverse_ item cfgRawProject
@@ -599,7 +599,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 "echo \"packages: " ++ p ++ "\" >> cabal.project"
             ]
 
-        cat "cabal.project" $ lines $ C.showFields' 2 $ generateCabalProjectFields dist
+        cat "cabal.project" $ lines $ C.showFields' (const []) 2 $ generateCabalProjectFields dist
 
         -- also write cabal.project.local file with
         -- @

@@ -3,7 +3,7 @@
 
 -- Supported: xenial and bionic;
 -- though bionic doesn't seem to be officially supported by Travis
-distribution: bionic
+distribution: xenial
 
 jobs: 2:2
 

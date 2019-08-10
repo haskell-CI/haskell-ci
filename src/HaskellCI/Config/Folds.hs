@@ -8,7 +8,7 @@ import qualified Data.Map.Strict                 as M
 import qualified Data.Set                        as S
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Compat.Newtype     as C
-import qualified Distribution.Parsec.Class       as C
+import qualified Distribution.Parsec             as C
 import qualified Distribution.Pretty             as C
 import qualified Text.PrettyPrint                as PP
 
@@ -50,10 +50,7 @@ possibleFolds = [minBound .. maxBound]
 -------------------------------------------------------------------------------
 
 newtype Folds = Folds { getFolds :: S.Set Fold }
-
-instance C.Newtype Folds (S.Set Fold) where
-    pack = coerce
-    unpack = coerce
+  deriving anyclass (C.Newtype (S.Set Fold))
 
 instance C.Parsec Folds where
     parsec = fmap (Folds . S.unions) $ manySpaces $ do

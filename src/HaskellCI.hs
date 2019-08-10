@@ -20,15 +20,15 @@ module HaskellCI (
 
 import HaskellCI.Prelude
 
-import Data.List                 (intercalate, isPrefixOf, nub, nubBy, sort, sortBy, (\\))
-import Distribution.Compat.ReadP (readP_to_S)
-import System.Directory          (canonicalizePath, doesDirectoryExist, doesFileExist, makeRelativeToCurrentDirectory, setCurrentDirectory)
-import System.Environment        (getArgs)
-import System.Exit               (ExitCode (..), exitFailure)
-import System.FilePath.Posix     (takeDirectory, takeExtension, takeFileName, (</>))
-import System.IO                 (hClose, hFlush, hPutStr, hPutStrLn, stderr)
-import System.IO.Temp            (withSystemTempFile)
-import System.Process            (readProcessWithExitCode)
+import Data.List                    (intercalate, isPrefixOf, nub, nubBy, sort, sortBy, (\\))
+import System.Directory             (canonicalizePath, doesDirectoryExist, doesFileExist, makeRelativeToCurrentDirectory, setCurrentDirectory)
+import System.Environment           (getArgs)
+import System.Exit                  (ExitCode (..), exitFailure)
+import System.FilePath.Posix        (takeDirectory, takeExtension, takeFileName, (</>))
+import System.IO                    (hClose, hFlush, hPutStr, hPutStrLn, stderr)
+import System.IO.Temp               (withSystemTempFile)
+import System.Process               (readProcessWithExitCode)
+import Text.ParserCombinators.ReadP (readP_to_S)
 
 import Distribution.PackageDescription        (package, packageDescription, testedWith)
 import Distribution.PackageDescription.Parsec (readGenericPackageDescription)
@@ -43,8 +43,8 @@ import qualified Distribution.Compiler as Compiler
 import qualified Distribution.Package  as Pkg
 import qualified Options.Applicative   as O
 
-import HaskellCI.Compiler
 import HaskellCI.Cli
+import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.Dump
 import HaskellCI.Config.Ubuntu

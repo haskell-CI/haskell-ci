@@ -17,12 +17,9 @@ import qualified Distribution.CabalSpecVersion   as C
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Compat.Newtype     as C
 import qualified Distribution.FieldGrammar       as C
-import qualified Distribution.Fields.Pretty      as C
-import qualified Distribution.Parsec.Class       as C
-import qualified Distribution.Parsec.Common      as C
+import qualified Distribution.Fields             as C
+import qualified Distribution.Parsec             as C
 import qualified Distribution.Parsec.Newtypes    as C
-import qualified Distribution.Parsec.Parser      as C
-import qualified Distribution.Parsec.ParseResult as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.Version      as C
 import qualified Distribution.Types.VersionRange as C
@@ -80,9 +77,9 @@ data Config = Config
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
-    , cfgRawProject          :: [C.PrettyField]
+    , cfgRawProject          :: [C.PrettyField ()]
     }
-  deriving (Show, Generic)
+  deriving (Generic)
 
 defaultCabalInstallVersion :: Maybe Version
 defaultCabalInstallVersion = Just (C.mkVersion [2,4])
@@ -236,7 +233,7 @@ parseConfigFile fields0 = do
             return $ over #cfgConstraintSets (cs :)
         | name == "raw-project" = do
             let fs = C.fromParsecFields cfields
-            return $ over #cfgRawProject (++ fs)
+            return $ over #cfgRawProject (++ map void fs)
         | otherwise = do
             C.parseWarning pos C.PWTUnknownSection $ "Unknown section " ++ fromUTF8BS name
             return id
@@ -246,10 +243,7 @@ parseConfigFile fields0 = do
 -------------------------------------------------------------------------------
 
 newtype Env = Env (M.Map Version String)
-
-instance C.Newtype Env (M.Map Version String) where
-    pack = coerce
-    unpack = coerce
+  deriving anyclass (C.Newtype (M.Map Version String))
 
 instance C.Parsec Env where
     parsec = Env . M.fromList <$> C.parsecLeadingCommaList p where

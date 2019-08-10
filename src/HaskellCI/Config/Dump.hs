@@ -43,10 +43,21 @@ instance C.FieldGrammar DumpGrammar where
         , ""
         ]
 
+    freeTextField fn _ = DG
+        [ fromUTF8BS fn ++ ":"
+        , ""
+        ]
+
+    freeTextFieldDef fn _ = DG
+        [ fromUTF8BS fn ++ ":"
+        , ""
+        ]
+
     prefixedFields _ _   = pure []
     knownField _         = pure ()
     deprecatedSince _  _ = id
     availableSince _ _   = id
+    removedIn _ _        = id
     hiddenField          = id
 
 instance OptionsGrammar DumpGrammar where
