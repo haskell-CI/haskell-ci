@@ -146,7 +146,6 @@ instance ToYaml Travis where
     toYaml Travis {..} = ykeyValuesFilt []
         [ "language"       ~> fromString travisLanguage
         , "dist"           ~> fromString (showUbuntu travisUbuntu)
-        , "sudo"           ~> fromString "required"
         , "git"            ~> toYaml travisGit
         , "branches"       ~> toYaml travisBranches
         , "notifications"  ~> toYaml travisNotifications
