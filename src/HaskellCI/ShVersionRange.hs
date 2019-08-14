@@ -49,11 +49,24 @@ compilerVersionPredicate cvs cr
     ghcD = roundDown ghcS
     ghcS' = S.filter (`C.withinRange` ghcR) ghcS
 
+    isMinGHC u = Just u == fmap fst (S.minView ghcD)
+
+    -- if we build with GHC HEAD, than none of known versions is maxGHC.
+    isMaxGHC u | hdS       = False
+               | otherwise = Just u == fmap fst (S.maxView ghcD)
+
     findGhc :: Version -> VersionRange
     findGhc v = case (S.lookupLE v ghcD, S.lookupGT v ghcD) of
         (Nothing, _)      -> C.noVersion
-        (Just u, Nothing) -> C.orLaterVersion u
-        (Just u, Just w)  -> C.orLaterVersion u /\ C.earlierVersion w
+        (Just u, Nothing) -> orLater u
+        (Just u, Just w)  -> orLater u /\ earlier w
+      where
+        orLater u | isMinGHC u = C.anyVersion
+                  | otherwise  = C.orLaterVersion u
+
+        earlier u | isMaxGHC u = C.anyVersion
+                  | otherwise  = C.earlierVersion u
+      
 
     ghcRange :: VersionRange
     ghcRange = foldr (\/) C.noVersion $ map findGhc $ S.toList ghcS'

@@ -95,20 +95,23 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     -- before install: we set up the environment, install GHC/cabal on OSX
     beforeInstall <- runSh $ do
-        when (anyGHCJS || isBionic) $ sh $ unlines $
-            [ "if [ \"$TRAVIS_OS_NAME\" = \"linux\" ]; then" ] ++
-            [ "sudo add-apt-repository -y ppa:hvr/ghc;" | isBionic ] ++
-            [ "sudo add-apt-repository -y ppa:hvr/ghcjs;" | anyGHCJS ] ++
-            [ x
-            | x <- [ "sudo apt-get update;"
-                   , "sudo apt-get install $CC cabal-install-3.0" ++
-                     (if S.null cfgApt
-                     then ""
-                     else " " ++ unwords (S.toList cfgApt)) ++ ";"
-                   ]
-            , anyGHCJS || isBionic
-            ] ++
-            [ "fi" ]
+        when (anyGHCJS || isBionic) $ sh $ unlines $ buildList $ do
+            item "if [ \"$TRAVIS_OS_NAME\" = \"linux\" ]; then"
+            when isBionic $
+                item "  sudo add-apt-repository -y ppa:hvr/ghc;"
+            when anyGHCJS $ do
+                item "  sudo add-apt-repository -y ppa:hvr/ghcjs;"
+                item "  curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -"
+                item $ "  sudo apt-add-repository 'https://deb.nodesource.com/node_8.x " ++ C.prettyShow cfgUbuntu  ++ " main'"
+            item "  sudo apt-get update;"
+            item $ "  sudo apt-get install $CC cabal-install-3.0" ++
+                (if anyGHCJS
+                then " nodejs"
+                else "") ++
+                (if S.null cfgApt
+                then ""
+                else " " ++ unwords (S.toList cfgApt)) ++ ";"
+            item "fi"
 
         sh "HC=$(echo \"/opt/$CC/bin/ghc\" | sed 's/-/\\//')"
         sh "WITHCOMPILER=\"-w $HC\""
@@ -123,10 +126,11 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             , "fi"
             ]
 
-        -- Hack: happy needs ghc
+        -- Hack: happy needs ghc. Let's install version matching GHCJS.
+        -- At the moment, there is only GHCJS-8.4, so we install GHC-8.4.4
         when anyGHCJS $ do
-            shForJob RangeGHCJS $ "sudo apt-get install -y ghc-8.6.5"
-            shForJob RangeGHCJS $ "PATH=\"/opt/ghc/8.6.5/bin:$PATH\""
+            shForJob RangeGHCJS $ "sudo apt-get install -y ghc-8.4.4"
+            shForJob RangeGHCJS $ "PATH=\"/opt/ghc/8.4.4/bin:$PATH\""
 
         sh "HCPKG=\"$HC-pkg\""
         sh "unset CC"
@@ -262,7 +266,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         -- Install happy
         when anyGHCJS $ do
-            shForJob RangeGHCJS "(cd /tmp && ${CABAL} v2-install -w ghc-8.6.5 happy)"
+            shForJob RangeGHCJS "(cd /tmp && ${CABAL} v2-install -w ghc-8.4.4 happy)"
 
         -- create cabal.project file
         generateCabalProject False
@@ -405,7 +409,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         { travisLanguage      = "c"
         , travisUbuntu        = cfgUbuntu
         , travisGit           = TravisGit
-            { tgSubmodules = False
+            { tgSubmodules = cfgSubmodules
             }
         , travisCache         = TravisCache
             { tcDirectories = buildList $ when cfgCache $ do
@@ -441,6 +445,10 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                         let cvs = dispCabalVersion $ correspondingCabalVersion cfgCabalInstallVersion gv
                         let gvs = dispGhcVersion gv
 
+                        -- GHCJS cannot be installed via apt plugin
+                        let addGvs | isGHCJS gv = id
+                                   | otherwise  = (gvs :)
+
                         item TravisJob
                             { tjCompiler = gvs
                             , tjOS       = if osx then "osx" else "linux"
@@ -449,7 +457,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                                 _     -> Nothing
                             , tjAddons   = TravisAddons
                                 { taApt = TravisApt
-                                    { taPackages = gvs : ("cabal-install-" ++ cvs) : S.toList cfgApt
+                                    { taPackages = addGvs $ ("cabal-install-" ++ cvs) : S.toList cfgApt
                                     , taSources  = ["hvr-ghc"]
                                     }
                                 , taPostgres = Nothing

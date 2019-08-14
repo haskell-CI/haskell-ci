@@ -49,6 +49,7 @@ data Config = Config
     , cfgTestedWith          :: !TestedWithJobs
     , cfgCopyFields          :: !CopyFields
     , cfgLocalGhcOptions     :: [String]
+    , cfgSubmodules          :: !Bool
     , cfgCache               :: !Bool
     , cfgInstallDeps         :: !Bool
     , cfgInstalled           :: [Installed]
@@ -106,6 +107,7 @@ emptyConfig = Config
         }
     , cfgLocalGhcOptions = []
     , cfgConstraintSets  = []
+    , cfgSubmodules      = False
     , cfgCache           = True
     , cfgInstalled       = []
     , cfgInstallDeps     = True
@@ -154,6 +156,8 @@ configGrammar = Config
         ^^^ metahelp "none|some|all" "Copy ? fields from cabal.project fields"
     <*> C.monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') #cfgLocalGhcOptions
         ^^^ metahelp "OPTS" "--ghc-options for local packages"
+    <*> C.booleanFieldDef     "submodules"                                                    #cfgSubmodules False
+        ^^^ help "Clone submodules, i.e. recursively"
     <*> C.booleanFieldDef     "cache"                                                         #cfgCache True
         ^^^ help "Disable caching"
     <*> C.booleanFieldDef     "install-dependencies"                                          #cfgInstallDeps True
