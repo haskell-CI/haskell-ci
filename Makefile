@@ -10,7 +10,7 @@ ghcid :
 	ghcid -c 'cabal new-repl -w $(HC)'
 
 install:
-	cabal new-install haskell-ci:exe:haskell-ci --overwrite-policy=always
+	cabal v2-install -w $(HC) haskell-ci:exe:haskell-ci --overwrite-policy=always
 
 install-dev : build
 	cp $$(cabal-plan list-bin haskell-ci) $(HOME)/.cabal/bin/haskell-ci

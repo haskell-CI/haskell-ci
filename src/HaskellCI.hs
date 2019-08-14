@@ -47,7 +47,6 @@ import HaskellCI.Cli
 import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.Dump
-import HaskellCI.Config.Ubuntu
 import HaskellCI.Diagnostics
 import HaskellCI.Glob
 import HaskellCI.Jobs
@@ -136,9 +135,6 @@ travisFromConfigFile args opts path = do
         Right x     -> return x
         Left []     -> putStrLnErr "panic: checkVersions failed without errors"
         Left (e:es) -> putStrLnErrs (e :| es)
-
-    when (any isGHCJS ghcs && cfgUbuntu config /= Bionic) $
-        putStrLnErr "GHCJS jobs require ubuntu: bionic"
 
     let prj' | cfgGhcHead config = over (mapped . #pkgJobs) (S.insert GHCHead) prj
              | otherwise         = prj
