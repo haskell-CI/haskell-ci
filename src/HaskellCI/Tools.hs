@@ -82,14 +82,22 @@ executableModuleArgs e
 -- HLint
 -------------------------------------------------------------------------------
 
-hlintJobVersionRange :: Set CompilerVersion -> HLintJob -> CompilerRange
-hlintJobVersionRange vs HLintJobLatest = case S.maxView vs' of
+hlintJobVersionRange
+    :: Set CompilerVersion  -- ^ all compilers
+    -> VersionRange         -- ^ head.hackage
+    -> HLintJob             -- ^ hlint-jobs
+    -> CompilerRange
+hlintJobVersionRange vs headHackage HLintJobLatest = case S.maxView vs' of
     Just (v, _) -> RangePoints (S.singleton (GHC v))
     _           -> RangePoints S.empty
   where
-    -- remove non GHC versions
-    vs' = S.fromList $ mapMaybe (maybeGHC Nothing Just) $ S.toList $ vs
-hlintJobVersionRange _ (HLintJob v)   = RangePoints (S.singleton (GHC v))
+    -- remove non GHC versions, and head.hackage versions
+    vs' = S.fromList
+        $ filter (\v -> not $ C.withinRange v headHackage)
+        $ mapMaybe (maybeGHC Nothing Just)
+        $ S.toList vs
+
+hlintJobVersionRange _ _ (HLintJob v)   = RangePoints (S.singleton (GHC v))
 
 hlintArgs :: C.GenericPackageDescription -> [[String]]
 hlintArgs gpd = nub $

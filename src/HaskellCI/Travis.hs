@@ -261,7 +261,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         let hlintVersionConstraint
                 | C.isAnyVersion (cfgHLintVersion cfgHLint) = ""
                 | otherwise = " --constraint='hlint " ++ C.prettyShow (cfgHLintVersion cfgHLint) ++ "'"
-        when (cfgHLintEnabled cfgHLint) $ shForJob (hlintJobVersionRange versions (cfgHLintJob cfgHLint)) $
+        when (cfgHLintEnabled cfgHLint) $ shForJob (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint)) $
             cabal $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
 
         -- Install happy
@@ -363,7 +363,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 for_ (hlintArgs pkgGpd) $ \args -> do
                     let args' = unwords args
                     unless (null args) $
-                        shForJob (hlintJobVersionRange versions (cfgHLintJob cfgHLint) /\ RangePoints pkgJobs) $
+                        shForJob (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint) /\ RangePoints pkgJobs) $
                         "(cd " ++ pkgNameDirVariable pkgName ++ " && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
 
         -- cabal check
