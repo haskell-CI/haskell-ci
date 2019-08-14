@@ -6,7 +6,6 @@
 #
 language: c
 dist: xenial
-sudo: required
 git:
   # whether to recursively clone submodules
   submodules: false
