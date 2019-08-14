@@ -71,7 +71,9 @@ data ShError
     | ShError String          -- ^ made by 'fail'.
   deriving (Show)
 
-instance Exception ShError
+instance Exception ShError where
+    displayException (ShellCheckError s) = s
+    displayException (ShError s)         = "PANIC " ++ s
 
 class FromShError e where
     fromShError :: ShError -> e

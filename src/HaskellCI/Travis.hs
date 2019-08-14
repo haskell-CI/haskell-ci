@@ -96,21 +96,19 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     -- before install: we set up the environment, install GHC/cabal on OSX
     beforeInstall <- runSh $ do
         when (anyGHCJS || isBionic) $ sh $ unlines $ buildList $ do
+            let item' x = item $ "  " ++ x ++ ";"
+
             item "if [ \"$TRAVIS_OS_NAME\" = \"linux\" ]; then"
-            when isBionic $
-                item "  sudo add-apt-repository -y ppa:hvr/ghc;"
-            when anyGHCJS $ do
-                item "  sudo add-apt-repository -y ppa:hvr/ghcjs;"
-                item "  curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -"
-                item $ "  sudo apt-add-repository 'https://deb.nodesource.com/node_8.x " ++ C.prettyShow cfgUbuntu  ++ " main'"
-            item "  sudo apt-get update;"
-            item $ "  sudo apt-get install $CC cabal-install-3.0" ++
-                (if anyGHCJS
-                then " nodejs"
-                else "") ++
+            when isBionic $ item' "sudo add-apt-repository -y ppa:hvr/ghc"
+            traverse_ item' $ forJob RangeGHCJS "sudo add-apt-repository -y ppa:hvr/ghcjs"
+            traverse_ item' $ forJob RangeGHCJS "curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -"
+            traverse_ item' $ forJob RangeGHCJS $ "sudo apt-add-repository 'https://deb.nodesource.com/node_8.x " ++ C.prettyShow cfgUbuntu  ++ " main'"
+            item' "sudo apt-get update"
+            item' $ "sudo apt-get install $CC" ++
                 (if S.null cfgApt
                 then ""
-                else " " ++ unwords (S.toList cfgApt)) ++ ";"
+                else " " ++ unwords (S.toList cfgApt))
+            traverse_ item' $ forJob RangeGHCJS "sudo apt-get install -y nodejs cabal-install-3.0"
             item "fi"
 
         sh "HC=$(echo \"/opt/$CC/bin/ghc\" | sed 's/-/\\//')"
