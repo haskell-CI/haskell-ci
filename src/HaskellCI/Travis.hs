@@ -95,6 +95,15 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     -- before install: we set up the environment, install GHC/cabal on OSX
     beforeInstall <- runSh $ do
+        -- This have to be first
+        when anyGHCJS $ sh $ unlines
+            [ "if echo $CC | grep -q ghcjs; then"
+            , "    GHCJS=true;"
+            , "else"
+            , "    GHCJS=false;"
+            , "fi"
+            ]
+
         when (anyGHCJS || isBionic) $ sh $ unlines $ buildList $ do
             let item' x = item $ "  " ++ x ++ ";"
 
@@ -111,18 +120,11 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             traverse_ item' $ forJob RangeGHCJS "sudo apt-get install -y nodejs cabal-install-3.0" -- TODO: select right `cabal-install` version.
             item "fi"
 
+        -- Adjust $HC
         sh "HC=$(echo \"/opt/$CC/bin/ghc\" | sed 's/-/\\//')"
         sh "WITHCOMPILER=\"-w $HC\""
-
-        when anyGHCJS $ sh $ unlines
-            [ "if echo $CC | grep -q ghcjs; then"
-            , "    GHCJS=true"
-            , "    HC=${HC}js"
-            , "    WITHCOMPILER=\"--ghcjs ${WITHCOMPILER}js\""
-            , "else"
-            , "    GHCJS=false;"
-            , "fi"
-            ]
+        shForJob RangeGHCJS "HC=${HC}js"
+        shForJob RangeGHCJS "WITHCOMPILER=\"--ghcjs ${WITHCOMPILER}js\""
 
         -- Hack: happy needs ghc. Let's install version matching GHCJS.
         -- At the moment, there is only GHCJS-8.4, so we install GHC-8.4.4
