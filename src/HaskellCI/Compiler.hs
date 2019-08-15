@@ -65,6 +65,12 @@ instance Lattice CompilerRange where
     (/\) = RangeInter
     (\/) = RangeUnion
 
+instance BoundedJoinSemiLattice CompilerRange where
+    bottom = RangePoints S.empty
+
+instance BoundedMeetSemiLattice CompilerRange where
+    top = RangePoints allCompilerVersions
+
 compilerWithinRange :: CompilerVersion -> CompilerRange -> Bool
 compilerWithinRange v         (RangeInter a b) = compilerWithinRange v a /\ compilerWithinRange v b
 compilerWithinRange v         (RangeUnion a b) = compilerWithinRange v a \/ compilerWithinRange v b

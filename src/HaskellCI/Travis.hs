@@ -103,12 +103,12 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             traverse_ item' $ forJob RangeGHCJS "sudo add-apt-repository -y ppa:hvr/ghcjs"
             traverse_ item' $ forJob RangeGHCJS "curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -"
             traverse_ item' $ forJob RangeGHCJS $ "sudo apt-add-repository 'https://deb.nodesource.com/node_8.x " ++ C.prettyShow cfgUbuntu  ++ " main'"
-            item' "sudo apt-get update"
+            traverse_ item' $ forJob (boolToBoundedLattice isBionic \/ RangeGHCJS) "sudo apt-get update"
             item' $ "sudo apt-get install $CC" ++
                 (if S.null cfgApt
                 then ""
                 else " " ++ unwords (S.toList cfgApt))
-            traverse_ item' $ forJob RangeGHCJS "sudo apt-get install -y nodejs cabal-install-3.0"
+            traverse_ item' $ forJob RangeGHCJS "sudo apt-get install -y nodejs cabal-install-3.0" -- TODO: select right `cabal-install` version.
             item "fi"
 
         sh "HC=$(echo \"/opt/$CC/bin/ghc\" | sed 's/-/\\//')"
@@ -684,3 +684,7 @@ cat' fp contents = sh' [2016, 2129] $ catCmd Single fp contents
 -- SC2129: Consider using { cmd1; cmd2; } >> file instead of individual redirects
 -- SC2016: Expressions don't expand in single quotes
 -- that's the point!
+
+boolToBoundedLattice :: BoundedLattice a => Bool -> a
+boolToBoundedLattice True = top
+boolToBoundedLattice False = bottom

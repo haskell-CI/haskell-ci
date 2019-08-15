@@ -7,7 +7,7 @@ module HaskellCI.Prelude (
 
 import Prelude.Compat hiding (head, tail)
 
-import Algebra.Lattice        as X (Lattice (..))
+import Algebra.Lattice        as X (BoundedJoinSemiLattice (..), BoundedLattice, BoundedMeetSemiLattice (..), Lattice (..))
 import Control.Applicative    as X (liftA2, (<|>))
 import Control.Exception      as X (Exception (..))
 import Control.Monad          as X (ap, unless, void, when)
