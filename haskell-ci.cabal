@@ -24,7 +24,7 @@ description:
 
 homepage:           https://haskell-ci.rtfd.org/
 bug-reports:        https://github.com/haskell-CI/haskell-ci/issues
-license:            BSD-3-Clause
+license:            GPL-3.0-or-later
 license-file:       LICENSE
 author:             Herbert Valerio Riedel, Oleg Grenrus
 maintainer:         hvr@gnu.org
