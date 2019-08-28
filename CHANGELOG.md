@@ -1,6 +1,10 @@
 ## 0.4
 
 * Make default `--output` to be `.travis.yml`; use `--stdout` to output to standard output.
+* Add GHC-8.8 support
+* Use cabal-install-3.0 by default
+* Experimental support for GHCJS jobs
+* A lot of new configuration options
 
 ## 0.2.1
 
