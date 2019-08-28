@@ -60,6 +60,7 @@ data Config = Config
     , cfgNoTestsNoBench      :: !VersionRange
     , cfgUnconstrainted      :: !VersionRange
     , cfgHeadHackage         :: !VersionRange
+    , cfgGhcjsTests          :: !Bool
     , cfgCheck               :: !Bool
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
@@ -118,6 +119,7 @@ emptyConfig = Config
     , cfgNoTestsNoBench  = anyVersion
     , cfgUnconstrainted  = anyVersion
     , cfgHeadHackage     = defaultHeadHackage
+    , cfgGhcjsTests      = False
     , cfgCheck           = True
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
@@ -178,6 +180,8 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Make unconstrained build"
     <*> rangeField            "head-hackage"                                                  #cfgHeadHackage defaultHeadHackage
         ^^^ metahelp "RANGE" "Use head.hackage repository. Also marks as allow-failures"
+    <*> C.booleanFieldDef "ghcjs-tests"                                                       #cfgGhcjsTests False
+        ^^^ help "Run tests with GHCJS (experimental, relies on cabal-plan finding test-suites)"
     <*> C.booleanFieldDef "cabal-check"                                                       #cfgCheck True
         ^^^ help "Disable cabal check run"
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches

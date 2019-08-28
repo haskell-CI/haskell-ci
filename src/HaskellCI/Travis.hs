@@ -255,18 +255,19 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 | otherwise = " --constraint='doctest " ++ C.prettyShow (cfgDoctestVersion cfgDoctest) ++ "'"
         when doctestEnabled $
             shForJob (Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange) $
-                cabal $ "v2-install $WITHCOMPILER -j2 doctest" ++ doctestVersionConstraint
+                cabalInTmp $ "v2-install $WITHCOMPILER -j2 doctest" ++ doctestVersionConstraint
 
         -- Install hlint
         let hlintVersionConstraint
                 | C.isAnyVersion (cfgHLintVersion cfgHLint) = ""
                 | otherwise = " --constraint='hlint " ++ C.prettyShow (cfgHLintVersion cfgHLint) ++ "'"
         when (cfgHLintEnabled cfgHLint) $ shForJob (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint)) $
-            cabal $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
+            cabalInTmp $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
+
+        when (anyGHCJS && cfgGhcjsTests) $ shForJob RangeGHCJS $ cabalInTmp "v2-install -w ghc-8.4.4 cabal-plan"
 
         -- Install happy
-        when anyGHCJS $ do
-            shForJob RangeGHCJS "(cd /tmp && ${CABAL} v2-install -w ghc-8.4.4 happy)"
+        when anyGHCJS $ shForJob RangeGHCJS $ cabalInTmp "v2-install -w ghc-8.4.4 happy"
 
         -- create cabal.project file
         generateCabalProject False
@@ -323,6 +324,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         foldedSh FoldTest "Testing..." cfgFolds $ do
             shForJob (RangeGHC /\ Range (cfgTests /\ cfgRunTests) /\ hasTests) $
                 cabal "v2-test $WITHCOMPILER ${TEST} ${BENCH} all"
+
+            when cfgGhcjsTests $ shForJob (RangeGHCJS /\ hasTests)
+                "for testexe in $(cabal-plan list-bins '*:test:*' | awk '{ print $2 }'); do echo $testexe; nodejs ${testexe}.jsexe/all.js; done"
 
         -- doctest
         when doctestEnabled $ foldedSh FoldDoctest "Doctest..." cfgFolds $ do
@@ -535,6 +539,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
               | otherwise = cabalCmd
       where
         cabalCmd = "${CABAL} " ++ cmd
+
+    cabalInTmp :: String -> String
+    cabalInTmp cmd = "(cd /tmp && " ++ cabal cmd ++ ")"
 
     forJob :: CompilerRange -> String -> Maybe String
     forJob vr cmd
