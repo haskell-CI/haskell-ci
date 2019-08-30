@@ -126,6 +126,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         shForJob RangeGHCJS "HC=${HC}js"
         shForJob RangeGHCJS "WITHCOMPILER=\"--ghcjs ${WITHCOMPILER}js\""
 
+        -- Needed to work around haskell/cabal#6214
+        sh "HADDOCK=$(echo \"/opt/$CC/bin/haddock\" | sed 's/-/\\//')"
+
         -- Hack: happy needs ghc. Let's install version matching GHCJS.
         -- At the moment, there is only GHCJS-8.4, so we install GHC-8.4.4
         when anyGHCJS $ do
@@ -378,7 +381,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- haddock
         when (hasLibrary && not (equivVersionRanges C.noVersion cfgHaddock)) $
             foldedSh FoldHaddock "haddock..." cfgFolds $
-                shForJob (RangeGHC /\ Range cfgHaddock) $ cabal "v2-haddock $WITHCOMPILER ${TEST} ${BENCH} all"
+                shForJob (RangeGHC /\ Range cfgHaddock) $ cabal $ "v2-haddock $WITHCOMPILER " ++ withHaddock ++ " ${TEST} ${BENCH} all"
 
         -- unconstained build
         -- Have to build last, as we remove cabal.project.local
@@ -406,7 +409,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                     when (csRunTests cs) $
                         shForCs $ cabal $ "v2-test $WITHCOMPILER " ++ allFlags ++ " all"
                     when (csHaddock cs) $
-                        shForCs $ cabal $ "v2-haddock $WITHCOMPILER " ++ allFlags ++ " all"
+                        shForCs $ cabal $ "v2-haddock $WITHCOMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
     -- assemble travis configuration
     return Travis
@@ -650,6 +653,10 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         sh "cat cabal.project || true"
         sh "cat cabal.project.local || true"
+
+    -- Needed to work around haskell/cabal#6214
+    withHaddock :: String
+    withHaddock = "--with-haddock $HADDOCK"
 
 pkgNameDirVariable' :: String -> String
 pkgNameDirVariable' n = "PKGDIR_" ++ map f n where
