@@ -69,6 +69,7 @@ matrix:
 before_install:
   - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
   - WITHCOMPILER="-w $HC"
+  - HADDOCK=$(echo "/opt/$CC/bin/haddock" | sed 's/-/\//')
   - HCPKG="$HC-pkg"
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
@@ -168,7 +169,7 @@ script:
   # cabal check...
   - (cd ${PKGDIR_servant} && ${CABAL} -vnormal check)
   # haddock...
-  - ${CABAL} v2-haddock $WITHCOMPILER ${TEST} ${BENCH} all | color_cabal_output
+  - ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK ${TEST} ${BENCH} all | color_cabal_output
   # Building without installed constraints for packages in global-db...
   - rm -f cabal.project.local
   - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all | color_cabal_output
