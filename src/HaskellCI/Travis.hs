@@ -443,8 +443,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         , travisServices      = buildList $ do
             when cfgPostgres $ item "postgresql"
         , travisAddons        = TravisAddons
-            { taApt      = TravisApt [] []
-            , taPostgres = if cfgPostgres then Just "10" else Nothing
+            { taApt          = TravisApt [] []
+            , taPostgres     = if cfgPostgres then Just "10" else Nothing
+            , taGoogleChrome = cfgGoogleChrome
             }
         , travisMatrix        = TravisMatrix
             { tmInclude = buildList $ do
@@ -468,7 +469,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                                     { taPackages = addGvs $ ("cabal-install-" ++ cvs) : S.toList cfgApt
                                     , taSources  = ["hvr-ghc"]
                                     }
-                                , taPostgres = Nothing
+
+                                , taPostgres     = Nothing
+                                , taGoogleChrome = False
                                 }
                             }
 

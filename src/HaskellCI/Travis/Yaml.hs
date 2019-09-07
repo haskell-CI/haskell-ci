@@ -77,8 +77,9 @@ data TravisJob = TravisJob
   deriving Show
 
 data TravisAddons = TravisAddons
-    { taApt      :: TravisApt
-    , taPostgres :: Maybe String
+    { taApt          :: TravisApt
+    , taPostgres     :: Maybe String
+    , taGoogleChrome :: Bool
     }
   deriving Show
 
@@ -214,6 +215,8 @@ instance ToYaml TravisAddons where
         -- no apt on purpose
         for_ taPostgres $ \p ->
             item $ "postgresql" ~> fromString p
+        when taGoogleChrome $
+            item $ "google" ~> fromString "stable"
 
 -------------------------------------------------------------------------------
 -- ToJSON
