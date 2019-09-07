@@ -70,6 +70,7 @@ data Config = Config
     , cfgFolds               :: S.Set Fold
     , cfgGhcHead             :: !Bool
     , cfgPostgres            :: !Bool
+    , cfgGoogleChrome        :: !Bool
     , cfgEnv                 :: M.Map Version String
     , cfgAllowFailures       :: !VersionRange
     , cfgLastInSeries        :: !Bool
@@ -130,6 +131,7 @@ emptyConfig = Config
     , cfgFolds           = S.empty
     , cfgGhcHead         = False
     , cfgPostgres        = False
+    , cfgGoogleChrome    = False
     , cfgEnv             = M.empty
     , cfgAllowFailures   = noVersion
     , cfgLastInSeries    = False
@@ -201,6 +203,8 @@ configGrammar = Config
         ^^^ help "Add ghc-head job"
     <*> C.booleanFieldDef     "postgresql"                                                    #cfgPostgres False
         ^^^ help "Add postgresql service"
+    <*> C.booleanFieldDef     "google-chrome"                                                 #cfgGoogleChrome False
+        ^^^ help "Add google-chrome service"
     <*> C.monoidalFieldAla    "env"                       Env                                 #cfgEnv
         ^^^ metahelp "ENV" "Environment variables per job (e.g. `8.0.2:HADDOCK=false`)"
     <*> C.optionalFieldDefAla "allow-failures"            Range                               #cfgAllowFailures noVersion
