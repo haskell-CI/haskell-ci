@@ -21,6 +21,7 @@ import qualified Distribution.Fields             as C
 import qualified Distribution.Parsec             as C
 import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Pretty             as C
+import qualified Distribution.Types.PackageName  as C
 import qualified Distribution.Types.Version      as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
@@ -61,6 +62,7 @@ data Config = Config
     , cfgUnconstrainted      :: !VersionRange
     , cfgHeadHackage         :: !VersionRange
     , cfgGhcjsTests          :: !Bool
+    , cfgGhcjsTools          :: ![C.PackageName]
     , cfgCheck               :: !Bool
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
@@ -120,6 +122,7 @@ emptyConfig = Config
     , cfgUnconstrainted  = anyVersion
     , cfgHeadHackage     = defaultHeadHackage
     , cfgGhcjsTests      = False
+    , cfgGhcjsTools      = []
     , cfgCheck           = True
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
@@ -180,8 +183,10 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Make unconstrained build"
     <*> rangeField            "head-hackage"                                                  #cfgHeadHackage defaultHeadHackage
         ^^^ metahelp "RANGE" "Use head.hackage repository. Also marks as allow-failures"
-    <*> C.booleanFieldDef "ghcjs-tests"                                                       #cfgGhcjsTests False
+    <*> C.booleanFieldDef     "ghcjs-tests"                                                   #cfgGhcjsTests False
         ^^^ help "Run tests with GHCJS (experimental, relies on cabal-plan finding test-suites)"
+    <*> C.monoidalFieldAla    "ghcjs-tools"               (C.alaList C.FSep)                  #cfgGhcjsTools
+--        ^^^ metahelp "TOOL" "Additional host tools to install with GHCJS"
     <*> C.booleanFieldDef "cabal-check"                                                       #cfgCheck True
         ^^^ help "Disable cabal check run"
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches
