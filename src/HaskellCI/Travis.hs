@@ -270,7 +270,8 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         when (anyGHCJS && cfgGhcjsTests) $ shForJob RangeGHCJS $ cabalInTmp "v2-install -w ghc-8.4.4 cabal-plan"
 
         -- Install happy
-        when anyGHCJS $ shForJob RangeGHCJS $ cabalInTmp "v2-install -w ghc-8.4.4 happy"
+        when anyGHCJS $ for_ cfgGhcjsTools $ \t ->
+            shForJob RangeGHCJS $ cabalInTmp $ "v2-install -w ghc-8.4.4 " ++ C.prettyShow t
 
         -- create cabal.project file
         generateCabalProject False
