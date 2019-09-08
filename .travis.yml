@@ -114,9 +114,10 @@ install:
     echo "   key-threshold: 3"                                                            >> $CABALHOME/config
     fi
   - "echo 'jobs: 2' >> $CABALHOME/config"
+  - GHCJOBS=-j2
   - |
-    echo "program-default-options" >> $CABALHOME/config
-    echo "  ghc-options: -j2"      >> $CABALHOME/config
+    echo "program-default-options"                >> $CABALHOME/config
+    echo "  ghc-options: $GHCJOBS +RTS -M6G -RTS" >> $CABALHOME/config
   - cat $CABALHOME/config
   - rm -fv cabal.project cabal.project.local cabal.project.freeze
   - travis_retry ${CABAL} v2-update -v

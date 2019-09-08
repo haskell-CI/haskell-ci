@@ -237,12 +237,13 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         for_ (cfgJobs >>= cabalJobs) $ \n ->
             sh $ "echo 'jobs: " ++ show n ++ "' >> $CABALHOME/config"
 
-        -- GHC jobs
+        -- GHC jobs + ghc-options
         for_ (cfgJobs >>= ghcJobs) $ \m -> do
-            catForJob (Range $ C.orLaterVersion (C.mkVersion [7,8])) "$CABALHOME/config"
-                [ "program-default-options"
-                , "  ghc-options: -j" ++ show m
-                ]
+            shForJob (Range $ C.orLaterVersion (C.mkVersion [7,8])) $ "GHCJOBS=-j" ++ show m
+        cat "$CABALHOME/config"
+            [ "program-default-options"
+            , "  ghc-options: $GHCJOBS +RTS -M6G -RTS"
+            ]
 
         sh "cat $CABALHOME/config"
 
@@ -565,7 +566,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     shForJob :: CompilerRange -> String -> ShM ()
     shForJob vr cmd = maybe (pure ()) sh (forJob vr cmd)
 
-    catForJob vr fp contents = shForJob vr (catCmd Double fp contents)
+    -- catForJob vr fp contents = shForJob vr (catCmd Double fp contents)
 
     generateCabalProjectFields :: Bool -> [C.PrettyField ()]
     generateCabalProjectFields dist = buildList $ do

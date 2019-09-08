@@ -121,6 +121,9 @@ install:
     echo "  prefix: $CABALHOME"                         >> $CABALHOME/config
     echo "repository hackage.haskell.org"               >> $CABALHOME/config
     echo "  url: http://hackage.haskell.org/"           >> $CABALHOME/config
+  - |
+    echo "program-default-options"                >> $CABALHOME/config
+    echo "  ghc-options: $GHCJOBS +RTS -M6G -RTS" >> $CABALHOME/config
   - cat $CABALHOME/config
   - rm -fv cabal.project cabal.project.local cabal.project.freeze
   - travis_retry ${CABAL} v2-update -v
