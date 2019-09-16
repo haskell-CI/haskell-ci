@@ -3,7 +3,7 @@ module HaskellCI.Glob where
 import HaskellCI.Prelude
 
 import Control.Applicative       as App ((<$>))
-import Control.Monad             (filterM, liftM2, void)
+import Control.Monad             (filterM, liftM2)
 import System.Directory          (doesDirectoryExist, getDirectoryContents)
 import System.FilePath.Posix     ((</>))
 import Text.ParserCombinators.ReadP

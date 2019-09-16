@@ -4,7 +4,7 @@ module HaskellCI.ShVersionRange (
 
 import HaskellCI.Prelude
 
-import Algebra.Lattice (bottom, top, joins)
+import Algebra.Lattice (joins)
 import Algebra.Heyting.Free (Free (..))
 import Algebra.Lattice.Wide (Wide (..))
 

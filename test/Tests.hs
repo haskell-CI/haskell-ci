@@ -1,15 +1,16 @@
 {-# LANGUAGE ViewPatterns #-}
 module Main (main) where
 
+import Prelude ()
+import Prelude.Compat
+
 import HaskellCI             hiding (main)
 import HaskellCI.Diagnostics (runDiagnosticsT)
 
-import Control.Applicative        ((<$>), (<*>))
 import Control.Exception          (ErrorCall (..), throwIO)
 import Data.Algorithm.Diff        (Diff (..), getGroupedDiff)
 import Data.List                  (stripPrefix)
 import Data.Maybe                 (mapMaybe)
-import Data.Monoid                (mconcat)
 import System.Directory           (doesFileExist, setCurrentDirectory)
 import System.FilePath            (addExtension)
 import Test.Tasty                 (TestName, TestTree, defaultMain, testGroup)

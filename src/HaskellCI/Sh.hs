@@ -105,7 +105,9 @@ instance Monad ShM where
         (shs2, y) <- unShM (k x) shs1
         return (shs2, y)
 
+#if !MIN_VERSION_base(4,13,0)
     fail = Fail.fail
+#endif
 
 instance Fail.MonadFail ShM where
     fail = throwErr . ShError
