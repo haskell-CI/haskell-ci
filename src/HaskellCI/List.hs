@@ -7,8 +7,6 @@ module HaskellCI.List (
 
 import HaskellCI.Prelude
 
-import Control.Monad (ap)
-
 newtype ListBuilder x a = LB { unLB :: forall r. (([x] -> [x]) -> a -> r) -> r }
 
 instance Functor (ListBuilder x) where

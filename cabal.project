@@ -6,3 +6,4 @@ tests: true
 
 package haskell-ci
   ghc-options: -Wall
+  ghc-options: -Werror

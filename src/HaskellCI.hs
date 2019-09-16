@@ -20,7 +20,7 @@ module HaskellCI (
 
 import HaskellCI.Prelude
 
-import Data.List                    (intercalate, isPrefixOf, nub, nubBy, sort, sortBy, (\\))
+import Data.List                    (nubBy, sort, sortBy, (\\))
 import System.Directory             (canonicalizePath, doesDirectoryExist, doesFileExist, makeRelativeToCurrentDirectory, setCurrentDirectory)
 import System.Environment           (getArgs)
 import System.Exit                  (ExitCode (..), exitFailure)

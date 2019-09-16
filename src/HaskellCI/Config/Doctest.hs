@@ -4,7 +4,7 @@ module HaskellCI.Config.Doctest where
 
 import HaskellCI.Prelude
 
-import Distribution.Version (mkVersion, noVersion, withinVersion)
+import Distribution.Version (withinVersion)
 
 import qualified Distribution.FieldGrammar      as C
 import qualified Distribution.Parsec.Newtypes   as C

@@ -24,8 +24,7 @@ module HaskellCI.Compiler (
 
 import HaskellCI.Prelude
 
-import Data.Set             (Set)
-import Distribution.Version (Version, VersionRange, hasUpperBound, invertVersionRange, mkVersion, versionNumbers, withinRange)
+import Distribution.Version (hasUpperBound, invertVersionRange, versionNumbers, withinRange)
 
 import qualified Data.Set            as S
 import qualified Distribution.Pretty as C
