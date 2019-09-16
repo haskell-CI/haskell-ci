@@ -268,7 +268,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         when (cfgHLintEnabled cfgHLint) $ shForJob (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint)) $
             cabalInTmp $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
 
-        when (anyGHCJS && cfgGhcjsTests) $ shForJob RangeGHCJS $ cabalInTmp "v2-install -w ghc-8.4.4 cabal-plan"
+        -- Install cabal-plan (for ghcjs tests)
+        when (anyGHCJS && cfgGhcjsTests) $ do
+            shForJob RangeGHCJS $ cabalInTmp "v2-install -w ghc-8.4.4 cabal-plan --constraint='cabal-plan ^>=0.6.0.0' --constraint='cabal-plan +exe'"
 
         -- Install happy
         when anyGHCJS $ for_ cfgGhcjsTools $ \t ->
@@ -315,6 +317,17 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
             generateCabalProject True
 
+            when (anyGHCJS && cfgGhcjsTests) $ sh $ unlines $
+                [ "pkgdir() {"
+                , "  case $1 in"
+                ] ++
+                [ "    " ++ pkgName ++ ") echo " ++ pkgNameDirVariable pkgName ++ " ;;"
+                | Pkg{pkgName} <- pkgs
+                ] ++
+                [ "  esac"
+                , "}"
+                ]
+
         -- build no-tests no-benchmarks
         unless (equivVersionRanges C.noVersion cfgNoTestsNoBench) $ foldedSh FoldBuild "Building..." cfgFolds $ do
             comment "this builds all libraries and executables (without tests/benchmarks)"
@@ -330,8 +343,14 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             shForJob (RangeGHC /\ Range (cfgTests /\ cfgRunTests) /\ hasTests) $
                 cabal "v2-test $WITHCOMPILER ${TEST} ${BENCH} all"
 
-            when cfgGhcjsTests $ shForJob (RangeGHCJS /\ hasTests)
-                "for testexe in $(cabal-plan list-bins '*:test:*' | awk '{ print $2 }'); do echo $testexe; nodejs ${testexe}.jsexe/all.js; done"
+            when cfgGhcjsTests $ shForJob (RangeGHCJS /\ hasTests) $ unwords
+                [ "cabal-plan list-bins '*:test:*' | while read -r line; do"
+                , "testpkg=$(echo \"$line\" | perl -pe 's/:.*//');"
+                , "testexe=$(echo \"$line\" | awk '{ print $2 }');"
+                , "echo \"testing $textexe in package $textpkg\";"
+                , "(cd \"$(pkgdir $testpkg)\" && nodejs \"$testexe\".jsexe/all.js);"
+                , "done"
+                ]
 
         -- doctest
         when doctestEnabled $ foldedSh FoldDoctest "Doctest..." cfgFolds $ do
