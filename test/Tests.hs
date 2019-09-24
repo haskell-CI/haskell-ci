@@ -8,7 +8,7 @@ import HaskellCI             hiding (main)
 import HaskellCI.Diagnostics (runDiagnosticsT)
 
 import Control.Exception          (ErrorCall (..), throwIO)
-import Data.Algorithm.Diff        (Diff (..), getGroupedDiff)
+import Data.Algorithm.Diff        (PolyDiff (..), getGroupedDiff)
 import Data.List                  (stripPrefix)
 import Data.Maybe                 (mapMaybe)
 import System.Directory           (doesFileExist, setCurrentDirectory)
