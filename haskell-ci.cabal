@@ -157,9 +157,9 @@ library haskell-ci-internal
   -- other dependencies
   build-depends:
     , aeson                 ^>=1.4.2.0
-    , base-compat           ^>=0.10.5
+    , base-compat           ^>=0.11
     , exceptions            ^>=0.10.0
-    , generic-lens          ^>=1.1.0.0
+    , generic-lens          ^>=1.2.0.0
     , HsYAML                ^>=0.2.0.0
     , lattices              ^>=2
     , microlens             ^>=0.4.10
