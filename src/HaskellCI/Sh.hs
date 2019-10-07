@@ -19,8 +19,6 @@ import           ShellCheck.Checker    (checkScript)
 import qualified ShellCheck.Interface  as SC
 #endif
 
-import qualified Control.Monad.Fail as Fail
-
 import HaskellCI.MonadErr
 
 -------------------------------------------------------------------------------
@@ -104,13 +102,6 @@ instance Monad ShM where
         (shs1, x) <- unShM m     shs0
         (shs2, y) <- unShM (k x) shs1
         return (shs2, y)
-
-#if !MIN_VERSION_base(4,13,0)
-    fail = Fail.fail
-#endif
-
-instance Fail.MonadFail ShM where
-    fail = throwErr . ShError
 
 instance MonadErr ShError ShM where
     throwErr err = ShM $ \_ -> Left err
