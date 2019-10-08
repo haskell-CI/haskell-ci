@@ -63,5 +63,5 @@ RUN /opt/ghc/bin/cabal v2-update \
 
 # Image specific GHC GHC
 RUN sudo apt-get -yq update && sudo apt-get -yq --no-install-suggests --no-install-recommends install \
-    ghc-8.2.2 \
+    ghc-8.6.5 \
   && sudo apt-get autoremove -y --purge && sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/*
