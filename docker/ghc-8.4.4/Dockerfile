@@ -44,8 +44,12 @@ CMD ["/bin/bash"]
 
 # We install cabal-install always, also for generic image
 RUN sudo apt-get -yq update && sudo apt-get -yq --no-install-suggests --no-install-recommends install \
-    cabal-install-2.4 \
+    cabal-install-3.0 \
   && sudo apt-get autoremove -y --purge && sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* && rm -rf /home/haskellci/.cabal/packages
+
+# Cabal config
+RUN mkdir -p /home/haskellci/.cabal
+ADD cabal.config /home/haskellci/.cabal/config
 
 # TODO: when cabal-install-3.0 is out with `copy`; install cabal-plan :)
 
