@@ -33,6 +33,8 @@ import GHC.Generics           as X (Generic)
 import Lens.Micro             as X (mapped, over, (&), (.~), (<&>), (^.), (^..))
 import Text.Read              as X (readMaybe)
 
+import Distribution.Parsec  as X (simpleParsec)
+import Distribution.Pretty  as X (prettyShow)
 import Distribution.Version as X (Version, VersionRange, anyVersion, mkVersion, noVersion)
 
 import qualified Distribution.Version as C
