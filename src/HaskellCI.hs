@@ -161,20 +161,26 @@ travisFromConfigFile args opts path = do
             contents <- liftIO $ BS.readFile path
             prj  <- either putStrLnErr return $ parseProjectFile path contents
             prj' <- bitraverse findOptProjectPackage findProjectPackage prj
+            let (uris, pkgs) = partitionEithers $ concat $ prjPackages prj'
             return prj'
-                { prjPackages    = concat $ prjPackages prj' ++ prjOptPackages prj'
+                { prjPackages    = pkgs ++ concat (prjOptPackages prj')
                 , prjOptPackages = []
+                , prjUriPackages = uris
                 }
 
     rootdir = takeDirectory path
 
     -- See findProjectPackages in cabal-install codebase
     -- this is simple variant.
-    findProjectPackage :: String -> m [FilePath]
+    findProjectPackage :: String -> m [Either URI FilePath]
     findProjectPackage pkglocstr = do
-        mfp <- checkisFileGlobPackage pkglocstr `mplusMaybeT`
-               checkIsSingleFilePackage pkglocstr
+        mfp <- fmap3 Right (checkisFileGlobPackage pkglocstr) `mplusMaybeT`
+               fmap3 Right (checkIsSingleFilePackage pkglocstr) `mplusMaybeT`
+               fmap2 (\uri -> [Left uri]) (return $ parseURI pkglocstr)
         maybe (putStrLnErr $ "bad package location: " ++ pkglocstr) return mfp
+
+    fmap2 f = fmap (fmap f)
+    fmap3 f = fmap (fmap (fmap f))
 
     findOptProjectPackage :: String -> m [FilePath]
     findOptProjectPackage pkglocstr = do

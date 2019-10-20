@@ -519,6 +519,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         }
   where
     pkgs = prjPackages prj
+    uris = prjUriPackages prj
     projectName = fromMaybe (pkgName $ Prelude.head pkgs) cfgProjectName
 
     justIf True x  = Just x
@@ -597,6 +598,10 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     generateCabalProjectFields :: Bool -> [C.PrettyField ()]
     generateCabalProjectFields dist = buildList $ do
+        -- generate package fields for URI packages.
+        when dist $ for_ uris $ \uri ->
+            item $ C.PrettyField () "packages" $ PP.text $ uriToString id uri ""
+
         -- copy files from original cabal.project
         case cfgCopyFields of
             CopyFieldsNone -> pure ()
