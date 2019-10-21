@@ -1,3 +1,14 @@
+## 0.6
+
+- ghc-options limiting heap size
+- GHCJS tests can be run in simple cases
+- Work around cabal#6214 (haddock failing with `build-type: Custom` packages)
+- Support requesting `google-chrome` addon
+- Nicer `docctest-filter-packages`
+- Buildable with GHC-8.8
+- Record `haskell-ci` version in REGENDATA;
+  warn if older executable is used to `regenerate`
+
 ## 0.4
 
 * Make default `--output` to be `.travis.yml`; use `--stdout` to output to standard output.

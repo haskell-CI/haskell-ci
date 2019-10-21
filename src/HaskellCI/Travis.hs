@@ -364,17 +364,8 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         when doctestEnabled $ foldedSh FoldDoctest "Doctest..." cfgFolds $ do
             let doctestOptions = unwords $ cfgDoctestOptions cfgDoctest
             unless (null $ cfgDoctestFilterPkgs cfgDoctest) $ do
-                sh $ unlines $ concat
-                    [ [ "for ghcenv in .ghc.environment.*; do"
-                      , "mv $ghcenv ghcenv;"
-                      ]
-                    , cfgDoctestFilterPkgs cfgDoctest <&> \pn ->
-                        "grep -vE '^package-id " ++ C.unPackageName pn ++ "-([0-9]+(\\.[0-9]+)*)-' ghcenv > ghcenv.tmp; mv ghcenv.tmp ghcenv;"
-                    , [ "mv ghcenv $ghcenv;"
-                      , "cat $ghcenv;"
-                      , "done"
-                      ]
-                    ]
+                let filterPkgs = intercalate "|" $ map C.unPackageName $ cfgDoctestFilterPkgs cfgDoctest
+                sh $ "perl -i -e 'while (<ARGV>) { print unless /package-id\\s+(" ++ filterPkgs ++ ")-\\d+(\\.\\d+)*/; }' .ghc.environment.*"
             for_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
                 for_ (doctestArgs pkgGpd) $ \args -> do
                     let args' = unwords args
