@@ -154,7 +154,7 @@ travisFromConfigFile args opts path = do
         | "cabal.project" `isPrefixOf` takeFileName path = Just path
         | otherwise = Nothing
 
-    getCabalFiles :: m (Project Void FilePath)
+    getCabalFiles :: m (Project URI Void FilePath)
     getCabalFiles
         | isNothing isCabalProject = return $ emptyProject & #prjPackages .~ [path]
         | otherwise = do
@@ -217,7 +217,7 @@ genTravisFromConfigs
     :: (Monad m, MonadDiagnostics m)
     => [String]
     -> Config
-    -> Project Void Package
+    -> Project URI Void Package
     -> Set CompilerVersion
     -> m [String]
 genTravisFromConfigs argv config prj vs = do
