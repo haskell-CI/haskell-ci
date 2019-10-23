@@ -50,6 +50,7 @@ before_install:
   - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
   - WITHCOMPILER="-w $HC"
   - HADDOCK=$(echo "/opt/$CC/bin/haddock" | sed 's/-/\//')
+  - if [ "$TRAVIS_OS_NAME" = "osx" ]; then HADDOCK=$(echo $HADDOCK | sed "s:^/opt:$HOME/.ghc-install:"); fi
   - HCPKG="$HC-pkg"
   - unset CC
   - CABAL=/opt/ghc/bin/cabal
@@ -204,7 +205,6 @@ script:
   # Constraint set deepseq-1.4
   - echo 'Constraint set deepseq-1.4' && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\r'
   - if [ $HCNUMVER -lt 80400 ] ; then ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all | color_cabal_output ; fi
-  - if [ $HCNUMVER -lt 80400 ] ; then ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all | color_cabal_output ; fi
   - echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\r'
 
 # REGENDATA ["--config=cabal.haskell-ci","cabal.project"]
