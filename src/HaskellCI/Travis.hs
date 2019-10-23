@@ -78,7 +78,7 @@ travisHeader insertVersion argv =
 makeTravis
     :: [String]
     -> Config
-    -> Project Void Package
+    -> Project URI Void Package
     -> JobVersions
     -> Either ShError Travis -- TODO: writer
 makeTravis argv Config {..} prj JobVersions {..} = do

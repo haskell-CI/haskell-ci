@@ -9,7 +9,6 @@ import Prelude.Compat
 import Control.Applicative  ((<|>))
 import Data.Generics.Labels ()
 import Data.List            (intercalate)
-import Data.Void            (Void)
 
 import qualified Data.Foldable                   as F
 import qualified Data.Set                        as S
@@ -41,14 +40,14 @@ instance C.Pretty TestedWithJobs where
 
 checkVersions
     :: TestedWithJobs
-    -> Project Void Package
-    -> Either [String] (S.Set CompilerVersion, Project Void Package)
+    -> Project a b Package
+    -> Either [String] (S.Set CompilerVersion, Project a b Package)
 checkVersions TestedWithUniform = checkVersionsUniform
 checkVersions TestedWithAny     = checkVersionsAny
 
 checkVersionsUniform
-    :: Project Void Package
-    -> Either [String] (S.Set CompilerVersion, Project Void Package)
+    :: Project a b Package
+    -> Either [String] (S.Set CompilerVersion, Project a b Package)
 checkVersionsUniform prj | null (prjPackages prj) = Left ["Error reading cabal file(s)!"]
 checkVersionsUniform prj = do
     let (errors, names) = F.foldl' collectConfig mempty prj
@@ -77,8 +76,8 @@ checkVersionsUniform prj = do
                     ] ++ intercalate "," missingVersions
 
 checkVersionsAny
-    :: Project Void Package
-    -> Either [String] (S.Set CompilerVersion, Project Void Package)
+    :: Project a b Package
+    -> Either [String] (S.Set CompilerVersion, Project a b Package)
 checkVersionsAny prj | null (prjPackages prj) = Left ["Error reading cabal file(s)!"]
 checkVersionsAny prj =
     Right (allVersions, prj)

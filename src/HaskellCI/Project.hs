@@ -25,10 +25,10 @@ import HaskellCI.ParsecError
 -- $setup
 -- >>> :seti -XOverloadedStrings
 
-data Project b a = Project
-    { prjPackages     :: [a]
-    , prjOptPackages  :: [b]
-    , prjUriPackages  :: [URI]
+data Project uri opt pkg = Project
+    { prjPackages     :: [pkg]
+    , prjOptPackages  :: [opt]
+    , prjUriPackages  :: [uri]
     , prjConstraints  :: [String]
     , prjAllowNewer   :: [String]
     , prjReorderGoals :: Bool
@@ -39,15 +39,15 @@ data Project b a = Project
     }
   deriving (Functor, Foldable, Traversable, Generic)
 
-instance Bifunctor Project where bimap = bimapDefault
-instance Bifoldable Project where bifoldMap = bifoldMapDefault
+instance Bifunctor (Project c) where bimap = bimapDefault
+instance Bifoldable (Project c) where bifoldMap = bifoldMapDefault
 
-instance Bitraversable Project where
+instance Bitraversable (Project c) where
     bitraverse f g prj = (\b a -> prj { prjPackages = a, prjOptPackages = b })
         <$> traverse f (prjOptPackages prj)
         <*> traverse g (prjPackages prj)
 
-emptyProject :: Project b a
+emptyProject :: Project c b a
 emptyProject = Project [] [] [] [] [] False Nothing OptimizationOn [] []
 
 -- | Parse project file. Extracts only few fields.
@@ -55,7 +55,7 @@ emptyProject = Project [] [] [] [] [] False Nothing OptimizationOn [] []
 -- >>> fmap prjPackages $ parseProjectFile "cabal.project" "packages: foo bar/*.cabal"
 -- Right ["foo","bar/*.cabal"]
 --
-parseProjectFile :: FilePath -> ByteString -> Either String (Project String String)
+parseProjectFile :: FilePath -> ByteString -> Either String (Project Void String String)
 parseProjectFile fp bs = do
     fields0 <- either (Left . show) Right $ C.readFields bs
     let (fields1, sections) = C.partitionFields fields0
@@ -71,7 +71,7 @@ parseProjectFile fp bs = do
         prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOrigFields
         foldr ($) prj <$> traverse parseSec (concat sections)
 
-    parseSec :: C.Section C.Position -> C.ParseResult (Project String String -> Project String String)
+    parseSec :: C.Section C.Position -> C.ParseResult (Project Void String String -> Project Void String String)
     parseSec (C.MkSection (C.Name _pos name) [] fields) | name == "source-repository-package" = do
         let fields' = fst $ C.partitionFields fields
         repo <- C.parseFieldGrammar C.cabalSpecLatest fields' (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused")
@@ -83,7 +83,7 @@ notPackages :: C.Field ann -> Bool
 notPackages (C.Field (C.Name _ "packages") _) = False
 notPackages _                                 = True
 
-grammar :: [C.PrettyField ()] -> C.ParsecFieldGrammar (Project String String) (Project String String)
+grammar :: [C.PrettyField ()] -> C.ParsecFieldGrammar (Project Void String String) (Project Void String String)
 grammar origFields = Project
     <$> C.monoidalFieldAla "packages"          (C.alaList' C.FSep PackageLocation) #prjPackages
     <*> C.monoidalFieldAla "optional-packages" (C.alaList' C.FSep PackageLocation) #prjOptPackages
