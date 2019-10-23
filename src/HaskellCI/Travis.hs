@@ -128,6 +128,8 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         -- Needed to work around haskell/cabal#6214
         sh "HADDOCK=$(echo \"/opt/$CC/bin/haddock\" | sed 's/-/\\//')"
+        unless (null cfgOsx) $ do
+            sh $ "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then HADDOCK=$(echo $HADDOCK | sed \"s:^/opt:$HOME/.ghc-install:\"); fi"
 
         -- Hack: happy needs ghc. Let's install version matching GHCJS.
         -- At the moment, there is only GHCJS-8.4, so we install GHC-8.4.4
@@ -419,6 +421,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             for_ cfgConstraintSets $ \cs -> do
                 let name            = csName cs
                 let shForCs         = shForJob (Range (csGhcVersions cs))
+                let shForCs' r      = shForJob (Range (csGhcVersions cs) /\ r)
                 let testFlag        = if csTests cs then "--enable-tests" else "--disable-tests"
                 let benchFlag       = if csBenchmarks cs then "--enable-benchmarks" else "--disable-benchmarks"
                 let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)
@@ -427,8 +430,8 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 foldedSh' FoldConstraintSets name ("Constraint set " ++ name) cfgFolds $ do
                     shForCs $ cabal $ "v2-build $WITHCOMPILER " ++ allFlags ++ " all"
                     when (csRunTests cs) $
-                        shForCs $ cabal $ "v2-test $WITHCOMPILER " ++ allFlags ++ " all"
-                    when (csHaddock cs) $
+                        shForCs' hasTests $ cabal $ "v2-test $WITHCOMPILER " ++ allFlags ++ " all"
+                    when (hasLibrary && csHaddock cs) $
                         shForCs $ cabal $ "v2-haddock $WITHCOMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
     -- assemble travis configuration
