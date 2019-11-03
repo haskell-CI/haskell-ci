@@ -1,17 +1,26 @@
-module HaskellCI.Optimization where
+{-# LANGUAGE DeriveGeneric #-}
+-- | License: GPL-3.0-or-later AND BSD-3-Clause
+--
+-- Optimization level.
+module Cabal.Optimization (
+    Optimization (..),
+    ) where
 
-import HaskellCI.Prelude
+import Control.Applicative (Alternative (..))
+import GHC.Generics        (Generic)
 
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Parsec             as C
 import qualified Distribution.Pretty             as C
 import qualified Text.PrettyPrint                as PP
 
+-- | Optimization level, may be turned on with 'True' or off with 'False',
+-- or set an explicit optimization level.
 data Optimization
     = OptimizationOn
     | OptimizationOff
     | OptimizationLevel Int
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
 instance C.Parsec Optimization where
     parsec = boolean <|> numeric where

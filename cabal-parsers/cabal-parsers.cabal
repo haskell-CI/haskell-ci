@@ -1,0 +1,80 @@
+cabal-version:      2.2
+name:               cabal-parsers
+version:            0.1
+synopsis:           Utilities to work with cabal-install files
+description:
+  This module provides (non-complete) parsers to work with
+  @cabal.project@ and @cabal.config@ files.
+  .
+  The feature set is mainly motivated by the needs of @haskell-ci@ package.
+
+homepage:           https://haskell-ci.rtfd.org/
+bug-reports:        https://github.com/haskell-CI/haskell-ci/issues
+license:            GPL-2.0-or-later AND BSD-3-Clause
+license-files:      LICENSE LICENSE.GPLv2 LICENSE.GPLv3
+author:             Herbert Valerio Riedel, Oleg Grenrus
+maintainer:         hvr@gnu.org
+category:           Development
+build-type:         Simple
+tested-with:        GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.1
+extra-source-files:
+  fixtures/*.project
+  fixtures/*.golden
+
+source-repository head
+  type:     git
+  location: https://github.com/haskell-CI/haskell-ci.git
+
+library
+  default-language: Haskell2010
+  ghc-options:      -Wall -Wcompat -Wnoncanonical-monad-instances
+  hs-source-dirs:   src
+  exposed-modules:
+    Cabal.Optimization
+    Cabal.Parse
+    Cabal.Project
+
+  other-modules:
+    Cabal.Internal.Glob
+    Cabal.Internal.Newtypes
+
+  -- GHC-boot libraries
+  build-depends:
+    , base          >=4.10     && <4.14
+    , bytestring    ^>=0.10.8.1
+    , Cabal         ^>=3.0.0.0
+    , containers    ^>=0.5.7.1 || ^>=0.6.0.1
+    , directory     ^>=1.3.0.0
+    , filepath      ^>=1.4.1.1
+    , parsec        ^>=3.1.13.0
+    , pretty        ^>=1.1.3.3
+    , transformers  ^>=0.5.2.0
+
+  -- extra dependencies
+  build-depends:    network-uri ^>=2.6.1.0
+
+  if !impl(ghc >=8.2)
+    build-depends: bifunctors ^>=5.5.4
+
+test-suite cabal-parsers-golden
+  default-language: Haskell2010
+  type:             exitcode-stdio-1.0
+  main-is:          Golden.hs
+  hs-source-dirs:   test
+
+  -- inherited constraints
+  build-depends:
+    , base
+    , bytestring
+    , Cabal
+    , cabal-parsers
+    , containers
+    , directory
+    , filepath
+
+  -- dependencies needing explicit constraints
+  build-depends:
+    , ansi-terminal  ^>=0.10
+    , tasty          ^>=1.2.3
+    , tasty-golden   ^>=2.3.1.1
+    , tree-diff      ^>=0.1

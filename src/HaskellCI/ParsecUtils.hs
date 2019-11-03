@@ -12,7 +12,7 @@ import qualified Distribution.Fields.LexerMonad as C (toPWarnings)
 import qualified Distribution.Parsec            as C
 import qualified Text.Parsec                    as P
 
-import HaskellCI.ParsecError
+import Cabal.Parse
 
 readAndParseFile
     :: ([C.Field C.Position] -> C.ParseResult a)  -- ^ File fields to final value parser
@@ -35,8 +35,8 @@ readAndParseFile parser fpath = do
     run :: BS.ByteString -> C.ParseResult a -> IO a
     run bs r = case C.runParseResult r of
         (ws, Right x)      -> do
-            hPutStr stderr $ renderParseError fpath bs [] ws
+            hPutStr stderr $ renderParseError (ParseError fpath bs [] ws)
             return x
         (ws, Left (_, es)) -> do
-            hPutStr stderr $ renderParseError fpath bs es ws
+            hPutStr stderr $ renderParseError (ParseError fpath bs es ws)
             exitFailure

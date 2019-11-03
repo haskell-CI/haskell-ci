@@ -1,0 +1,10 @@
+Project
+  {prjAllowNewer = [],
+   prjConstraints = [],
+   prjMaxBackjumps = Nothing,
+   prjOptPackages = [],
+   prjOptimization = OptimizationOn,
+   prjPackages = [".", "cabal-parsers"],
+   prjReorderGoals = False,
+   prjSourceRepos = [],
+   prjUriPackages = []}

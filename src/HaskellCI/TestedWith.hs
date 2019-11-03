@@ -17,9 +17,9 @@ import qualified Distribution.Parsec             as C
 import qualified Distribution.Pretty             as C
 import qualified Text.PrettyPrint                as PP
 
+import Cabal.Project
 import HaskellCI.Compiler
 import HaskellCI.Package
-import HaskellCI.Project
 
 data TestedWithJobs
     = TestedWithUniform
