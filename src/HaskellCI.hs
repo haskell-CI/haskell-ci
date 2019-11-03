@@ -21,14 +21,13 @@ module HaskellCI (
 import HaskellCI.Prelude
 
 import Data.List                    (nubBy, sort, sortBy, (\\))
-import System.Directory             (canonicalizePath, doesDirectoryExist, doesFileExist, makeRelativeToCurrentDirectory, setCurrentDirectory)
+import System.Directory             (canonicalizePath, doesFileExist, makeRelativeToCurrentDirectory, setCurrentDirectory)
 import System.Environment           (getArgs)
 import System.Exit                  (ExitCode (..), exitFailure)
-import System.FilePath.Posix        (takeDirectory, takeExtension, takeFileName, (</>))
+import System.FilePath.Posix        (takeDirectory,  takeFileName)
 import System.IO                    (hClose, hFlush, hPutStr, hPutStrLn, stderr)
 import System.IO.Temp               (withSystemTempFile)
 import System.Process               (readProcessWithExitCode)
-import Text.ParserCombinators.ReadP (readP_to_S)
 
 import Distribution.PackageDescription        (package, packageDescription, testedWith)
 import Distribution.PackageDescription.Parsec (readGenericPackageDescription)
@@ -48,10 +47,10 @@ import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.Dump
 import HaskellCI.Diagnostics
-import HaskellCI.Glob
 import HaskellCI.Jobs
 import HaskellCI.Package
-import HaskellCI.Project
+import Cabal.Project
+import Cabal.Parse
 import HaskellCI.TestedWith
 import HaskellCI.Travis
 import HaskellCI.YamlSyntax
@@ -159,59 +158,8 @@ travisFromConfigFile args opts path = do
         | isNothing isCabalProject = return $ emptyProject & #prjPackages .~ [path]
         | otherwise = do
             contents <- liftIO $ BS.readFile path
-            prj  <- either putStrLnErr return $ parseProjectFile path contents
-            prj' <- bitraverse findOptProjectPackage findProjectPackage prj
-            let (uris, pkgs) = partitionEithers $ concat $ prjPackages prj'
-            return prj'
-                { prjPackages    = pkgs ++ concat (prjOptPackages prj')
-                , prjOptPackages = []
-                , prjUriPackages = uris
-                }
-
-    rootdir = takeDirectory path
-
-    -- See findProjectPackages in cabal-install codebase
-    -- this is simple variant.
-    findProjectPackage :: String -> m [Either URI FilePath]
-    findProjectPackage pkglocstr = do
-        mfp <- fmap3 Right (checkisFileGlobPackage pkglocstr) `mplusMaybeT`
-               fmap3 Right (checkIsSingleFilePackage pkglocstr) `mplusMaybeT`
-               fmap2 (\uri -> [Left uri]) (return $ parseURI pkglocstr)
-        maybe (putStrLnErr $ "bad package location: " ++ pkglocstr) return mfp
-
-    fmap2 f = fmap (fmap f)
-    fmap3 f = fmap (fmap (fmap f))
-
-    findOptProjectPackage :: String -> m [FilePath]
-    findOptProjectPackage pkglocstr = do
-        mfp <- checkisFileGlobPackage pkglocstr `mplusMaybeT`
-               checkIsSingleFilePackage pkglocstr
-        maybe (return []) return mfp
-
-    checkIsSingleFilePackage pkglocstr = do
-        let abspath = rootdir </> pkglocstr
-        isFile <- liftIO $ doesFileExist abspath
-        isDir  <- liftIO $ doesDirectoryExist abspath
-        if | isFile && takeExtension pkglocstr == ".cabal" -> return (Just [abspath])
-           | isDir -> checkisFileGlobPackage (pkglocstr </> "*.cabal")
-           | otherwise -> return Nothing
-
-    -- if it looks like glob, glob
-    checkisFileGlobPackage pkglocstr =
-        case filter (null . snd) $ readP_to_S parseFilePathGlobRel pkglocstr of
-            [(g, "")] -> do
-                files <- liftIO $ expandRelGlob rootdir g
-                let files' = filter ((== ".cabal") . takeExtension) files
-                -- if nothing is matched, skip.
-                if null files' then return Nothing else return (Just files')
-            _         -> return Nothing
-
-    mplusMaybeT :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
-    mplusMaybeT ma mb = do
-        mx <- ma
-        case mx of
-            Nothing -> mb
-            Just x  -> return (Just x)
+            prj  <- either (putStrLnErr . renderParseError) return $ parseProject path contents
+            either (putStrLnErr . renderResolveError) return =<< liftIO (resolveProject path prj)
 
 genTravisFromConfigs
     :: (Monad m, MonadDiagnostics m)

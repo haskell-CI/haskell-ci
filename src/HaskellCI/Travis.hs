@@ -31,6 +31,8 @@ import qualified Text.PrettyPrint                              as PP
 import qualified Distribution.Types.BuildInfo.Lens          as L
 import qualified Distribution.Types.PackageDescription.Lens as L
 
+import Cabal.Optimization
+import Cabal.Project
 import HaskellCI.Cli
 import HaskellCI.Compiler
 import HaskellCI.Config
@@ -45,9 +47,7 @@ import HaskellCI.Config.Ubuntu
 import HaskellCI.Jobs
 import HaskellCI.List
 import HaskellCI.MonadErr
-import HaskellCI.Optimization
 import HaskellCI.Package
-import HaskellCI.Project
 import HaskellCI.Sh
 import HaskellCI.ShVersionRange
 import HaskellCI.Tools

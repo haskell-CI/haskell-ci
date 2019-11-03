@@ -4,7 +4,7 @@
 packages: .
 packages: cabal-parsers
 
-tests: True
+tests: true
 
 package haskell-ci
   ghc-options: -Wall

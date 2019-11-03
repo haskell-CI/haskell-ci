@@ -1,31 +1,69 @@
-module HaskellCI.ParsecError (
+-- | License: GPL-3.0-or-later AND BSD-3-Clause
+--
+-- @.cabal@ and a like file parsing helpers.
+module Cabal.Parse (
+    parseWith,
+    ParseError (..),
     renderParseError,
     ) where
 
-import Prelude ()
-import Prelude.Compat
-
-import Distribution.Parsec       (PError (..), PWarning (..), Position (..), showPos, zeroPos)
+import Control.Exception         (Exception (..))
+import Data.ByteString           (ByteString)
+import Data.Foldable             (for_)
 import Distribution.Simple.Utils (fromUTF8BS)
 import System.FilePath           (normalise)
 
-import qualified Data.ByteString       as BS
-import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString.Char8          as BS8
+import qualified Distribution.Fields            as C
+import qualified Distribution.Fields.LexerMonad as C
+import qualified Distribution.Parsec            as C
+import qualified Distribution.Utils.Generic     as C
+import qualified Text.Parsec                    as P
+
+-- | Parse the contents using provided parser from 'C.Field' list.
+--
+-- This variant doesn't return any warnings in the successful case.
+--
+parseWith
+    :: ([C.Field C.Position] -> C.ParseResult a)  -- ^ parse
+    -> FilePath                                   -- ^ filename
+    -> ByteString                                 -- ^ contents
+    -> Either ParseError a
+parseWith parser fp bs = case C.runParseResult result of
+    (_, Right x)       -> return x
+    (ws, Left (_, es)) -> Left $ ParseError fp bs es ws
+  where
+    result = case C.readFields' bs of
+        Left perr -> C.parseFatalFailure pos (show perr) where
+            ppos = P.errorPos perr
+            pos  = C.Position (P.sourceLine ppos) (P.sourceColumn ppos)
+        Right (fields, lexWarnings) -> do
+            C.parseWarnings (C.toPWarnings lexWarnings)
+            for_ (C.validateUTF8 bs) $ \pos ->
+                C.parseWarning C.zeroPos C.PWTUTF $ "UTF8 encoding problem at byte offset " ++ show pos
+            parser fields
+
+-- | Parse error.
+data ParseError = ParseError
+    { peFilename :: FilePath
+    , peContents :: ByteString
+    , peErrors   :: [C.PError]
+    , peWarnings :: [C.PWarning]
+    }
+  deriving (Show)
+
+instance Exception ParseError where
+    displayException = renderParseError
 
 -- | Render parse error highlighting the part of the input file.
-renderParseError
-    :: FilePath
-    -> BS.ByteString
-    -> [PError]
-    -> [PWarning]
-    -> String
-renderParseError filepath contents errors warnings
+renderParseError :: ParseError -> String
+renderParseError (ParseError filepath contents errors warnings)
     | null errors && null warnings = ""
     | null errors = unlines $
-        ("Warnings encountered when parsing  file " <> filepath <> ":")
+        ("Warnings encountered when parsing  file " ++ filepath ++ ":")
         : renderedWarnings
     | otherwise = unlines $
-        [ "Errors encountered when parsing file " <> filepath <> ":"
+        [ "Errors encountered when parsing file " ++ filepath ++ ":"
         ]
         ++ renderedErrors
         ++ renderedWarnings
@@ -49,21 +87,21 @@ renderParseError filepath contents errors warnings
     renderedErrors   = concatMap renderError errors
     renderedWarnings = concatMap renderWarning warnings
 
-    renderError :: PError -> [String]
-    renderError (PError pos@(Position row col) msg)
+    renderError :: C.PError -> [String]
+    renderError (C.PError pos@(C.Position row col) msg)
         -- if position is 0:0, then it doesn't make sense to show input
         -- looks like, Parsec errors have line-feed in them
-        | pos == zeroPos = msgs
+        | pos == C.zeroPos = msgs
         | otherwise      = msgs ++ formatInput row col
       where
-        msgs = [ "", filepath' ++ ":" ++ showPos pos ++ ": error:", trimLF msg, "" ]
+        msgs = [ "", filepath' ++ ":" ++ C.showPos pos ++ ": error:", trimLF msg, "" ]
 
-    renderWarning :: PWarning -> [String]
-    renderWarning (PWarning _ pos@(Position row col) msg)
-        | pos == zeroPos = msgs
+    renderWarning :: C.PWarning -> [String]
+    renderWarning (C.PWarning _ pos@(C.Position row col) msg)
+        | pos == C.zeroPos = msgs
         | otherwise      = msgs ++ formatInput row col
       where
-        msgs = [ "", filepath' ++ ":" ++ showPos pos ++ ": warning:", trimLF msg, "" ]
+        msgs = [ "", filepath' ++ ":" ++ C.showPos pos ++ ": warning:", trimLF msg, "" ]
 
     -- sometimes there are (especially trailing) newlines.
     trimLF :: String -> String

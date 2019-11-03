@@ -1,11 +1,11 @@
-module HaskellCI.Glob where
+module Cabal.Internal.Glob where
 
-import HaskellCI.Prelude
-
-import Control.Applicative       as App ((<$>))
-import Control.Monad             (filterM, liftM2)
-import System.Directory          (doesDirectoryExist, getDirectoryContents)
-import System.FilePath.Posix     ((</>))
+import Control.Monad                (filterM, liftM2)
+import Control.Monad.IO.Class       (MonadIO (..))
+import Data.Functor                 (void)
+import Data.List                    (stripPrefix)
+import System.Directory             (doesDirectoryExist, getDirectoryContents)
+import System.FilePath.Posix        ((</>))
 import Text.ParserCombinators.ReadP
 
 -------------------------------------------------------------------------------
@@ -123,7 +123,7 @@ expandRelGlob root glob0 = liftIO $ go glob0 ""
       subdirs <- filterM (\subdir -> doesDirectoryExist
                                        (root </> dir </> subdir))
                $ filter (matchGlob glob) entries
-      concat App.<$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
+      concat <$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
 
     go GlobDirTrailing dir = return [dir]
 
