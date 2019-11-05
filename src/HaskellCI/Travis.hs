@@ -290,7 +290,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                     , "tar -xzv -f $HOME/.hlint/hlint-$HLINTVER.tar.gz -C $HOME/.hlint;"
                     , "fi"
                     ]
-                forHLint "ln -sf \"$HOME/.hlint/hlint-$HLINTVER/hlint\" $CABALHOME/bin/hlint"
+                forHLint "mkdir -p $CABALHOME/bin && ln -sf \"$HOME/.hlint/hlint-$HLINTVER/hlint\" $CABALHOME/bin/hlint"
                 forHLint "hlint --version"
 
             else forHLint $ cabalInTmp $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
