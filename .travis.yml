@@ -136,7 +136,7 @@ install:
   - (cd /tmp && ${CABAL} v2-install $WITHCOMPILER -j2 doctest --constraint='doctest ==0.16.*' | color_cabal_output)
   - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $WITHCOMPILER --dry-run hlint  --constraint='hlint ==2.2.*' |  perl -ne 'if (/\bhlint-(\d+(\.\d+)*)\b/) { print "$1"; last; }')); echo "HLint version $HLINTVER" ; fi
   - "if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then if [ ! -e $HOME/.hlint/hlint-$HLINTVER/hlint ]; then echo \"Downloading HLint version $HLINTVER\"; mkdir -p $HOME/.hlint; curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\\n' --silent --location --output $HOME/.hlint/hlint-$HLINTVER.tar.gz \"https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz\"; tar -xzv -f $HOME/.hlint/hlint-$HLINTVER.tar.gz -C $HOME/.hlint; fi ; fi"
-  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then ln -sf "$HOME/.hlint/hlint-$HLINTVER/hlint" $CABALHOME/bin/hlint ; fi
+  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then mkdir -p $CABALHOME/bin && ln -sf "$HOME/.hlint/hlint-$HLINTVER/hlint" $CABALHOME/bin/hlint ; fi
   - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then hlint --version ; fi
   # Generate cabal.project
   - rm -rf cabal.project cabal.project.local cabal.project.freeze
