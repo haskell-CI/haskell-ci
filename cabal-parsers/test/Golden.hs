@@ -1,3 +1,4 @@
+{-# LANGUAGE UndecidableInstances #-}
 module Main (main) where
 
 import Data.TreeDiff
@@ -14,6 +15,7 @@ import Distribution.Types.SourceRepo (RepoKind, RepoType, SourceRepo)
 import Cabal.Optimization
 import Cabal.Parse
 import Cabal.Project
+import Cabal.SourceRepo
 
 main :: IO ()
 main = defaultMain $ testGroup "golden"
@@ -52,3 +54,4 @@ instance ToExpr Optimization
 instance ToExpr SourceRepo
 instance ToExpr RepoKind
 instance ToExpr RepoType
+instance ToExpr (f FilePath) => ToExpr (SourceRepositoryPackage f)

@@ -33,6 +33,7 @@ import qualified Distribution.Types.PackageDescription.Lens as L
 
 import Cabal.Optimization
 import Cabal.Project
+import Cabal.SourceRepo
 import HaskellCI.Cli
 import HaskellCI.Compiler
 import HaskellCI.Config
@@ -622,7 +623,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
                 for_ (prjSourceRepos prj) $ \repo ->
                     item $ C.PrettySection () "source-repository-package" [] $
-                        C.prettyFieldGrammar C.cabalSpecLatest (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused") repo
+                        C.prettyFieldGrammar C.cabalSpecLatest sourceRepositoryPackageGrammar (srpHoist toList repo)
 
         -- local ghc-options
         unless (null cfgLocalGhcOptions) $ for_ pkgs $ \Pkg{pkgName} -> do

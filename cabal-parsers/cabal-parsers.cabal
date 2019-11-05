@@ -33,6 +33,7 @@ library
     Cabal.Optimization
     Cabal.Parse
     Cabal.Project
+    Cabal.SourceRepo
 
   other-modules:
     Cabal.Internal.Glob
