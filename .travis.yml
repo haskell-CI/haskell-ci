@@ -4,7 +4,7 @@
 #
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
-language: c
+language: shell
 dist: xenial
 git:
   # whether to recursively clone submodules
@@ -48,12 +48,11 @@ matrix:
   allow_failures:
     - compiler: ghc-head
 before_install:
-  - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
+  - HC=$(echo "/opt/$TRAVIS_COMPILER/bin/ghc" | sed 's/-/\//')
   - WITHCOMPILER="-w $HC"
-  - HADDOCK=$(echo "/opt/$CC/bin/haddock" | sed 's/-/\//')
+  - HADDOCK=$(echo "/opt/$TRAVIS_COMPILER/bin/haddock" | sed 's/-/\//')
   - if [ "$TRAVIS_OS_NAME" = "osx" ]; then HADDOCK=$(echo $HADDOCK | sed "s:^/opt:$HOME/.ghc-install:"); fi
   - HCPKG="$HC-pkg"
-  - unset CC
   - CABAL=/opt/ghc/bin/cabal
   - CABALHOME=$HOME/.cabal
   - export PATH="$CABALHOME/bin:$PATH"

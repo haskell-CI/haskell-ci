@@ -98,7 +98,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     beforeInstall <- runSh $ do
         -- This have to be first
         when anyGHCJS $ sh $ unlines
-            [ "if echo $CC | grep -q ghcjs; then"
+            [ "if echo $TRAVIS_COMPILER | grep -q ghcjs; then"
             , "    GHCJS=true;"
             , "else"
             , "    GHCJS=false;"
@@ -114,7 +114,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             traverse_ item' $ forJob RangeGHCJS "curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -"
             traverse_ item' $ forJob RangeGHCJS $ "sudo apt-add-repository 'https://deb.nodesource.com/node_8.x " ++ C.prettyShow cfgUbuntu  ++ " main'"
             traverse_ item' $ forJob (boolToBoundedLattice isBionic \/ RangeGHCJS) "sudo apt-get update"
-            item' $ "sudo apt-get install $CC" ++
+            item' $ "sudo apt-get install $TRAVIS_COMPILER" ++
                 (if S.null cfgApt
                 then ""
                 else " " ++ unwords (S.toList cfgApt))
@@ -122,13 +122,13 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             item "fi"
 
         -- Adjust $HC
-        sh "HC=$(echo \"/opt/$CC/bin/ghc\" | sed 's/-/\\//')"
+        sh "HC=$(echo \"/opt/$TRAVIS_COMPILER/bin/ghc\" | sed 's/-/\\//')"
         sh "WITHCOMPILER=\"-w $HC\""
         shForJob RangeGHCJS "HC=${HC}js"
         shForJob RangeGHCJS "WITHCOMPILER=\"--ghcjs ${WITHCOMPILER}js\""
 
         -- Needed to work around haskell/cabal#6214
-        sh "HADDOCK=$(echo \"/opt/$CC/bin/haddock\" | sed 's/-/\\//')"
+        sh "HADDOCK=$(echo \"/opt/$TRAVIS_COMPILER/bin/haddock\" | sed 's/-/\\//')"
         unless (null cfgOsx) $ do
             sh $ "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then HADDOCK=$(echo $HADDOCK | sed \"s:^/opt:$HOME/.ghc-install:\"); fi"
 
@@ -139,7 +139,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             shForJob RangeGHCJS $ "PATH=\"/opt/ghc/8.4.4/bin:$PATH\""
 
         sh "HCPKG=\"$HC-pkg\""
-        sh "unset CC"
         -- cabal
         sh "CABAL=/opt/ghc/bin/cabal"
         sh "CABALHOME=$HOME/.cabal"
@@ -453,7 +452,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     -- assemble travis configuration
     return Travis
-        { travisLanguage      = "c"
+        { travisLanguage      = "shell"
         , travisUbuntu        = cfgUbuntu
         , travisGit           = TravisGit
             { tgSubmodules = cfgSubmodules
