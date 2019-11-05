@@ -20,17 +20,16 @@ module HaskellCI (
 
 import HaskellCI.Prelude
 
-import Data.List                    (nubBy, sort, sortBy, (\\))
-import System.Directory             (canonicalizePath, doesFileExist, makeRelativeToCurrentDirectory, setCurrentDirectory)
-import System.Environment           (getArgs)
-import System.Exit                  (ExitCode (..), exitFailure)
-import System.FilePath.Posix        (takeDirectory,  takeFileName)
-import System.IO                    (hClose, hFlush, hPutStr, hPutStrLn, stderr)
-import System.IO.Temp               (withSystemTempFile)
-import System.Process               (readProcessWithExitCode)
+import Data.List             (nubBy, sort, sortBy, (\\))
+import System.Directory      (canonicalizePath, doesFileExist, makeRelativeToCurrentDirectory, setCurrentDirectory)
+import System.Environment    (getArgs)
+import System.Exit           (ExitCode (..), exitFailure)
+import System.FilePath.Posix (takeDirectory, takeFileName)
+import System.IO             (hClose, hFlush, hPutStr, hPutStrLn, stderr)
+import System.IO.Temp        (withSystemTempFile)
+import System.Process        (readProcessWithExitCode)
 
-import Distribution.PackageDescription        (package, packageDescription, testedWith)
-import Distribution.PackageDescription.Parsec (readGenericPackageDescription)
+import Distribution.PackageDescription (GenericPackageDescription, package, packageDescription, testedWith)
 import Distribution.Text
 import Distribution.Version
 
@@ -42,6 +41,8 @@ import qualified Distribution.Compiler as Compiler
 import qualified Distribution.Package  as Pkg
 import qualified Options.Applicative   as O
 
+import Cabal.Parse
+import Cabal.Project
 import HaskellCI.Cli
 import HaskellCI.Compiler
 import HaskellCI.Config
@@ -49,8 +50,6 @@ import HaskellCI.Config.Dump
 import HaskellCI.Diagnostics
 import HaskellCI.Jobs
 import HaskellCI.Package
-import Cabal.Project
-import Cabal.Parse
 import HaskellCI.TestedWith
 import HaskellCI.Travis
 import HaskellCI.YamlSyntax
@@ -153,13 +152,16 @@ travisFromConfigFile args opts path = do
         | "cabal.project" `isPrefixOf` takeFileName path = Just path
         | otherwise = Nothing
 
-    getCabalFiles :: m (Project URI Void FilePath)
+    getCabalFiles :: m (Project URI Void (FilePath, GenericPackageDescription))
     getCabalFiles
-        | isNothing isCabalProject = return $ emptyProject & #prjPackages .~ [path]
+        | isNothing isCabalProject = do
+            e <- liftIO $ readPackagesOfProject (emptyProject & #prjPackages .~ [path])
+            either (putStrLnErr . renderParseError) return e
         | otherwise = do
             contents <- liftIO $ BS.readFile path
-            prj  <- either (putStrLnErr . renderParseError) return $ parseProject path contents
-            either (putStrLnErr . renderResolveError) return =<< liftIO (resolveProject path prj)
+            prj0 <- either (putStrLnErr . renderParseError) return $ parseProject path contents
+            prj1 <- either (putStrLnErr . renderResolveError) return =<< liftIO (resolveProject path prj0)
+            either (putStrLnErr . renderParseError) return =<< liftIO (readPackagesOfProject prj1)
 
 genTravisFromConfigs
     :: (Monad m, MonadDiagnostics m)
@@ -222,10 +224,8 @@ patchTravis cfg ls
 
 configFromCabalFile
     :: (MonadIO m, MonadDiagnostics m)
-    => Config -> FilePath -> m Package
-configFromCabalFile cfg cabalFile = do
-    gpd <- liftIO $ readGenericPackageDescription maxBound cabalFile
-
+    => Config -> (FilePath, GenericPackageDescription) -> m Package
+configFromCabalFile cfg (cabalFile, gpd) = do
     let compilers = testedWith $ packageDescription gpd
         pkgNameStr = display $ Pkg.pkgName $ package $ packageDescription gpd
 

@@ -17,8 +17,9 @@ module Cabal.Project (
     resolveProject,
     ResolveError (..),
     renderResolveError,
+    -- * Read packages
+    readPackagesOfProject
     ) where
-
 
 import Control.Exception            (Exception (..))
 import Control.Monad.IO.Class       (liftIO)
@@ -28,28 +29,34 @@ import Data.Bifunctor               (Bifunctor (..))
 import Data.Bitraversable           (Bitraversable (..), bifoldMapDefault, bimapDefault)
 import Data.ByteString              (ByteString)
 import Data.Either                  (partitionEithers)
+import Data.Foldable                (toList)
+import Data.Function                ((&))
 import Data.Functor                 (void)
+import Data.List                    (foldl')
+import Data.Traversable             (for)
 import Data.Void                    (Void)
-import Distribution.Compat.Lens     (over, LensLike')
+import Distribution.Compat.Lens     (LensLike', over)
 import GHC.Generics                 (Generic)
 import Network.URI                  (URI, parseURI)
 import System.Directory             (doesDirectoryExist, doesFileExist)
 import System.FilePath              (takeDirectory, takeExtension, (</>))
 import Text.ParserCombinators.ReadP (readP_to_S)
 
-import qualified Data.Map.Strict                              as M
-import qualified Distribution.CabalSpecVersion                as C
-import qualified Distribution.FieldGrammar                    as C
-import qualified Distribution.Fields                          as C
-import qualified Distribution.PackageDescription.FieldGrammar as C
-import qualified Distribution.Parsec                          as C
-import qualified Distribution.Parsec.Newtypes                 as C
-import qualified Distribution.Types.SourceRepo                as C
+import qualified Data.ByteString                        as BS
+import qualified Data.Map.Strict                        as M
+import qualified Distribution.CabalSpecVersion          as C
+import qualified Distribution.FieldGrammar              as C
+import qualified Distribution.Fields                    as C
+import qualified Distribution.PackageDescription        as C
+import qualified Distribution.PackageDescription.Parsec as C
+import qualified Distribution.Parsec                    as C
+import qualified Distribution.Parsec.Newtypes           as C
 
 import Cabal.Internal.Glob
 import Cabal.Internal.Newtypes
 import Cabal.Optimization
 import Cabal.Parse
+import Cabal.SourceRepo
 
 infixl 1 <&>
 (<&>) :: Functor f => f a -> (a -> b) -> f b
@@ -68,7 +75,7 @@ data Project uri opt pkg = Project
     , prjReorderGoals :: Bool
     , prjMaxBackjumps :: Maybe Int
     , prjOptimization :: Optimization
-    , prjSourceRepos  :: [C.SourceRepo]
+    , prjSourceRepos  :: [SourceRepositoryPackage Maybe]
     , prjOrigFields   :: [C.PrettyField ()] -- ^ original fields
     }
   deriving (Functor, Foldable, Traversable, Generic)
@@ -132,13 +139,13 @@ parseProject = parseWith $ \fields0 -> do
     parse origFields fields sections = do
         let prettyOrigFields = map void $ C.fromParsecFields $ filter notPackages origFields
         prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOrigFields
-        foldr ($) prj <$> traverse parseSec (concat sections)
+        foldl' (&) prj <$> traverse parseSec (concat sections)
 
     parseSec :: C.Section C.Position -> C.ParseResult (Project Void String String -> Project Void String String)
     parseSec (C.MkSection (C.Name _pos name) [] fields) | name == "source-repository-package" = do
         let fields' = fst $ C.partitionFields fields
-        repo <- C.parseFieldGrammar C.cabalSpecLatest fields' (C.sourceRepoFieldGrammar $ C.RepoKindUnknown "unused")
-        return $ over prjSourceReposL (repo :)
+        repos <- C.parseFieldGrammar C.cabalSpecLatest fields' sourceRepositoryPackageGrammar
+        return $ over prjSourceReposL (++ toList (srpFanOut repos))
 
     parseSec _ = return id
 
@@ -184,7 +191,7 @@ prjMaxBackjumpsL f prj = f (prjMaxBackjumps prj) <&> \x -> prj { prjMaxBackjumps
 prjOptimizationL :: Functor f => LensLike' f (Project uri opt pkg) Optimization
 prjOptimizationL f prj = f (prjOptimization prj) <&> \x -> prj { prjOptimization = x }
 
-prjSourceReposL :: Functor f => LensLike' f (Project uri opt pkg) [C.SourceRepo]
+prjSourceReposL :: Functor f => LensLike' f (Project uri opt pkg) [SourceRepositoryPackage Maybe]
 prjSourceReposL f prj = f (prjSourceRepos prj) <&> \x -> prj { prjSourceRepos = x }
 
 -------------------------------------------------------------------------------
@@ -264,3 +271,14 @@ resolveProject filePath prj = runExceptT $ do
         case mx of
             Nothing -> mb
             Just x  -> return (Just x)
+
+-------------------------------------------------------------------------------
+-- Read package files
+-------------------------------------------------------------------------------
+
+readPackagesOfProject :: Project uri opt FilePath -> IO (Either ParseError (Project uri opt (FilePath, C.GenericPackageDescription)))
+readPackagesOfProject prj = runExceptT $ for prj $ \fp -> do
+    contents <- liftIO $ BS.readFile fp
+    case C.runParseResult $ C.parseGenericPackageDescription contents of
+        (ws, Left (_mv, errs)) -> throwE $ ParseError fp contents errs ws
+        (_, Right gpd)         -> return (fp, gpd)
