@@ -101,11 +101,12 @@ emptyConfig = Config
         , cfgDoctestFilterPkgs = []
         }
     , cfgHLint = HLintConfig
-        { cfgHLintEnabled = False
-        , cfgHLintJob     = HLintJobLatest
-        , cfgHLintYaml    = Nothing
-        , cfgHLintVersion = defaultHLintVersion
-        , cfgHLintOptions = []
+        { cfgHLintEnabled  = False
+        , cfgHLintJob      = HLintJobLatest
+        , cfgHLintYaml     = Nothing
+        , cfgHLintVersion  = defaultHLintVersion
+        , cfgHLintOptions  = []
+        , cfgHLintDownload = True
         }
     , cfgLocalGhcOptions = []
     , cfgConstraintSets  = []

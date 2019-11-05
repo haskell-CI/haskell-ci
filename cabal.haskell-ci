@@ -60,7 +60,8 @@ folds: constraint-sets
 -- Run HLint (needs GHC-8.2.2 job)
 hlint: True
 hlint-yaml: .hlint.yaml
--- hlint-version: ==2.0.*
+hlint-download-binary: True
+-- hlint-version: ==2.2.*
 
 -- Run doctest (on GHC-8.0+ which support .ghc.environment)
 doctest: True

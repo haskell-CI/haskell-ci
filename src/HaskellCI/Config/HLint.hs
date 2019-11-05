@@ -16,16 +16,17 @@ import qualified Text.PrettyPrint                as PP
 import HaskellCI.OptionsGrammar
 
 data HLintConfig = HLintConfig
-    { cfgHLintEnabled :: !Bool
-    , cfgHLintJob     :: !HLintJob
-    , cfgHLintYaml    :: !(Maybe FilePath)
-    , cfgHLintOptions :: [String]
-    , cfgHLintVersion :: !VersionRange
+    { cfgHLintEnabled  :: !Bool
+    , cfgHLintJob      :: !HLintJob
+    , cfgHLintYaml     :: !(Maybe FilePath)
+    , cfgHLintOptions  :: [String]
+    , cfgHLintVersion  :: !VersionRange
+    , cfgHLintDownload :: !Bool
     }
   deriving (Show, Generic)
 
 defaultHLintVersion :: VersionRange
-defaultHLintVersion = withinVersion (mkVersion [2,1])
+defaultHLintVersion = withinVersion (mkVersion [2,2])
 
 -------------------------------------------------------------------------------
 -- HLintJob
@@ -62,3 +63,5 @@ hlintConfigGrammar = HLintConfig
         ^^^ metahelp "OPTS" "Additional HLint options"
     <*> C.optionalFieldDef "hlint-version"                                     #cfgHLintVersion defaultHLintVersion
         ^^^ metahelp "RANGE" "HLint version"
+    <*> C.booleanFieldDef "hlint-download-binary"                              #cfgHLintDownload True
+        ^^^ help "Download HLint binary release"
