@@ -276,8 +276,24 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         let hlintVersionConstraint
                 | C.isAnyVersion (cfgHLintVersion cfgHLint) = ""
                 | otherwise = " --constraint='hlint " ++ C.prettyShow (cfgHLintVersion cfgHLint) ++ "'"
-        when (cfgHLintEnabled cfgHLint) $ shForJob (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint)) $
-            cabalInTmp $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
+        when (cfgHLintEnabled cfgHLint) $ do
+            let forHLint = shForJob (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint))
+            if cfgHLintDownload cfgHLint
+            then do
+                -- install --dry-run and use perl regex magic to find a hlint version
+                -- -v is important
+                forHLint $ "HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $WITHCOMPILER --dry-run hlint " ++ hlintVersionConstraint ++ " |  perl -ne 'if (/\\bhlint-(\\d+(\\.\\d+)*)\\b/) { print \"$1\"; last; }')); echo \"HLint version $HLINTVER\""
+                forHLint $ "if [ ! -e $HOME/.hlint/hlint-$HLINTVER/hlint ]; then " ++ unwords
+                    [ "echo \"Downloading HLint version $HLINTVER\";"
+                    , "mkdir -p $HOME/.hlint;"
+                    , "curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\\n' --silent --location --output $HOME/.hlint/hlint-$HLINTVER.tar.gz \"https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz\";"
+                    , "tar -xzv -f $HOME/.hlint/hlint-$HLINTVER.tar.gz -C $HOME/.hlint;"
+                    , "fi"
+                    ]
+                forHLint "ln -sf \"$HOME/.hlint/hlint-$HLINTVER/hlint\" $CABALHOME/bin/hlint"
+                forHLint "hlint --version"
+
+            else forHLint $ cabalInTmp $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
 
         -- Install cabal-plan (for ghcjs tests)
         when (anyGHCJS && cfgGhcjsTests) $ do
@@ -446,6 +462,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             { tcDirectories = buildList $ when cfgCache $ do
                 item "$HOME/.cabal/packages"
                 item "$HOME/.cabal/store"
+                item "$HOME/.hlint"
                 -- on OSX ghc is installed in $HOME so we can cache it
                 -- independently of linux
                 when (cfgCache && not (null cfgOsx)) $ do
