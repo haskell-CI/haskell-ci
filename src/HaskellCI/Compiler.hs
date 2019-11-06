@@ -4,6 +4,7 @@ module HaskellCI.Compiler (
     CompilerVersion (..),
     maybeGHC,
     isGHCJS,
+    maybeGHCJS,
     previewGHC,
     -- * Compiler version range
     CompilerRange (..),
@@ -46,6 +47,10 @@ maybeGHC x _ _       = x
 isGHCJS :: CompilerVersion -> Bool
 isGHCJS (GHCJS _) = True
 isGHCJS _         = False
+
+maybeGHCJS :: CompilerVersion -> Maybe Version
+maybeGHCJS (GHCJS v) = Just v
+maybeGHCJS _         = Nothing
 
 -------------------------------------------------------------------------------
 -- CompilerRange
