@@ -105,22 +105,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             , "fi"
             ]
 
-        when (anyGHCJS || isBionic) $ sh $ unlines $ buildList $ do
-            let item' x = item $ "  " ++ x ++ ";"
-
-            item "if [ \"$TRAVIS_OS_NAME\" = \"linux\" ]; then"
-            when isBionic $ item' "sudo add-apt-repository -y ppa:hvr/ghc"
-            traverse_ item' $ forJob RangeGHCJS "sudo add-apt-repository -y ppa:hvr/ghcjs"
-            traverse_ item' $ forJob RangeGHCJS "curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -"
-            traverse_ item' $ forJob RangeGHCJS $ "sudo apt-add-repository 'https://deb.nodesource.com/node_8.x " ++ C.prettyShow cfgUbuntu  ++ " main'"
-            traverse_ item' $ forJob (boolToBoundedLattice isBionic \/ RangeGHCJS) "sudo apt-get update"
-            item' $ "sudo apt-get install $CC" ++
-                (if S.null cfgApt
-                then ""
-                else " " ++ unwords (S.toList cfgApt))
-            traverse_ item' $ forJob RangeGHCJS "sudo apt-get install -y nodejs cabal-install-3.0" -- TODO: select right `cabal-install` version.
-            item "fi"
-
         -- Adjust $HC
         sh "HC=$(echo \"/opt/$CC/bin/ghc\" | sed 's/-/\\//')"
         sh "WITHCOMPILER=\"-w $HC\""
@@ -135,7 +119,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- Hack: happy needs ghc. Let's install version matching GHCJS.
         -- At the moment, there is only GHCJS-8.4, so we install GHC-8.4.4
         when anyGHCJS $ do
-            shForJob RangeGHCJS $ "sudo apt-get install -y ghc-8.4.4"
             shForJob RangeGHCJS $ "PATH=\"/opt/ghc/8.4.4/bin:$PATH\""
 
         sh "HCPKG=\"$HC-pkg\""
@@ -494,9 +477,26 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                         let cvs = dispCabalVersion $ correspondingCabalVersion cfgCabalInstallVersion gv
                         let gvs = dispGhcVersion gv
 
-                        -- GHCJS cannot be installed via apt plugin
-                        let addGvs | isGHCJS gv = id
-                                   | otherwise  = (gvs :)
+                        -- https://docs.travis-ci.com/user/installing-dependencies/#adding-apt-sources
+                        let hvrppa :: TravisAptSource
+                            hvrppa | cfgUbuntu == Xenial = TravisAptSource "hvr-ghc"
+                                   | otherwise           = TravisAptSourceLine ("deb http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main") (Just "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286")
+
+                        let ghcjsAptSources :: [TravisAptSource]
+                            ghcjsAptSources = 
+                                [ TravisAptSourceLine ("deb http://ppa.launchpad.net/hvr/ghcjs/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main") Nothing
+                                | isGHCJS gv
+                                ] ++
+                                [ TravisAptSourceLine ("deb https://deb.nodesource.com/node_8.x " ++ C.prettyShow cfgUbuntu ++ " main") (Just "https://deb.nodesource.com/gpgkey/nodesource.gpg.key")
+                                | isGHCJS gv && cfgUbuntu <= Xenial
+                                ]
+
+                        let ghcjsPackages :: [String]
+                            ghcjsPackages = case maybeGHCJS gv of
+                                Just v -> [ "ghc-" ++ C.prettyShow v', "nodejs" ] where
+                                    -- TODO: partial maximum
+                                    v' = maximum $ filter (`C.withinRange` C.withinVersion v) $ knownGhcVersions
+                                Nothing -> []
 
                         item TravisJob
                             { tjCompiler = gvs
@@ -506,8 +506,8 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                                 _     -> Nothing
                             , tjAddons   = TravisAddons
                                 { taApt = TravisApt
-                                    { taPackages = addGvs $ ("cabal-install-" ++ cvs) : S.toList cfgApt
-                                    , taSources  = ["hvr-ghc"]
+                                    { taPackages = gvs : ("cabal-install-" ++ cvs) : ghcjsPackages ++ S.toList cfgApt
+                                    , taSources  = hvrppa : ghcjsAptSources
                                     }
 
                                 , taPostgres     = Nothing
@@ -540,7 +540,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     -- TODO: should this be part of MonadSh ?
     foldedSh label = foldedSh' label ""
 
-    isBionic = cfgUbuntu == Bionic
     anyGHCJS = any isGHCJS versions
 
     -- https://github.com/travis-ci/docs-travis-ci-com/issues/949#issuecomment-276755003
@@ -749,7 +748,3 @@ cat' fp contents = sh' [2016, 2129] $ catCmd Single fp contents
 -- SC2129: Consider using { cmd1; cmd2; } >> file instead of individual redirects
 -- SC2016: Expressions don't expand in single quotes
 -- that's the point!
-
-boolToBoundedLattice :: BoundedLattice a => Bool -> a
-boolToBoundedLattice True = top
-boolToBoundedLattice False = bottom

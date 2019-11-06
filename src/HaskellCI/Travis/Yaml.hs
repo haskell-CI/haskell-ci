@@ -85,8 +85,13 @@ data TravisAddons = TravisAddons
 
 data TravisApt = TravisApt
     { taPackages :: [String]
-    , taSources  :: [String]
+    , taSources  :: [TravisAptSource]
     }
+  deriving Show
+
+data TravisAptSource
+    = TravisAptSource String
+    | TravisAptSourceLine String (Maybe String) -- ^ sourceline with optional key
   deriving Show
 
 newtype TravisAllowFailure = TravisAllowFailure
@@ -232,4 +237,14 @@ instance Aeson.ToJSON TravisApt where
     toJSON TravisApt {..} = Aeson.object
         [ "packages" Aeson..= taPackages
         , "sources"  Aeson..= taSources
+        ]
+
+instance Aeson.ToJSON TravisAptSource where
+    toJSON (TravisAptSource s) = Aeson.toJSON s
+    toJSON (TravisAptSourceLine sl Nothing) = Aeson.object
+        [ "sourceline" Aeson..= sl
+        ]
+    toJSON (TravisAptSourceLine sl (Just key_url)) = Aeson.object
+        [ "sourceline" Aeson..= sl
+        , "key_url"    Aeson..= key_url
         ]
