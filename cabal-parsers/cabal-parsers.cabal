@@ -30,6 +30,7 @@ library
   ghc-options:      -Wall -Wcompat -Wnoncanonical-monad-instances
   hs-source-dirs:   src
   exposed-modules:
+    Cabal.Config
     Cabal.Optimization
     Cabal.Parse
     Cabal.Project
