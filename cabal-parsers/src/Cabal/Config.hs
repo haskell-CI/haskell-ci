@@ -47,7 +47,7 @@ infixl 1 <&>
 -- Read config
 -------------------------------------------------------------------------------
 
--- | High level function to find and read @~/.cabal/config@ file
+-- | High level convinience function to find and read @~/.cabal/config@ file
 --
 -- May throw 'IOException' when file doesn't exist, and 'ParseError'
 -- on parse error.
@@ -62,7 +62,7 @@ readConfig = do
 -- Find config
 -------------------------------------------------------------------------------
 
--- | Find the @~/.cabal/config@ file.
+-- | Find the @~\/.cabal\/config@ file.
 findConfig :: IO FilePath
 findConfig = do
     env <- lookupEnv "CABAL_CONFIG"
@@ -76,6 +76,7 @@ findConfig = do
 -- Config
 -------------------------------------------------------------------------------
 
+-- | Very minimal representation of @~\/.cabal\/config@ file.
 data Config f = Config
     { cfgRepositories    :: Map String Repo
     , cfgRemoteRepoCache :: f FilePath
@@ -99,7 +100,7 @@ newtype Repo = Repo
 -- Parsing
 -------------------------------------------------------------------------------
 
--- | Parse @~/.cabal/config@ file.
+-- | Parse @~\/.cabal\/config@ file.
 parseConfig :: FilePath -> ByteString -> Either ParseError (Config Maybe)
 parseConfig = parseWith $ \fields0 -> do
     let (fields1, sections) = C.partitionFields fields0
@@ -135,7 +136,7 @@ repoGrammar = Repo
 -- Resolving
 -------------------------------------------------------------------------------
 
--- | Fill the default in @~/.cabal/config@  file.
+-- | Fill the default in @~\/.cabal\/config@  file.
 resolveConfig :: Config Maybe -> IO (Config Identity)
 resolveConfig cfg = do
     c <- getAppUserDataDirectory "cabal"

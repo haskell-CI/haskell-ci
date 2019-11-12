@@ -5,7 +5,20 @@
 {-# LANGUAGE StandaloneDeriving   #-}
 {-# LANGUAGE UndecidableInstances #-}
 -- | Originally Distribution.Client.SourceRepo
-module Cabal.SourceRepo where
+module Cabal.SourceRepo (
+    -- * SourceRepo
+    SourceRepositoryPackage (..),
+    -- * Aliases
+    SourceRepoList,
+    SourceRepoMaybe,
+    SourceRepoProxy,
+    -- * Functions
+    srpHoist,
+    srpToProxy,
+    srpFanOut,
+    -- * Grammar
+    sourceRepositoryPackageGrammar,
+    ) where
 
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Proxy         (Proxy (..))

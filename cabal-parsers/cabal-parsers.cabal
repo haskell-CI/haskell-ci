@@ -32,6 +32,7 @@ library
   exposed-modules:
     Cabal.Config
     Cabal.Optimization
+    Cabal.Package
     Cabal.Parse
     Cabal.Project
     Cabal.SourceRepo
