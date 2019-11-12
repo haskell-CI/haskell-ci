@@ -1,13 +1,16 @@
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DerivingStrategies    #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE DerivingStrategies , DeriveAnyClass, ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 module Cabal.Internal.Newtypes where
 
-import Data.Char (isSpace)
-import Control.Applicative (liftA2, Alternative (..))
+import Control.Applicative   (Alternative (..), liftA2)
+import Data.Char             (isSpace)
+import Data.Function         (on)
 import Data.Functor.Identity (Identity (..))
-import Data.Proxy (Proxy (..))
-import Data.Function (on)
+import Data.Proxy            (Proxy (..))
+import Network.URI           (URI, parseURI, uriToString)
 
 import qualified Data.Set                        as S
 import qualified Distribution.Compat.CharParsing as C
@@ -15,7 +18,7 @@ import qualified Distribution.Compat.Newtype     as C
 import qualified Distribution.Parsec             as C
 import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Pretty             as C
-import qualified Distribution.Version      as C
+import qualified Distribution.Version            as C
 import qualified Text.PrettyPrint                as PP
 
 -------------------------------------------------------------------------------
@@ -142,6 +145,22 @@ instance (C.Newtype a b, C.Sep sep, C.Pretty b) => C.Pretty (AlaSet sep b a) whe
 hack :: Proxy a -> proxy a
 hack _ = undefined
 
+-------------------------------------------------------------------------------
+-- WrapURI
+-------------------------------------------------------------------------------
+
+newtype WrappedURI = WrapURI URI
+  deriving anyclass (C.Newtype URI)
+
+instance C.Parsec WrappedURI where
+    parsec = do
+        t <- C.parsecToken
+        case parseURI t of
+            Just x  -> return (WrapURI x)
+            Nothing -> C.unexpected $ "Not an URI: " ++ t
+
+instance C.Pretty WrappedURI where
+    pretty (WrapURI uri) = PP.text (uriToString id uri "")
 
 -------------------------------------------------------------------------------
 -- extras
