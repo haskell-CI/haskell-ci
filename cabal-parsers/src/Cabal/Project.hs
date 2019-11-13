@@ -12,6 +12,7 @@ module Cabal.Project (
     triverseProject,
     emptyProject,
     -- * Parse project
+    readProject,
     parseProject,
     -- * Resolve project
     resolveProject,
@@ -21,7 +22,7 @@ module Cabal.Project (
     readPackagesOfProject
     ) where
 
-import Control.Exception            (Exception (..))
+import Control.Exception            (Exception (..), throwIO)
 import Control.Monad.IO.Class       (liftIO)
 import Control.Monad.Trans.Except   (ExceptT, runExceptT, throwE)
 import Data.Bifoldable              (Bifoldable (..))
@@ -42,19 +43,19 @@ import System.Directory             (doesDirectoryExist, doesFileExist)
 import System.FilePath              (takeDirectory, takeExtension, (</>))
 import Text.ParserCombinators.ReadP (readP_to_S)
 
-import qualified Data.ByteString                        as BS
-import qualified Data.Map.Strict                        as M
-import qualified Distribution.CabalSpecVersion          as C
-import qualified Distribution.FieldGrammar              as C
-import qualified Distribution.Fields                    as C
-import qualified Distribution.PackageDescription        as C
-import qualified Distribution.PackageDescription.Parsec as C
-import qualified Distribution.Parsec                    as C
-import qualified Distribution.Parsec.Newtypes           as C
+import qualified Data.ByteString                 as BS
+import qualified Data.Map.Strict                 as M
+import qualified Distribution.CabalSpecVersion   as C
+import qualified Distribution.FieldGrammar       as C
+import qualified Distribution.Fields             as C
+import qualified Distribution.PackageDescription as C
+import qualified Distribution.Parsec             as C
+import qualified Distribution.Parsec.Newtypes    as C
 
 import Cabal.Internal.Glob
 import Cabal.Internal.Newtypes
 import Cabal.Optimization
+import Cabal.Package
 import Cabal.Parse
 import Cabal.SourceRepo
 
@@ -122,6 +123,18 @@ emptyProject = Project [] [] [] [] [] False Nothing OptimizationOn [] []
 -------------------------------------------------------------------------------
 -- Initial  parsing
 -------------------------------------------------------------------------------
+
+-- | High level conviniene function to read and elaborate @cabal.project@ files
+--
+-- May throw 'IOException' when file doesn't exist, 'ParseError'
+-- on parse errors, or 'ResolveError' on package resolution error.
+--
+readProject :: FilePath -> IO (Project URI Void (FilePath, C.GenericPackageDescription))
+readProject fp = do
+    contents <- BS.readFile fp
+    prj0 <- either throwIO return (parseProject fp contents)
+    prj1 <- resolveProject fp prj0 >>= either throwIO return
+    readPackagesOfProject prj1 >>= either throwIO return
 
 -- | Parse project file. Extracts only few fields.
 --
@@ -276,9 +289,11 @@ resolveProject filePath prj = runExceptT $ do
 -- Read package files
 -------------------------------------------------------------------------------
 
+-- | Read and parse the cabal files of packages in the 'Project'.
+--
+-- May throw 'IOException'.
+--
 readPackagesOfProject :: Project uri opt FilePath -> IO (Either ParseError (Project uri opt (FilePath, C.GenericPackageDescription)))
 readPackagesOfProject prj = runExceptT $ for prj $ \fp -> do
     contents <- liftIO $ BS.readFile fp
-    case C.runParseResult $ C.parseGenericPackageDescription contents of
-        (ws, Left (_mv, errs)) -> throwE $ ParseError fp contents errs ws
-        (_, Right gpd)         -> return (fp, gpd)
+    either throwE (\gpd -> return (fp, gpd)) (parsePackage fp contents)
