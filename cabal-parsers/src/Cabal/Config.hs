@@ -6,11 +6,15 @@ module Cabal.Config (
     -- * Types
     Config (..),
     Repo (..),
+    RepoName,
     -- * Parsing
     readConfig,
     findConfig,
     parseConfig,
     resolveConfig,
+    -- * Hackage
+    cfgRepoIndex,
+    hackageHaskellOrg,
     ) where
 
 import Control.Exception        (throwIO)
@@ -78,7 +82,7 @@ findConfig = do
 
 -- | Very minimal representation of @~\/.cabal\/config@ file.
 data Config f = Config
-    { cfgRepositories    :: Map String Repo
+    { cfgRepositories    :: Map RepoName Repo
     , cfgRemoteRepoCache :: f FilePath
     , cfgInstallDir      :: f FilePath
     , cfgStoreDir        :: f FilePath
@@ -95,6 +99,27 @@ newtype Repo = Repo
     { repoURL :: URI
     }
   deriving (Show)
+
+-- | Repository name, bare 'String'.
+type RepoName = String
+
+-------------------------------------------------------------------------------
+-- Finding index
+-------------------------------------------------------------------------------
+
+-- | Find a @01-index.tar@ for particular repository
+cfgRepoIndex
+    :: Config Identity
+    -> RepoName
+    -> Maybe FilePath
+cfgRepoIndex cfg repo
+    | repo `M.member` cfgRepositories cfg =
+        Just (runIdentity (cfgRemoteRepoCache cfg) </> repo </> "01-index.tar")
+    | otherwise = Nothing
+
+-- | The default repository of haskell packages, <https://hackage.haskell.org/>.
+hackageHaskellOrg :: RepoName
+hackageHaskellOrg = "hackage.haskell.org"
 
 -------------------------------------------------------------------------------
 -- Parsing
