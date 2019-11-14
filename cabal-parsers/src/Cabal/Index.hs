@@ -1,13 +1,18 @@
 {-# LANGUAGE BangPatterns      #-}
+{-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE GADTs             #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies      #-}
 module Cabal.Index (
     -- * Metadata construction
     indexMetadata,
+    cachedHackageMetadata,
     -- ** Exceptions thrown
     MetadataParseError (..),
     InvalidHash (..),
     InvalidIndexFile (..),
+    NoHackageRepository (..),
     -- * Metadata types
     PackageInfo (..),
     piPreferredVersions,
@@ -29,33 +34,45 @@ module Cabal.Index (
     -}
     -- * Generic folding
     foldIndex,
-    IndexFile (..),
+    IndexEntry (..),
+    IndexFileType (..),
     ) where
 
 import Prelude hiding (pi)
 
-import Control.Exception (Exception, evaluate, throwIO)
+import Control.Exception
+       (Exception, IOException, bracket, evaluate, handle, throwIO)
 import Control.Monad     (unless, void)
 import Data.ByteString   (ByteString)
+import Data.Int          (Int64)
 import Data.Map.Strict   (Map)
 import Data.Text         (Text)
 import GHC.Generics      (Generic)
 
 import qualified Codec.Archive.Tar                   as Tar
+import qualified Codec.Archive.Tar.Entry             as Tar
 import qualified Crypto.Hash.SHA256                  as SHA256
 import qualified Data.Aeson                          as A
+import qualified Data.Binary                         as Binary
 import qualified Data.ByteString                     as BS
 import qualified Data.ByteString.Base16              as Base16
 import qualified Data.ByteString.Lazy                as LBS
 import qualified Data.Map.Strict                     as Map
 import qualified Data.Text.Encoding                  as TE
+import qualified Data.Time.Clock.POSIX               as Time
 import qualified Distribution.Compat.CharParsing     as C
 import qualified Distribution.Package                as C
 import qualified Distribution.Parsec                 as C
 import qualified Distribution.Parsec.FieldLineStream as C
 import qualified Distribution.Pretty                 as C
 import qualified Distribution.Version                as C
+import qualified Lukko
+import qualified System.Directory                    as D
 import qualified System.FilePath                     as FP
+
+import Data.Binary.Instances ()
+
+import Cabal.Config (cfgRepoIndex, hackageHaskellOrg, readConfig)
 
 -------------------------------------------------------------------------------
 -- Generic folding
@@ -67,7 +84,7 @@ import qualified System.FilePath                     as FP
 foldIndex
     :: FilePath -- ^ path to the @01-index.tar@ file
     -> a        -- ^ initial value
-    -> (FilePath -> IndexFile -> ByteString -> a -> IO a)
+    -> (IndexEntry -> ByteString -> a -> IO a)
     -> IO a
 foldIndex fp ini action = do
     contents <- LBS.readFile fp
@@ -77,7 +94,14 @@ foldIndex fp ini action = do
         Tar.NormalFile contents _ -> do
             bs <- evaluate $ LBS.toStrict contents
             idxFile <- either (throwIO . InvalidIndexFile) return (elaborateIndexFile fpath)
-            action fpath idxFile bs acc
+            let entry' = IndexEntry
+                    { entryPath        = Tar.fromTarPath (Tar.entryTarPath entry)
+                    , entryPermissions = Tar.entryPermissions entry
+                    , entryOwnership   = Tar.entryOwnership entry
+                    , entryTime        = Tar.entryTime entry
+                    , entryType        = idxFile
+                    }
+            action entry' bs acc
         Tar.Directory -> return acc
         _             -> return acc
      where
@@ -93,8 +117,17 @@ foldEntries next fail' = go where
 -- IndexFile
 -------------------------------------------------------------------------------
 
+data IndexEntry = IndexEntry
+    { entryPath        :: FilePath
+    , entryType        :: IndexFileType
+    , entryPermissions :: Tar.Permissions
+    , entryOwnership   :: Tar.Ownership
+    , entryTime        :: Tar.EpochTime
+    }
+  deriving Show
+
 -- | Varions files in @01-index.tar@.
-data IndexFile
+data IndexFileType
     = CabalFile C.PackageName C.Version
     | PackageJson C.PackageName C.Version
     | PreferredVersions C.PackageName
@@ -107,7 +140,7 @@ newtype InvalidIndexFile = InvalidIndexFile String
 
 instance Exception InvalidIndexFile
 
-elaborateIndexFile :: FilePath -> Either String IndexFile
+elaborateIndexFile :: FilePath -> Either String IndexFileType
 elaborateIndexFile fp = case FP.splitDirectories fp of
     [ pn, v, pnF ]
         | Just pn' <- C.simpleParsec pn
@@ -165,6 +198,13 @@ instance Show SHA256 where
         $ showString "unsafeMkSHA256 "
         . shows (Base16.encode bs)
 
+instance Binary.Binary SHA256 where
+    put (SHA256 bs) = Binary.put bs
+    get = do
+        bs <- Binary.get
+        case BS.length bs of
+            32 -> return (SHA256 bs)
+            l  -> fail $ "Invalid SHA256 length " ++ show l
 
 newtype MD5 = MD5 ByteString
   deriving (Eq, Ord)
@@ -205,13 +245,14 @@ data PackageInfo = PackageInfo
     { piVersions  :: Map C.Version ReleaseInfo  -- ^ individual package releases
     , piPreferred :: C.VersionRange             -- ^ preferred versions range
     }
-  deriving (Show, Generic)
+  deriving (Eq, Show, Generic)
+
+instance Binary.Binary PackageInfo
 
 -- | Like 'piVersions', but return only 'piPreferred' versions.
 piPreferredVersions :: PackageInfo -> Map C.Version ReleaseInfo
 piPreferredVersions pi =
     Map.filterWithKey (\v _ -> v `C.withinRange` piPreferred pi) (piVersions pi)
-
 
 -- | Package's release information.
 data ReleaseInfo = ReleaseInfo
@@ -221,71 +262,79 @@ data ReleaseInfo = ReleaseInfo
     }
   deriving (Eq, Show, Generic)
 
+instance Binary.Binary ReleaseInfo
+
 -------------------------------------------------------------------------------
 -- Metadata construction
 -------------------------------------------------------------------------------
 
 -- | Read index file and return the metadata about packages.
 --
--- It takes about 6 seconds on my machine.
+-- It takes about 6 seconds on my machine. Consider using 'cachedHackageMetadata'.
 --
-indexMetadata :: FilePath -> IO (Map C.PackageName PackageInfo)
-indexMetadata indexFilepath = do
-    result <- foldIndex indexFilepath Map.empty $ \p indexFile contents m -> case indexFile of
-        CabalFile pn ver -> return $ Map.alter f pn m where
-            f :: Maybe PackageInfo -> Maybe PackageInfo
-            f Nothing = Just PackageInfo
-                { piVersions  = Map.singleton ver (ReleaseInfo 0 (sha256 contents) emptySHA256)
-                , piPreferred = C.anyVersion
-                }
-            f (Just pi) = Just pi { piVersions = Map.alter g ver (piVersions pi) }
-
-            g :: Maybe ReleaseInfo -> Maybe ReleaseInfo
-            g Nothing                           = Just $ ReleaseInfo 0        (sha256 contents) emptySHA256
-            g (Just (ReleaseInfo r c t))
-                | r == 0 && not (validSHA256 c) = Just $ ReleaseInfo 0        (sha256 contents) t
-                | otherwise                     = Just $ ReleaseInfo (succ r) (sha256 contents) t
-
-        PackageJson pn ver -> case A.eitherDecodeStrict contents of
-                Left err -> throwIO $ MetadataParseError p err
-                Right (PJ (Signed (Targets ts))) ->
-                    case Map.lookup ("<repo>/package/" ++ C.prettyShow pn ++ "-" ++ C.prettyShow ver ++ ".tar.gz") ts of
-                        Just t  -> return $ Map.alter (f t) pn m
-                        Nothing -> throwIO $ MetadataParseError p $ "Invalid targets in " ++ p ++ " -- " ++ show ts
-                  where
-                    f :: Target -> Maybe PackageInfo -> Maybe PackageInfo
-                    f t Nothing   = Just PackageInfo
-                        { piVersions  = Map.singleton ver (ReleaseInfo 0 emptySHA256 (hashSHA256 (targetHashes t)))
-                        , piPreferred = C.anyVersion
-                        }
-                    f t (Just pi) = Just pi { piVersions = Map.alter (g t) ver (piVersions pi) }
-
-                    g :: Target -> Maybe ReleaseInfo -> Maybe ReleaseInfo
-                    g t Nothing                    = Just $ ReleaseInfo 0 emptySHA256 (hashSHA256 (targetHashes t))
-                    g t (Just (ReleaseInfo r c _)) = Just $ ReleaseInfo r c (hashSHA256 (targetHashes t))
-
-        PreferredVersions pn
-                | BS.null contents -> return m
-                | otherwise        -> case explicitEitherParsecBS preferredP contents of
-                    Right vr -> return $ Map.alter (f vr) pn m
-                    Left err -> throwIO $ MetadataParseError p err
-              where
-                preferredP = do
-                    _ <- C.string (C.prettyShow pn)
-                    C.spaces
-                    C.parsec
-
-                f :: C.VersionRange -> Maybe PackageInfo -> Maybe PackageInfo
-                f vr Nothing = Just PackageInfo
-                    { piVersions  = Map.empty
-                    , piPreferred = vr
+indexMetadata
+    :: FilePath             -- ^ location
+    -> Maybe Tar.EpochTime  -- ^ index state to stop
+    -> IO (Map C.PackageName PackageInfo)
+indexMetadata indexFilepath mindexState = do
+    result <- foldIndex indexFilepath Map.empty $ \indexEntry contents m ->
+        if maybe False (entryTime indexEntry >) mindexState
+        then return m
+        else case entryType indexEntry of
+            CabalFile pn ver -> return $ Map.alter f pn m where
+                f :: Maybe PackageInfo -> Maybe PackageInfo
+                f Nothing = Just PackageInfo
+                    { piVersions  = Map.singleton ver (ReleaseInfo 0 (sha256 contents) emptySHA256)
+                    , piPreferred = C.anyVersion
                     }
-                f vr (Just pi) = Just pi { piPreferred = vr }
+                f (Just pi) = Just pi { piVersions = Map.alter g ver (piVersions pi) }
+
+                g :: Maybe ReleaseInfo -> Maybe ReleaseInfo
+                g Nothing                           = Just $ ReleaseInfo 0        (sha256 contents) emptySHA256
+                g (Just (ReleaseInfo r c t))
+                    | r == 0 && not (validSHA256 c) = Just $ ReleaseInfo 0        (sha256 contents) t
+                    | otherwise                     = Just $ ReleaseInfo (succ r) (sha256 contents) t
+
+            PackageJson pn ver -> case A.eitherDecodeStrict contents of
+                    Left err -> throwIO $ MetadataParseError (entryPath indexEntry) err
+                    Right (PJ (Signed (Targets ts))) ->
+                        case Map.lookup ("<repo>/package/" ++ C.prettyShow pn ++ "-" ++ C.prettyShow ver ++ ".tar.gz") ts of
+                            Just t  -> return $ Map.alter (f t) pn m
+                            Nothing -> throwIO $ MetadataParseError (entryPath indexEntry) $ "Invalid targets in " ++ entryPath indexEntry ++ " -- " ++ show ts
+                      where
+                        f :: Target -> Maybe PackageInfo -> Maybe PackageInfo
+                        f t Nothing   = Just PackageInfo
+                            { piVersions  = Map.singleton ver (ReleaseInfo 0 emptySHA256 (hashSHA256 (targetHashes t)))
+                            , piPreferred = C.anyVersion
+                            }
+                        f t (Just pi) = Just pi { piVersions = Map.alter (g t) ver (piVersions pi) }
+
+                        g :: Target -> Maybe ReleaseInfo -> Maybe ReleaseInfo
+                        g t Nothing                    = Just $ ReleaseInfo 0 emptySHA256 (hashSHA256 (targetHashes t))
+                        g t (Just (ReleaseInfo r c _)) = Just $ ReleaseInfo r c (hashSHA256 (targetHashes t))
+
+            PreferredVersions pn
+                    | BS.null contents -> return m
+                    | otherwise        -> case explicitEitherParsecBS preferredP contents of
+                        Right vr -> return $ Map.alter (f vr) pn m
+                        Left err -> throwIO $ MetadataParseError (entryPath indexEntry) err
+                  where
+                    preferredP = do
+                        _ <- C.string (C.prettyShow pn)
+                        C.spaces
+                        C.parsec
+
+                    f :: C.VersionRange -> Maybe PackageInfo -> Maybe PackageInfo
+                    f vr Nothing = Just PackageInfo
+                        { piVersions  = Map.empty
+                        , piPreferred = vr
+                        }
+                    f vr (Just pi) = Just pi { piPreferred = vr }
+          
 
     -- check invariants and return
     postCheck result
     return result
-
 
 postCheck :: Map C.PackageName PackageInfo -> IO ()
 postCheck meta = ifor_ meta $ \pn pi -> ifor_ (piVersions pi) $ \ver ri -> do
@@ -306,6 +355,123 @@ data InvalidHash = InvalidHash C.PackageName C.Version String
   deriving (Show)
 
 instance Exception InvalidHash
+
+-------------------------------------------------------------------------------
+-- Hackage
+-------------------------------------------------------------------------------
+
+-- | Read the config and then Hackage index metadata.
+--
+-- This method caches the result in @XDG_CACHE/cabal-parsers@ directory.
+cachedHackageMetadata :: IO (Map C.PackageName PackageInfo)
+cachedHackageMetadata = do
+    -- read config
+    cfg <- readConfig
+    indexPath <- maybe
+        (throwIO NoHackageRepository)
+        return
+        (cfgRepoIndex cfg hackageHaskellOrg)
+
+    -- cache directory
+    cacheDir <- D.getXdgDirectory D.XdgCache "cabal-parsers"
+    D.createDirectoryIfMissing True cacheDir
+    let cacheFile = cacheDir FP.</> "hackage.binary"
+
+    -- lock the cache
+    bracket (takeLock supported cacheDir) (releaseLock supported) $ \_ -> do
+        (size, time) <- getStat indexPath
+
+        mcache <- readCache cacheFile
+        case mcache of
+            Just cache | cacheSize cache == size && cacheTime cache == time ->
+                return $ cacheData cache
+            _ -> do
+                meta <- indexMetadata indexPath Nothing
+                LBS.writeFile cacheFile $ Binary.encode Cache
+                    { cacheMagic = Magic
+                    , cacheTime  = time
+                    , cacheSize  = size
+                    , cacheData  = meta
+                    }
+                return meta
+
+  where
+    readCache :: FilePath -> IO (Maybe Cache)
+    readCache fp = handle onIOError $ do
+        contents <- LBS.readFile fp
+        case Binary.decodeOrFail contents of
+            Right (lo,_,x) | LBS.null lo -> return (Just x)
+            _                            -> return Nothing
+
+    onIOError :: IOException -> IO (Maybe a)
+    onIOError _ = return Nothing
+
+    supported :: SBool Lukko.FileLockingSupported
+    supported = sbool
+
+    takeLock :: SBool b -> FilePath -> IO (FDType b)
+    takeLock STrue  dir = do
+        fd <- Lukko.fdOpen (dir FP.</> "lock")
+        Lukko.fdLock fd Lukko.ExclusiveLock
+        return fd
+    takeLock SFalse _   = return ()
+
+    releaseLock :: SBool b -> FDType b -> IO ()
+    releaseLock STrue  fd = Lukko.fdUnlock fd >> Lukko.fdClose fd
+    releaseLock SFalse () = return ()
+
+    getStat :: FilePath -> IO (Int64, Int64)
+    getStat p = do
+        size <- D.getFileSize p
+        time <- D.getModificationTime p
+        return (fromIntegral size, truncate (Time.utcTimeToPOSIXSeconds time))
+
+data NoHackageRepository = NoHackageRepository
+  deriving Show
+
+instance Exception NoHackageRepository
+
+data Cache = Cache
+    { cacheMagic :: !Magic
+    , cacheSize  :: !Int64
+    , cacheTime  :: !Int64
+    , cacheData  :: Map C.PackageName PackageInfo
+    }
+  deriving Generic
+
+instance Binary.Binary Cache
+
+-- special type to make binary fail early
+data Magic = Magic
+
+instance Binary.Binary Magic where
+    put _ = Binary.put magicNumber
+    get = do
+        m <- Binary.get
+        if m == magicNumber then return Magic else fail "Got wrong magic number"
+
+magicNumber :: Int64
+magicNumber = 0xfedcba09
+
+-------------------------------------------------------------------------------
+-- mini bool-singetons
+-------------------------------------------------------------------------------
+
+class SBoolI (b :: Bool) where
+    type FDType b
+    sbool :: SBool b
+
+instance SBoolI 'True where
+    type FDType 'True = Lukko.FD
+    sbool = STrue
+
+instance SBoolI 'False where
+    type FDType 'False = ()
+    sbool = SFalse
+
+data SBool (b :: Bool) where
+    STrue  :: SBool 'True
+    SFalse :: SBool 'False
 
 -------------------------------------------------------------------------------
 -- Cabal utils
