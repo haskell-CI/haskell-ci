@@ -143,23 +143,23 @@ install:
   - touch cabal.project
   - |
     echo "packages: ." >> cabal.project
-    echo "packages: cabal-parsers" >> cabal.project
+    echo "packages: cabal-install-parsers" >> cabal.project
   - |
-    echo "package haskell-ci"     >> cabal.project
-    echo "  ghc-options: -Werror" >> cabal.project
-    echo ""                       >> cabal.project
-    echo "package cabal-parsers"  >> cabal.project
-    echo "  ghc-options: -Werror" >> cabal.project
-    echo ""                       >> cabal.project
-    echo "keep-going: False"      >> cabal.project
-    echo ""                       >> cabal.project
-    echo "package bytestring"     >> cabal.project
-    echo "  tests: False"         >> cabal.project
-  - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(Cabal|cabal-parsers|haskell-ci)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
+    echo "package haskell-ci"            >> cabal.project
+    echo "  ghc-options: -Werror"        >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package cabal-install-parsers" >> cabal.project
+    echo "  ghc-options: -Werror"        >> cabal.project
+    echo ""                              >> cabal.project
+    echo "keep-going: False"             >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package bytestring"            >> cabal.project
+    echo "  tests: False"                >> cabal.project
+  - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(Cabal|cabal-install-parsers|haskell-ci)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
   - if [ -f "./configure.ac" ]; then (cd "." && autoreconf -i); fi
-  - if [ -f "cabal-parsers/configure.ac" ]; then (cd "cabal-parsers" && autoreconf -i); fi
+  - if [ -f "cabal-install-parsers/configure.ac" ]; then (cd "cabal-install-parsers" && autoreconf -i); fi
   - ${CABAL} v2-freeze $WITHCOMPILER ${TEST} ${BENCH} | color_cabal_output
   - "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
   - rm  cabal.project.freeze
@@ -175,25 +175,25 @@ script:
   - find . -maxdepth 1 -type f -name '*.tar.gz' -exec tar -xvf '{}' \;
   - find . -maxdepth 1 -type f -name '*.tar.gz' -exec rm       '{}' \;
   - PKGDIR_haskell_ci="$(find . -maxdepth 1 -type d -regex '.*/haskell-ci-[0-9.]*')"
-  - PKGDIR_cabal_parsers="$(find . -maxdepth 1 -type d -regex '.*/cabal-parsers-[0-9.]*')"
+  - PKGDIR_cabal_install_parsers="$(find . -maxdepth 1 -type d -regex '.*/cabal-install-parsers-[0-9.]*')"
   # Generate cabal.project
   - rm -rf cabal.project cabal.project.local cabal.project.freeze
   - touch cabal.project
   - |
     echo "packages: ${PKGDIR_haskell_ci}" >> cabal.project
-    echo "packages: ${PKGDIR_cabal_parsers}" >> cabal.project
+    echo "packages: ${PKGDIR_cabal_install_parsers}" >> cabal.project
   - |
-    echo "package haskell-ci"     >> cabal.project
-    echo "  ghc-options: -Werror" >> cabal.project
-    echo ""                       >> cabal.project
-    echo "package cabal-parsers"  >> cabal.project
-    echo "  ghc-options: -Werror" >> cabal.project
-    echo ""                       >> cabal.project
-    echo "keep-going: False"      >> cabal.project
-    echo ""                       >> cabal.project
-    echo "package bytestring"     >> cabal.project
-    echo "  tests: False"         >> cabal.project
-  - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(Cabal|cabal-parsers|haskell-ci)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
+    echo "package haskell-ci"            >> cabal.project
+    echo "  ghc-options: -Werror"        >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package cabal-install-parsers" >> cabal.project
+    echo "  ghc-options: -Werror"        >> cabal.project
+    echo ""                              >> cabal.project
+    echo "keep-going: False"             >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package bytestring"            >> cabal.project
+    echo "  tests: False"                >> cabal.project
+  - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(Cabal|cabal-install-parsers|haskell-ci)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
   # Building...
@@ -206,14 +206,14 @@ script:
   - ${CABAL} v2-test $WITHCOMPILER ${TEST} ${BENCH} all | color_cabal_output
   # Doctest...
   - (cd ${PKGDIR_haskell_ci} && doctest --fast -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src)
-  - (cd ${PKGDIR_cabal_parsers} && doctest --fast src)
+  - (cd ${PKGDIR_cabal_install_parsers} && doctest --fast src)
   # HLint..
   - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src) ; fi
   - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml cli) ; fi
-  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then (cd ${PKGDIR_cabal_parsers} && hlint -h ${TOP}/.hlint.yaml src) ; fi
+  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then (cd ${PKGDIR_cabal_install_parsers} && hlint -h ${TOP}/.hlint.yaml src) ; fi
   # cabal check...
   - (cd ${PKGDIR_haskell_ci} && ${CABAL} -vnormal check)
-  - (cd ${PKGDIR_cabal_parsers} && ${CABAL} -vnormal check)
+  - (cd ${PKGDIR_cabal_install_parsers} && ${CABAL} -vnormal check)
   # haddock...
   - ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK ${TEST} ${BENCH} all | color_cabal_output
   # Building without installed constraints for packages in global-db...

@@ -1,5 +1,5 @@
 cabal-version:      2.2
-name:               cabal-parsers
+name:               cabal-install-parsers
 version:            0.1
 synopsis:           Utilities to work with cabal-install files
 description:
@@ -13,7 +13,7 @@ bug-reports:        https://github.com/haskell-CI/haskell-ci/issues
 license:            GPL-2.0-or-later AND BSD-3-Clause
 license-files:      LICENSE LICENSE.GPLv2 LICENSE.GPLv3
 author:             Herbert Valerio Riedel, Oleg Grenrus
-maintainer:         hvr@gnu.org
+maintainer:         hvr@gnu.org, oleg.grenrus@iki.fi
 category:           Development
 build-type:         Simple
 tested-with:        GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.1
@@ -80,7 +80,7 @@ test-suite cabal-parsers-index
   build-depends:
     , base
     , Cabal
-    , cabal-parsers
+    , cabal-install-parsers
     , containers
 
   -- dependencies needing explicit constraints
@@ -99,7 +99,7 @@ test-suite cabal-parsers-golden
     , base
     , bytestring
     , Cabal
-    , cabal-parsers
+    , cabal-install-parsers
     , containers
     , directory
     , filepath
