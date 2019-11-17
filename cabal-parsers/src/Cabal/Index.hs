@@ -65,10 +65,12 @@ import qualified Distribution.Package                as C
 import qualified Distribution.Parsec                 as C
 import qualified Distribution.Parsec.FieldLineStream as C
 import qualified Distribution.Pretty                 as C
+import qualified Distribution.Simple.Utils           as C
 import qualified Distribution.Version                as C
 import qualified Lukko
 import qualified System.Directory                    as D
 import qualified System.FilePath                     as FP
+import qualified Text.PrettyPrint                    as PP
 
 import Data.Binary.Instances ()
 
@@ -191,6 +193,9 @@ validSHA256 (SHA256 bs) = BS.length bs == 32
 -- | Get underlying 'ByteString' of 'SHA256'.
 getSHA256 :: SHA256 -> ByteString
 getSHA256 (SHA256 bs) = bs
+
+instance C.Pretty SHA256 where
+    pretty = PP.text . C.fromUTF8BS . Base16.encode . getSHA256
 
 instance Show SHA256 where
     showsPrec d (SHA256 bs)
