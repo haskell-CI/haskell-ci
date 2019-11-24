@@ -30,6 +30,7 @@ import System.IO.Temp        (withSystemTempFile)
 import System.Process        (readProcessWithExitCode)
 
 import Distribution.PackageDescription (GenericPackageDescription, package, packageDescription, testedWith)
+import Distribution.Simple.Utils       (fromUTF8BS)
 import Distribution.Text
 import Distribution.Version
 
@@ -77,7 +78,7 @@ main = do
                     _                     -> defaultTravisPath
 
             -- read, and then change to the directory
-            contents <- readFile fp
+            contents <- fromUTF8BS <$> BS.readFile fp
             absFp <- canonicalizePath fp
             let dir = takeDirectory fp
             setCurrentDirectory dir
@@ -198,7 +199,7 @@ patchTravis cfg ls
         hFlush h
         for_ patches $ applyPatch fp
         hClose h
-        lines <$> readFile fp
+        lines . fromUTF8BS <$> BS.readFile fp
   where
     patches :: [FilePath]
     patches = cfgTravisPatches cfg
