@@ -3,10 +3,14 @@ name:               cabal-install-parsers
 version:            0.1
 synopsis:           Utilities to work with cabal-install files
 description:
-  This module provides (non-complete) parsers to work with
-  @cabal.project@ and @cabal.config@ files.
+  @cabal-install-parsers@ provides parsers for @cabal-install@ files:
+  @cabal.project@ ("Cabal.Project"),
+  @cabal.config@ ("Cabal.Config"),
+  @01-index.tar@ ("Cabal.Index");
+  as well as some other utilities.
   .
   The feature set is mainly motivated by the needs of @haskell-ci@ package.
+  The parsed data is not complete, functionality is added on demand.
 
 homepage:           https://haskell-ci.rtfd.org/
 bug-reports:        https://github.com/haskell-CI/haskell-ci/issues
