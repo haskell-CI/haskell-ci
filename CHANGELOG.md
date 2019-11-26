@@ -1,3 +1,10 @@
+## 0.8
+
+- Split parsing utilities into [cabal-install-parsers package](https://hackage.haskell.org/package/cabal-install-parsers)
+- `--hlint-download-binary` to download HLint instead of building it ourselves [#323](https://github.com/haskell-ci/haskell-ci/pull/323)
+- Fix `haddock` path in OSX builds [#318](https://github.com/haskell-ci/haskell-ci/pull/318)
+- Don't `brew upgrade` on OSX, which greatly speedups builds [#320](https://github.com/haskell-ci/haskell-ci/pull/320)
+
 ## 0.6
 
 - ghc-options limiting heap size
