@@ -24,3 +24,6 @@ accept : build
 
 doctest :
 	doctest --fast -XBangPatterns -XScopedTypeVariables -XDerivingStrategies -XGeneralizedNewtypeDeriving -XDeriveAnyClass -XNoImplicitPrelude -XDeriveFunctor -XDeriveFoldable -XDeriveTraversable -XDeriveGeneric src
+
+regenerate :
+	cabal v2-run -w ghc-8.6.5 -- haskell-ci regenerate
