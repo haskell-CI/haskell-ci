@@ -479,8 +479,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
                         -- https://docs.travis-ci.com/user/installing-dependencies/#adding-apt-sources
                         let hvrppa :: TravisAptSource
-                            hvrppa | cfgUbuntu == Xenial = TravisAptSource "hvr-ghc"
-                                   | otherwise           = TravisAptSourceLine ("deb http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main") (Just "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286")
+                            hvrppa = TravisAptSourceLine ("deb http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main") (Just "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286")
 
                         let ghcjsAptSources :: [TravisAptSource]
                             ghcjsAptSources = 
