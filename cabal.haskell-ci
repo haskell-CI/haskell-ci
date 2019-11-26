@@ -117,7 +117,7 @@ copy-fields: some
 --            tested-with stanza. (Default)
 --   any:     Take the union of all packages' version ranges. This implies
 --            that different packages' version ranges can be disjoint.
-jobs-selection: uniform
+jobs-selection: any
 
 -- Controls whether the haskell-ci version should be inserted into the
 -- generated Travis YAML file. (Default: True)

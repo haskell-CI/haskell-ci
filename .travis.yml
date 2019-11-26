@@ -31,6 +31,9 @@ before_cache:
   - rm -rfv $CABALHOME/packages/head.hackage
 jobs:
   include:
+    - compiler: ghc-8.10.1
+      addons: {"apt":{"sources":[{"sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu xenial main","key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286"}],"packages":["ghc-8.10.1","cabal-install-3.0"]}}
+      os: linux
     - compiler: ghc-8.8.1
       addons: {"apt":{"sources":[{"sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu xenial main","key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286"}],"packages":["ghc-8.8.1","cabal-install-3.0"]}}
       os: linux
@@ -54,6 +57,7 @@ jobs:
       os: osx
   allow_failures:
     - compiler: ghc-head
+    - compiler: ghc-8.10.1
 before_install:
   - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
   - WITHCOMPILER="-w $HC"
@@ -95,7 +99,7 @@ install:
   - TEST=--enable-tests
   - BENCH=--enable-benchmarks
   - HEADHACKAGE=false
-  - if [ $HCNUMVER -gt 80801 ] ; then HEADHACKAGE=true ; fi
+  - if [ $HCNUMVER -ge 81000 ] ; then HEADHACKAGE=true ; fi
   - rm -f $CABALHOME/config
   - |
     echo "verbose: normal +nowrap +markoutput"                                  >> $CABALHOME/config
@@ -141,16 +145,16 @@ install:
   - rm -fv cabal.project cabal.project.local cabal.project.freeze
   - travis_retry ${CABAL} v2-update -v
   - (cd /tmp && ${CABAL} v2-install $WITHCOMPILER -j2 doctest --constraint='doctest ==0.16.*' | color_cabal_output)
-  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $WITHCOMPILER --dry-run hlint  --constraint='hlint ==2.2.*' |  perl -ne 'if (/\bhlint-(\d+(\.\d+)*)\b/) { print "$1"; last; }')); echo "HLint version $HLINTVER" ; fi
-  - "if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then if [ ! -e $HOME/.hlint/hlint-$HLINTVER/hlint ]; then echo \"Downloading HLint version $HLINTVER\"; mkdir -p $HOME/.hlint; curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\\n' --silent --location --output $HOME/.hlint/hlint-$HLINTVER.tar.gz \"https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz\"; tar -xzv -f $HOME/.hlint/hlint-$HLINTVER.tar.gz -C $HOME/.hlint; fi ; fi"
-  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then mkdir -p $CABALHOME/bin && ln -sf "$HOME/.hlint/hlint-$HLINTVER/hlint" $CABALHOME/bin/hlint ; fi
-  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then hlint --version ; fi
+  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $WITHCOMPILER --dry-run hlint  --constraint='hlint ==2.2.*' |  perl -ne 'if (/\bhlint-(\d+(\.\d+)*)\b/) { print "$1"; last; }')); echo "HLint version $HLINTVER" ; fi
+  - "if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then if [ ! -e $HOME/.hlint/hlint-$HLINTVER/hlint ]; then echo \"Downloading HLint version $HLINTVER\"; mkdir -p $HOME/.hlint; curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\\n' --silent --location --output $HOME/.hlint/hlint-$HLINTVER.tar.gz \"https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz\"; tar -xzv -f $HOME/.hlint/hlint-$HLINTVER.tar.gz -C $HOME/.hlint; fi ; fi"
+  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then mkdir -p $CABALHOME/bin && ln -sf "$HOME/.hlint/hlint-$HLINTVER/hlint" $CABALHOME/bin/hlint ; fi
+  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then hlint --version ; fi
   # Generate cabal.project
   - rm -rf cabal.project cabal.project.local cabal.project.freeze
   - touch cabal.project
   - |
     echo "packages: ." >> cabal.project
-    echo "packages: cabal-install-parsers" >> cabal.project
+    if [ $HCNUMVER -lt 81000 ] || [ $HCNUMVER -gt 81001 ] ; then echo "packages: cabal-install-parsers" >> cabal.project ; fi
   - |
     echo "package haskell-ci"            >> cabal.project
     echo "  ghc-options: -Werror"        >> cabal.project
@@ -188,7 +192,7 @@ script:
   - touch cabal.project
   - |
     echo "packages: ${PKGDIR_haskell_ci}" >> cabal.project
-    echo "packages: ${PKGDIR_cabal_install_parsers}" >> cabal.project
+    if [ $HCNUMVER -lt 81000 ] || [ $HCNUMVER -gt 81001 ] ; then echo "packages: ${PKGDIR_cabal_install_parsers}" >> cabal.project ; fi
   - |
     echo "package haskell-ci"            >> cabal.project
     echo "  ghc-options: -Werror"        >> cabal.project
@@ -213,14 +217,14 @@ script:
   - ${CABAL} v2-test $WITHCOMPILER ${TEST} ${BENCH} all | color_cabal_output
   # Doctest...
   - (cd ${PKGDIR_haskell_ci} && doctest --fast -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src)
-  - (cd ${PKGDIR_cabal_install_parsers} && doctest --fast src)
+  - if [ $HCNUMVER -lt 81000 ] || [ $HCNUMVER -gt 81001 ] ; then (cd ${PKGDIR_cabal_install_parsers} && doctest --fast src) ; fi
   # HLint..
-  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src) ; fi
-  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml cli) ; fi
-  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 80802 ] ; then (cd ${PKGDIR_cabal_install_parsers} && hlint -h ${TOP}/.hlint.yaml src) ; fi
+  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src) ; fi
+  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml cli) ; fi
+  - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then (cd ${PKGDIR_cabal_install_parsers} && hlint -h ${TOP}/.hlint.yaml src) ; fi
   # cabal check...
   - (cd ${PKGDIR_haskell_ci} && ${CABAL} -vnormal check)
-  - (cd ${PKGDIR_cabal_install_parsers} && ${CABAL} -vnormal check)
+  - if [ $HCNUMVER -lt 81000 ] || [ $HCNUMVER -gt 81001 ] ; then (cd ${PKGDIR_cabal_install_parsers} && ${CABAL} -vnormal check) ; fi
   # haddock...
   - ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK ${TEST} ${BENCH} all | color_cabal_output
   # Building without installed constraints for packages in global-db...

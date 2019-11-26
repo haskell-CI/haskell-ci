@@ -27,6 +27,9 @@ before_cache:
   - rm -rfv $CABALHOME/packages/head.hackage
 jobs:
   include:
+    - compiler: ghc-8.10.1
+      addons: {"apt":{"sources":[{"sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu xenial main","key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286"}],"packages":["ghc-8.10.1","cabal-install-3.0"]}}
+      os: linux
     - compiler: ghc-8.8.1
       addons: {"apt":{"sources":[{"sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu xenial main","key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286"}],"packages":["ghc-8.8.1","cabal-install-3.0"]}}
       os: linux
@@ -90,6 +93,8 @@ jobs:
     - compiler: ghc-7.8.1
       addons: {"apt":{"sources":[{"sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu xenial main","key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286"}],"packages":["ghc-7.8.1","cabal-install-3.0"]}}
       os: linux
+  allow_failures:
+    - compiler: ghc-8.10.1
 before_install:
   - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
   - WITHCOMPILER="-w $HC"
@@ -128,6 +133,7 @@ install:
   - TEST=--enable-tests
   - BENCH=--enable-benchmarks
   - HEADHACKAGE=false
+  - if [ $HCNUMVER -ge 81000 ] ; then HEADHACKAGE=true ; fi
   - rm -f $CABALHOME/config
   - |
     echo "verbose: normal +nowrap +markoutput"                                  >> $CABALHOME/config
@@ -153,6 +159,17 @@ install:
     echo "    2c6c3627bd6c982990239487f1abd02e08a02e6cf16edb105a8012d444d870c3" >> $CABALHOME/config
     echo "    0a5c7ea47cd1b15f01f5f51a33adda7e655bc0f0b0615baa8e271f4c3351e21d" >> $CABALHOME/config
     echo "    51f0161b906011b52c6613376b1ae937670da69322113a246a09f807c62f6921" >> $CABALHOME/config
+  - |
+    if $HEADHACKAGE; then
+    echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1/g')" >> $CABALHOME/config
+    echo "repository head.hackage.ghc.haskell.org"                                        >> $CABALHOME/config
+    echo "   url: https://ghc.gitlab.haskell.org/head.hackage/"                           >> $CABALHOME/config
+    echo "   secure: True"                                                                >> $CABALHOME/config
+    echo "   root-keys: 7541f32a4ccca4f97aea3b22f5e593ba2c0267546016b992dfadcd2fe944e55d" >> $CABALHOME/config
+    echo "              26021a13b401500c8eb2761ca95c61f2d625bfef951b939a8124ed12ecf07329" >> $CABALHOME/config
+    echo "              f76d08be13e9a61a377a85e2fb63f4c5435d40f8feb3e12eb05905edb8cdea89" >> $CABALHOME/config
+    echo "   key-threshold: 3"                                                            >> $CABALHOME/config
+    fi
   - |
     echo "program-default-options"                >> $CABALHOME/config
     echo "  ghc-options: $GHCJOBS +RTS -M6G -RTS" >> $CABALHOME/config
