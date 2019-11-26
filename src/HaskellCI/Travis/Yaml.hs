@@ -150,7 +150,11 @@ isEmpty _                 = False
 
 instance ToYaml Travis where
     toYaml Travis {..} = ykeyValuesFilt []
-        [ "language"       ~> fromString travisLanguage
+        -- version forces validation
+        -- https://blog.travis-ci.com/2019-10-24-build-config-validation
+        [ "version"        ~> fromString "~> 1.0"
+        , "language"       ~> fromString travisLanguage
+        , "os"             ~> fromString "linux"
         , "dist"           ~> fromString (showUbuntu travisUbuntu)
         , "git"            ~> toYaml travisGit
         , "branches"       ~> toYaml travisBranches
@@ -159,7 +163,7 @@ instance ToYaml Travis where
         , "addons"         ~> toYaml travisAddons
         , "cache"          ~> toYaml travisCache
         , "before_cache"   ~> shListToYaml travisBeforeCache
-        , "matrix"         ~> toYaml travisMatrix
+        , "jobs"           ~> toYaml travisMatrix
         , "before_install" ~> shListToYaml travisBeforeInstall
         , "install"        ~> shListToYaml travisInstall
         , "script"         ~> shListToYaml travisScript
@@ -204,11 +208,10 @@ instance ToYaml TravisMatrix where
 instance ToYaml TravisJob where
     toYaml TravisJob {..} = ykeyValuesFilt [] $ buildList $ do
         item $ "compiler" ~> fromString tjCompiler
-        item $ "addons" ~> toYaml (Aeson.toJSON tjAddons)
+        item $ "addons"   ~> toYaml (Aeson.toJSON tjAddons)
         for_ tjEnv $ \e ->
             item $ "env" ~> fromString e
-        unless (tjOS == "linux") $
-            item $ "os" ~> fromString tjOS
+        item $ "os" ~> fromString tjOS
 
 instance ToYaml TravisAllowFailure where
     toYaml TravisAllowFailure {..} = ykeyValuesFilt []

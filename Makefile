@@ -20,7 +20,7 @@ test : build
 
 accept : build
 	cabal v2-run -w $(HC) golden -- --accept
-	(cd cabal-parsers && cabal v2-run -w $(HC) cabal-parsers-golden -- --accept)
+	(cd cabal-install-parsers && cabal v2-run -w $(HC) cabal-parsers-golden -- --accept)
 
 doctest :
 	doctest --fast -XBangPatterns -XScopedTypeVariables -XDerivingStrategies -XGeneralizedNewtypeDeriving -XDeriveAnyClass -XNoImplicitPrelude -XDeriveFunctor -XDeriveFoldable -XDeriveTraversable -XDeriveGeneric src
