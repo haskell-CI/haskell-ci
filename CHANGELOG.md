@@ -5,6 +5,7 @@
 - Fix `haddock` path in OSX builds [#318](https://github.com/haskell-ci/haskell-ci/pull/318)
 - Don't `brew upgrade` on OSX, which greatly speedups builds [#320](https://github.com/haskell-ci/haskell-ci/pull/320)
 - Use Travis built-in config validation [#338](https://github.com/haskell-CI/haskell-ci/pull/338)
+- Use `sourceline: ...` explicit entry for hvr-ppa unconditionally [#338](https://github.com/haskell-CI/haskell-ci/pull/338)
 
 ## 0.6
 
