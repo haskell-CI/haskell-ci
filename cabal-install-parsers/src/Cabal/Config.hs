@@ -93,10 +93,11 @@ deriving instance Show (f FilePath) => Show (Config f)
 
 -- | Repository.
 --
--- missing @secure@, @root-keys@, @key-threshold@ which we don't need now.
+-- missing @root-keys@, @key-threshold@ which we don't need now.
 --
-newtype Repo = Repo
-    { repoURL :: URI
+data Repo = Repo
+    { repoURL    :: URI
+    , repoSecure :: Bool -- ^ @since 0.2
     }
   deriving (Show)
 
@@ -155,7 +156,8 @@ grammar = Config mempty
 
 repoGrammar :: C.ParsecFieldGrammar Repo Repo
 repoGrammar = Repo
-    <$> C.uniqueFieldAla "url" WrapURI repoURLL
+    <$> C.uniqueFieldAla  "url"    WrapURI repoURLL
+    <*> C.booleanFieldDef "secure"         repoSecureL False
 
 -------------------------------------------------------------------------------
 -- Resolving
@@ -189,3 +191,6 @@ cfgStoreDirL f cfg = f (cfgStoreDir cfg) <&> \x -> cfg { cfgStoreDir = x }
 
 repoURLL :: Functor f => LensLike' f Repo URI
 repoURLL f s = f (repoURL s) <&> \x -> s { repoURL = x }
+
+repoSecureL :: Functor f => LensLike' f Repo Bool
+repoSecureL f s = f (repoSecure s) <&> \x -> s { repoSecure = x }
