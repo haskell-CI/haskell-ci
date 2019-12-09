@@ -482,12 +482,10 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                             hvrppa = TravisAptSourceLine ("deb http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main") (Just "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286")
 
                         let ghcjsAptSources :: [TravisAptSource]
-                            ghcjsAptSources = 
+                            ghcjsAptSources | not (isGHCJS gv) = []
+                                            | otherwise =
                                 [ TravisAptSourceLine ("deb http://ppa.launchpad.net/hvr/ghcjs/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main") Nothing
-                                | isGHCJS gv
-                                ] ++
-                                [ TravisAptSourceLine ("deb https://deb.nodesource.com/node_8.x " ++ C.prettyShow cfgUbuntu ++ " main") (Just "https://deb.nodesource.com/gpgkey/nodesource.gpg.key")
-                                | isGHCJS gv && cfgUbuntu <= Xenial
+                                , TravisAptSourceLine ("deb https://deb.nodesource.com/node_10.x " ++ C.prettyShow cfgUbuntu ++ " main") (Just "https://deb.nodesource.com/gpgkey/nodesource.gpg.key")
                                 ]
 
                         let ghcjsPackages :: [String]
