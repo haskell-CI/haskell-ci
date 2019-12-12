@@ -17,6 +17,7 @@ module Cabal.Config (
     hackageHaskellOrg,
     ) where
 
+import Control.DeepSeq          (NFData (..))
 import Control.Exception        (throwIO)
 import Data.ByteString          (ByteString)
 import Data.Function            ((&))
@@ -91,6 +92,9 @@ data Config f = Config
 
 deriving instance Show (f FilePath) => Show (Config f)
 
+-- | @since 0.2.1
+instance NFData (f FilePath) => NFData (Config f)
+
 -- | Repository.
 --
 -- missing @root-keys@, @key-threshold@ which we don't need now.
@@ -99,10 +103,13 @@ data Repo = Repo
     { repoURL    :: URI
     , repoSecure :: Bool -- ^ @since 0.2
     }
-  deriving (Show)
+  deriving (Show, Generic)
 
 -- | Repository name, bare 'String'.
 type RepoName = String
+
+-- | @since 0.2.1
+instance NFData Repo
 
 -------------------------------------------------------------------------------
 -- Finding index

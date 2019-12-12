@@ -20,6 +20,7 @@ module Cabal.SourceRepo (
     sourceRepositoryPackageGrammar,
     ) where
 
+import Control.DeepSeq    (NFData (..))
 import Data.List.NonEmpty (NonEmpty (..))
 import Data.Proxy         (Proxy (..))
 import GHC.Generics       (Generic)
@@ -43,6 +44,9 @@ data SourceRepositoryPackage f = SourceRepositoryPackage
 deriving instance (Eq (f FilePath)) => Eq (SourceRepositoryPackage f)
 deriving instance (Ord (f FilePath)) => Ord (SourceRepositoryPackage f)
 deriving instance (Show (f FilePath)) => Show (SourceRepositoryPackage f)
+
+-- | @since 0.2.1
+instance NFData (f FilePath) => NFData (SourceRepositoryPackage f)
 
 -- | Read from @cabal.project@
 type SourceRepoList  = SourceRepositoryPackage []

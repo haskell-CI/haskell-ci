@@ -7,6 +7,7 @@ module Cabal.Optimization (
     ) where
 
 import Control.Applicative (Alternative (..))
+import Control.DeepSeq     (NFData (..))
 import GHC.Generics        (Generic)
 
 import qualified Distribution.Compat.CharParsing as C
@@ -34,3 +35,6 @@ instance C.Pretty Optimization where
     pretty OptimizationOn        = C.pretty True
     pretty OptimizationOff       = C.pretty False
     pretty (OptimizationLevel l) = PP.int l
+
+-- | @since 0.2.1
+instance NFData Optimization
