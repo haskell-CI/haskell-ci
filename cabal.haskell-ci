@@ -67,7 +67,7 @@ hlint-download-binary: True
 doctest: True
 doctest-options: --fast
 -- doctest-version: ==0.13.*
-doctest-filter-packages: base-compat
+doctest-filter-packages: base-compat-batteries
 
 -- macOS job
 osx: 8.4.4 8.6.5
