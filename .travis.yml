@@ -216,6 +216,7 @@ script:
   # Testing...
   - ${CABAL} v2-test $WITHCOMPILER ${TEST} ${BENCH} all | color_cabal_output
   # Doctest...
+  - perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
   - (cd ${PKGDIR_haskell_ci} && doctest --fast -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src)
   - if [ $HCNUMVER -lt 81000 ] || [ $HCNUMVER -gt 81001 ] ; then (cd ${PKGDIR_cabal_install_parsers} && doctest --fast src) ; fi
   # HLint..

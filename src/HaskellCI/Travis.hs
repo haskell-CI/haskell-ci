@@ -366,7 +366,15 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         when doctestEnabled $ foldedSh FoldDoctest "Doctest..." cfgFolds $ do
             let doctestOptions = unwords $ cfgDoctestOptions cfgDoctest
             unless (null $ cfgDoctestFilterPkgs cfgDoctest) $ do
-                let filterPkgs = intercalate "|" $ map C.unPackageName $ cfgDoctestFilterPkgs cfgDoctest
+                -- cabal-install mangles unit ids on the OSX,
+                -- removing the vowels to make filepaths shorter
+                let manglePkgNames :: String -> [String]
+                    manglePkgNames n
+                        | null cfgOsx = [n]
+                        | otherwise   = [n, filter notVowel n]
+                      where
+                        notVowel c = notElem c ("aeiou" :: String)
+                let filterPkgs = intercalate "|" $ concatMap (manglePkgNames . C.unPackageName) $ cfgDoctestFilterPkgs cfgDoctest
                 sh $ "perl -i -e 'while (<ARGV>) { print unless /package-id\\s+(" ++ filterPkgs ++ ")-\\d+(\\.\\d+)*/; }' .ghc.environment.*"
             for_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
                 for_ (doctestArgs pkgGpd) $ \args -> do

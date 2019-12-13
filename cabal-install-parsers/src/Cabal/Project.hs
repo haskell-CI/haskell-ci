@@ -22,6 +22,7 @@ module Cabal.Project (
     readPackagesOfProject
     ) where
 
+import Control.DeepSeq              (NFData (..))
 import Control.Exception            (Exception (..), throwIO)
 import Control.Monad.IO.Class       (liftIO)
 import Control.Monad.Trans.Except   (ExceptT, runExceptT, throwE)
@@ -119,6 +120,24 @@ instance Bitraversable (Project uri) where
 -- | Empty project.
 emptyProject :: Project c b a
 emptyProject = Project [] [] [] [] [] False Nothing OptimizationOn [] []
+
+-- | @since 0.2.1
+instance (NFData c, NFData b, NFData a) => NFData (Project c b a) where
+    rnf (Project x1 x2 x3 x4 x5 x6 x7 x8 x9 x10) =
+        rnf x1 `seq` rnf x2 `seq` rnf x3 `seq`
+        rnf x4 `seq` rnf x5 `seq` rnf x6 `seq`
+        rnf x7 `seq` rnf x8 `seq` rnf x9 `seq`
+        rnfList rnfPrettyField x10
+      where
+        rnfList :: (a -> ()) -> [a] -> ()
+        rnfList _ []     = ()
+        rnfList f (x:xs) = f x `seq` rnfList f xs
+
+        rnfPrettyField :: NFData x => C.PrettyField x -> ()
+        rnfPrettyField (C.PrettyField ann fn d) =
+            rnf ann `seq` rnf fn `seq` rnf d
+        rnfPrettyField (C.PrettySection ann fn ds fs) =
+            rnf ann `seq` rnf fn `seq` rnf ds `seq` rnfList rnfPrettyField fs
 
 -------------------------------------------------------------------------------
 -- Initial  parsing

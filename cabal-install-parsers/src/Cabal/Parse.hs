@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 -- | License: GPL-3.0-or-later AND BSD-3-Clause
 --
 -- @.cabal@ and a like file parsing helpers.
@@ -7,10 +8,12 @@ module Cabal.Parse (
     renderParseError,
     ) where
 
+import Control.DeepSeq           (NFData (..))
 import Control.Exception         (Exception (..))
 import Data.ByteString           (ByteString)
 import Data.Foldable             (for_)
 import Distribution.Simple.Utils (fromUTF8BS)
+import GHC.Generics              (Generic)
 import System.FilePath           (normalise)
 
 import qualified Data.ByteString.Char8          as BS8
@@ -50,10 +53,13 @@ data ParseError = ParseError
     , peErrors   :: [C.PError]
     , peWarnings :: [C.PWarning]
     }
-  deriving (Show)
+  deriving (Show, Generic)
 
 instance Exception ParseError where
     displayException = renderParseError
+
+-- | @since 0.2.1
+instance NFData ParseError
 
 -- | Render parse error highlighting the part of the input file.
 renderParseError :: ParseError -> String
