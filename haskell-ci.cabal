@@ -30,7 +30,7 @@ author:             Herbert Valerio Riedel, Oleg Grenrus
 maintainer:         hvr@gnu.org
 category:           Development
 build-type:         Simple
-tested-with:        GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.1 || ==8.10.1
+tested-with:        GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.2 || ==8.10.1
 extra-source-files:
   CHANGELOG.md
 
