@@ -15,7 +15,7 @@ At time of writing [Travis-CI](https://travis-ci.org/) has [support for building
  - GHC 8.2.1, GHC 8.2.2
  - GHC 8.4.1, GHC 8.4.2, GHC 8.4.3, GHC 8.4.4
  - GHC 8.6.1, GHC 8.6.2, GHC 8.6.3, GHC 8.6.4, GHC 8.6.5
- - GHC 8.8.1
+ - GHC 8.8.1, GHC 8.8.2
  - GHC 8.10.1 *(pre-release snapshot)*
  - GHC HEAD.
 
