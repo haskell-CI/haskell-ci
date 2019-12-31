@@ -140,31 +140,10 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         sh "echo $HCNUMVER"
         -- verbose in .cabal/config is not respected
         -- https://github.com/haskell/cabal/issues/5956
-        sh "CABAL=\"$CABAL -vnormal+nowrap+markoutput\""
+        sh "CABAL=\"$CABAL -vnormal+nowrap\""
 
-        -- Color cabal output
-        sh' [2039] "set -o pipefail" -- SC2039: In POSIX sh, set option pipefail is undefined. Travis is bash, so it's fine :)
-        when cfgColor $ do
-            cat' ".colorful.awk"
-                [ "function blue(s) { printf \"\\033[0;34m\" s \"\\033[0m \" }"
-                , "BEGIN { state = \"output\"; }"
-                , "/^-----BEGIN CABAL OUTPUT-----$/ { state = \"cabal\" }"
-                , "/^-----END CABAL OUTPUT-----$/ { state = \"output\" }"
-                , "!/^(-----BEGIN CABAL OUTPUT-----|-----END CABAL OUTPUT-----)/ {"
-                , "  if (state == \"cabal\") {"
-                , "    print blue($0)"
-                , "  } else {"
-                , "    print $0"
-                , "  }"
-                , "}"
-                ]
-            sh "cat .colorful.awk"
-            sh $ unlines
-                [ "color_cabal_output () {"
-                , "  awk -f $TOP/.colorful.awk"
-                , "}"
-                ]
-            sh "echo text | color_cabal_output"
+        -- SC2039: In POSIX sh, set option pipefail is undefined. Travis is bash, so it's fine :)
+        sh' [2039] "set -o pipefail"
 
     -- in install step we install tools and dependencies
     install <- runSh $ do
@@ -587,10 +566,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     headGhcVers = S.filter (previewGHC cfgHeadHackage) versions
 
     cabal :: String -> String
-    cabal cmd | cfgColor  = cabalCmd ++ " | color_cabal_output"
-              | otherwise = cabalCmd
-      where
-        cabalCmd = "${CABAL} " ++ cmd
+    cabal cmd = "${CABAL} " ++ cmd
 
     cabalInTmp :: String -> String
     cabalInTmp cmd = "(cd /tmp && " ++ cabal cmd ++ ")"
@@ -747,9 +723,3 @@ catCmd fp contents = unlines $
 
 cat :: FilePath -> [String] -> ShM ()
 cat fp contents = sh $ catCmd Double fp contents
-
-cat' :: FilePath -> [String] -> ShM ()
-cat' fp contents = sh' [2016, 2129] $ catCmd Single fp contents
--- SC2129: Consider using { cmd1; cmd2; } >> file instead of individual redirects
--- SC2016: Expressions don't expand in single quotes
--- that's the point!

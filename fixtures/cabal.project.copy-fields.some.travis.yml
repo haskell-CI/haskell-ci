@@ -107,26 +107,8 @@ before_install:
   - TOP=$(pwd)
   - "HCNUMVER=$(${HC} --numeric-version|perl -ne '/^(\\d+)\\.(\\d+)\\.(\\d+)(\\.(\\d+))?$/; print(10000 * $1 + 100 * $2 + ($3 == 0 ? $5 != 1 : $3))')"
   - echo $HCNUMVER
-  - CABAL="$CABAL -vnormal+nowrap+markoutput"
+  - CABAL="$CABAL -vnormal+nowrap"
   - set -o pipefail
-  - |
-    echo 'function blue(s) { printf "\033[0;34m" s "\033[0m " }'           >> .colorful.awk
-    echo 'BEGIN { state = "output"; }'                                     >> .colorful.awk
-    echo '/^-----BEGIN CABAL OUTPUT-----$/ { state = "cabal" }'            >> .colorful.awk
-    echo '/^-----END CABAL OUTPUT-----$/ { state = "output" }'             >> .colorful.awk
-    echo '!/^(-----BEGIN CABAL OUTPUT-----|-----END CABAL OUTPUT-----)/ {' >> .colorful.awk
-    echo '  if (state == "cabal") {'                                       >> .colorful.awk
-    echo '    print blue($0)'                                              >> .colorful.awk
-    echo '  } else {'                                                      >> .colorful.awk
-    echo '    print $0'                                                    >> .colorful.awk
-    echo '  }'                                                             >> .colorful.awk
-    echo '}'                                                               >> .colorful.awk
-  - cat .colorful.awk
-  - |
-    color_cabal_output () {
-      awk -f $TOP/.colorful.awk
-    }
-  - echo text | color_cabal_output
 install:
   - ${CABAL} --version
   - echo "$(${HC} --version) [$(${HC} --print-project-git-commit-id 2> /dev/null || echo '?')]"
@@ -195,15 +177,15 @@ install:
   - if [ -f "servant-client/configure.ac" ]; then (cd "servant-client" && autoreconf -i); fi
   - if [ -f "servant-docs/configure.ac" ]; then (cd "servant-docs" && autoreconf -i); fi
   - if [ -f "servant-server/configure.ac" ]; then (cd "servant-server" && autoreconf -i); fi
-  - ${CABAL} v2-freeze $WITHCOMPILER ${TEST} ${BENCH} | color_cabal_output
+  - ${CABAL} v2-freeze $WITHCOMPILER ${TEST} ${BENCH}
   - "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
   - rm  cabal.project.freeze
-  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} --dep -j2 all | color_cabal_output
-  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --dep -j2 all | color_cabal_output
+  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} --dep -j2 all
+  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --dep -j2 all
 script:
   - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)
   # Packaging...
-  - ${CABAL} v2-sdist all | color_cabal_output
+  - ${CABAL} v2-sdist all
   # Unpacking...
   - mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/
   - cd ${DISTDIR} || false
@@ -230,22 +212,22 @@ script:
   - cat cabal.project.local || true
   # Building...
   # this builds all libraries and executables (without tests/benchmarks)
-  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all | color_cabal_output
+  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all
   # Building with tests and benchmarks...
   # build & run tests, build benchmarks
-  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} all | color_cabal_output
+  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} all
   # Testing...
-  - ${CABAL} v2-test $WITHCOMPILER ${TEST} ${BENCH} all | color_cabal_output
+  - ${CABAL} v2-test $WITHCOMPILER ${TEST} ${BENCH} all
   # cabal check...
   - (cd ${PKGDIR_servant} && ${CABAL} -vnormal check)
   - (cd ${PKGDIR_servant_client} && ${CABAL} -vnormal check)
   - (cd ${PKGDIR_servant_docs} && ${CABAL} -vnormal check)
   - (cd ${PKGDIR_servant_server} && ${CABAL} -vnormal check)
   # haddock...
-  - ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK ${TEST} ${BENCH} all | color_cabal_output
+  - ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK ${TEST} ${BENCH} all
   # Building without installed constraints for packages in global-db...
   - rm -f cabal.project.local
-  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all | color_cabal_output
+  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all
 
 # REGENDATA ["-o","cabal.project.empty-line.travis.yml","--config=cabal.project.haskell-ci","--copy-fields=some","cabal.project.empty-line"]
 # EOF
