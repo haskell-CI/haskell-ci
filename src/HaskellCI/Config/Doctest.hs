@@ -13,15 +13,16 @@ import qualified Distribution.Types.PackageName as C
 import HaskellCI.OptionsGrammar
 
 data DoctestConfig = DoctestConfig
-    { cfgDoctestEnabled    :: !VersionRange
-    , cfgDoctestOptions    :: [String]
-    , cfgDoctestVersion    :: !VersionRange
-    , cfgDoctestFilterPkgs :: ![C.PackageName]
+    { cfgDoctestEnabled       :: !VersionRange
+    , cfgDoctestOptions       :: [String]
+    , cfgDoctestVersion       :: !VersionRange
+    , cfgDoctestFilterEnvPkgs :: ![C.PackageName]
+    , cfgDoctestFilterSrcPkgs :: ![C.PackageName]
     }
   deriving (Show, Generic)
 
 defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = withinVersion (mkVersion [0,16])
+defaultDoctestVersion = withinVersion (mkVersion [0,16,2])
 
 -------------------------------------------------------------------------------
 -- Grammar
@@ -31,11 +32,13 @@ doctestConfigGrammar
     :: (OptionsGrammar g, Applicative (g DoctestConfig))
     => g DoctestConfig DoctestConfig
 doctestConfigGrammar = DoctestConfig
-    <$> rangeField         "doctest"                                             #cfgDoctestEnabled noVersion
+    <$> rangeField         "doctest"                                              #cfgDoctestEnabled noVersion
         ^^^ help "Enable Doctest job"
-    <*> C.monoidalFieldAla "doctest-options" (C.alaList' C.NoCommaFSep C.Token') #cfgDoctestOptions
+    <*> C.monoidalFieldAla "doctest-options" (C.alaList' C.NoCommaFSep C.Token')  #cfgDoctestOptions
         ^^^ metahelp "OPTS" "Additional Doctest options"
-    <*> C.optionalFieldDef "doctest-version"                                     #cfgDoctestVersion defaultDoctestVersion
+    <*> C.optionalFieldDef "doctest-version"                                      #cfgDoctestVersion defaultDoctestVersion
         ^^^ metahelp "RANGE" "Doctest version"
-    <*> C.monoidalFieldAla "doctest-filter-packages" (C.alaList C.NoCommaFSep)   #cfgDoctestFilterPkgs
+    <*> C.monoidalFieldAla "doctest-filter-packages" (C.alaList C.NoCommaFSep)    #cfgDoctestFilterEnvPkgs
         ^^^ metahelp "PKGS" "Filter packages from .ghc.environment file"
+    <*> C.monoidalFieldAla "doctest-skip" (C.alaList C.NoCommaFSep)               #cfgDoctestFilterSrcPkgs
+        ^^^ metahelp "PKGS" "Skip doctests for these packages"
