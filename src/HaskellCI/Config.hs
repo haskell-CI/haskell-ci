@@ -1,7 +1,8 @@
+{-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedLabels      #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TypeApplications      #-}
 module HaskellCI.Config where
 
 import HaskellCI.Prelude
@@ -149,76 +150,76 @@ configGrammar
     :: (OptionsGrammar g, Applicative (g Config), Applicative (g DoctestConfig), Applicative (g HLintConfig))
     => g Config Config
 configGrammar = Config
-    <$> C.optionalFieldDefAla "cabal-install-version"     HeadVersion                         #cfgCabalInstallVersion defaultCabalInstallVersion
+    <$> C.optionalFieldDefAla "cabal-install-version"     HeadVersion                         (field @"cfgCabalInstallVersion") defaultCabalInstallVersion
         ^^^ metahelp "VERSION" "cabal-install version for all jobs"
-    <*> C.optionalField       "jobs"                                                          #cfgJobs
+    <*> C.optionalField       "jobs"                                                          (field @"cfgJobs")
         ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
-    <*> C.optionalFieldDef    "distribution"                                                  #cfgUbuntu Xenial
+    <*> C.optionalFieldDef    "distribution"                                                  (field @"cfgUbuntu") Xenial
         ^^^ metahelp "DIST" "distribution version (xenial, bionic)"
-    <*> C.optionalFieldDef    "jobs-selection"                                                #cfgTestedWith TestedWithUniform
+    <*> C.optionalFieldDef    "jobs-selection"                                                (field @"cfgTestedWith") TestedWithUniform
         ^^^ metahelp "uniform|any" "Jobs selection across packages"
-    <*> C.optionalFieldDef    "copy-fields"                                                   #cfgCopyFields CopyFieldsSome
+    <*> C.optionalFieldDef    "copy-fields"                                                   (field @"cfgCopyFields") CopyFieldsSome
         ^^^ metahelp "none|some|all" "Copy ? fields from cabal.project fields"
-    <*> C.monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') #cfgLocalGhcOptions
+    <*> C.monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') (field @"cfgLocalGhcOptions")
         ^^^ metahelp "OPTS" "--ghc-options for local packages"
-    <*> C.booleanFieldDef     "submodules"                                                    #cfgSubmodules False
+    <*> C.booleanFieldDef     "submodules"                                                    (field @"cfgSubmodules") False
         ^^^ help "Clone submodules, i.e. recursively"
-    <*> C.booleanFieldDef     "cache"                                                         #cfgCache True
+    <*> C.booleanFieldDef     "cache"                                                         (field @"cfgCache") True
         ^^^ help "Disable caching"
-    <*> C.booleanFieldDef     "install-dependencies"                                          #cfgInstallDeps True
+    <*> C.booleanFieldDef     "install-dependencies"                                          (field @"cfgInstallDeps") True
         ^^^ help "Skip separate dependency installation step"
-    <*> C.monoidalFieldAla    "installed"                 (C.alaList C.FSep)                  #cfgInstalled
+    <*> C.monoidalFieldAla    "installed"                 (C.alaList C.FSep)                  (field @"cfgInstalled")
         ^^^ metahelp "+/-PKG" "Specify 'constraint: ... installed' packages"
-    <*> rangeField            "tests"                                                         #cfgTests anyVersion
+    <*> rangeField            "tests"                                                         (field @"cfgTests") anyVersion
         ^^^ metahelp "RANGE" "Build tests with"
-    <*> rangeField            "run-tests"                                                     #cfgRunTests anyVersion
+    <*> rangeField            "run-tests"                                                     (field @"cfgRunTests") anyVersion
         ^^^ metahelp "RANGE" "Run tests with (note: only built tests are run)"
-    <*> rangeField           "benchmarks"                                                     #cfgBenchmarks anyVersion
+    <*> rangeField           "benchmarks"                                                     (field @"cfgBenchmarks") anyVersion
         ^^^ metahelp "RANGE" "Build benchmarks"
-    <*> rangeField           "haddock"                                                        #cfgHaddock anyVersion
+    <*> rangeField           "haddock"                                                        (field @"cfgHaddock") anyVersion
         ^^^ metahelp "RANGE" "Haddock step"
-    <*> rangeField           "no-tests-no-benchmarks"                                         #cfgNoTestsNoBench anyVersion
+    <*> rangeField           "no-tests-no-benchmarks"                                         (field @"cfgNoTestsNoBench") anyVersion
         ^^^ metahelp "RANGE" "Build without tests and benchmarks"
-    <*> rangeField            "unconstrained"                                                 #cfgUnconstrainted anyVersion
+    <*> rangeField            "unconstrained"                                                 (field @"cfgUnconstrainted") anyVersion
         ^^^ metahelp "RANGE" "Make unconstrained build"
-    <*> rangeField            "head-hackage"                                                  #cfgHeadHackage defaultHeadHackage
+    <*> rangeField            "head-hackage"                                                  (field @"cfgHeadHackage") defaultHeadHackage
         ^^^ metahelp "RANGE" "Use head.hackage repository. Also marks as allow-failures"
-    <*> C.booleanFieldDef     "ghcjs-tests"                                                   #cfgGhcjsTests False
+    <*> C.booleanFieldDef     "ghcjs-tests"                                                   (field @"cfgGhcjsTests") False
         ^^^ help "Run tests with GHCJS (experimental, relies on cabal-plan finding test-suites)"
-    <*> C.monoidalFieldAla    "ghcjs-tools"               (C.alaList C.FSep)                  #cfgGhcjsTools
+    <*> C.monoidalFieldAla    "ghcjs-tools"               (C.alaList C.FSep)                  (field @"cfgGhcjsTools")
 --        ^^^ metahelp "TOOL" "Additional host tools to install with GHCJS"
-    <*> C.booleanFieldDef "cabal-check"                                                       #cfgCheck True
+    <*> C.booleanFieldDef "cabal-check"                                                       (field @"cfgCheck") True
         ^^^ help "Disable cabal check run"
-    <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        #cfgOnlyBranches
+    <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        (field @"cfgOnlyBranches")
         ^^^ metahelp "BRANCH" "Enable builds only for specific branches"
-    <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        #cfgIrcChannels
+    <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        (field @"cfgIrcChannels")
         ^^^ metahelp "IRC" "Enable IRC notifications to given channel (e.g. 'irc.freenode.org#haskell-lens')"
-    <*> C.optionalFieldAla    "project-name"              C.Token'                            #cfgProjectName
+    <*> C.optionalFieldAla    "project-name"              C.Token'                            (field @"cfgProjectName")
         ^^^ metahelp "NAME" "Project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
-    <*> C.monoidalFieldAla    "folds"                     Folds                               #cfgFolds
+    <*> C.monoidalFieldAla    "folds"                     Folds                               (field @"cfgFolds")
         ^^^ metahelp "FOLD" "Build steps to fold"
-    <*> C.booleanFieldDef     "ghc-head"                                                      #cfgGhcHead False
+    <*> C.booleanFieldDef     "ghc-head"                                                      (field @"cfgGhcHead") False
         ^^^ help "Add ghc-head job"
-    <*> C.booleanFieldDef     "postgresql"                                                    #cfgPostgres False
+    <*> C.booleanFieldDef     "postgresql"                                                    (field @"cfgPostgres") False
         ^^^ help "Add postgresql service"
-    <*> C.booleanFieldDef     "google-chrome"                                                 #cfgGoogleChrome False
+    <*> C.booleanFieldDef     "google-chrome"                                                 (field @"cfgGoogleChrome") False
         ^^^ help "Add google-chrome service"
-    <*> C.monoidalFieldAla    "env"                       Env                                 #cfgEnv
+    <*> C.monoidalFieldAla    "env"                       Env                                 (field @"cfgEnv")
         ^^^ metahelp "ENV" "Environment variables per job (e.g. `8.0.2:HADDOCK=false`)"
-    <*> C.optionalFieldDefAla "allow-failures"            Range                               #cfgAllowFailures noVersion
+    <*> C.optionalFieldDefAla "allow-failures"            Range                               (field @"cfgAllowFailures") noVersion
         ^^^ metahelp "JOB" "Allow failures of particular GHC version"
-    <*> C.booleanFieldDef     "last-in-series"                                                #cfgLastInSeries False
+    <*> C.booleanFieldDef     "last-in-series"                                                (field @"cfgLastInSeries") False
         ^^^ help "[Discouraged] Assume there are only GHCs last in major series: 8.2.* will match only 8.2.2"
-    <*> C.monoidalFieldAla    "osx"                       (alaSet C.NoCommaFSep)              #cfgOsx
+    <*> C.monoidalFieldAla    "osx"                       (alaSet C.NoCommaFSep)              (field @"cfgOsx")
         ^^^ metahelp "JOB" "Jobs to additionally build with OSX"
-    <*> C.monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    #cfgApt
+    <*> C.monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    (field @"cfgApt")
         ^^^ metahelp "PKG" "Additional apt packages to install"
-    <*> C.monoidalFieldAla    "travis-patches"            (C.alaList' C.NoCommaFSep C.Token') #cfgTravisPatches
+    <*> C.monoidalFieldAla    "travis-patches"            (C.alaList' C.NoCommaFSep C.Token') (field @"cfgTravisPatches")
         ^^^ metahelp "PATCH" ".patch files to apply to the generated Travis YAML file"
-    <*> C.booleanFieldDef "insert-version"                                                    #cfgInsertVersion True
+    <*> C.booleanFieldDef "insert-version"                                                    (field @"cfgInsertVersion") True
         ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
-    <*> C.blurFieldGrammar #cfgDoctest doctestConfigGrammar
-    <*> C.blurFieldGrammar #cfgHLint   hlintConfigGrammar
+    <*> C.blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar
+    <*> C.blurFieldGrammar (field @"cfgHLint")   hlintConfigGrammar
     <*> pure [] -- constraint sets
     <*> pure [] -- raw project fields
 
@@ -243,10 +244,10 @@ parseConfigFile fields0 = do
             name' <- parseName pos args
             let (fs, _sections) = C.partitionFields cfields
             cs <- C.parseFieldGrammar C.cabalSpecLatest fs (constraintSetGrammar name')
-            return $ over #cfgConstraintSets (cs :)
+            return $ over (field @"cfgConstraintSets") (cs :)
         | name == "raw-project" = do
             let fs = C.fromParsecFields cfields
-            return $ over #cfgRawProject (++ map void fs)
+            return $ over (field @"cfgRawProject") (++ map void fs)
         | otherwise = do
             C.parseWarning pos C.PWTUnknownSection $ "Unknown section " ++ fromUTF8BS name
             return id

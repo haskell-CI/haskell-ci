@@ -45,10 +45,10 @@ doctestJobVersionRange = RangeGHC /\ Range (C.orLaterVersion $ C.mkVersion [8,0]
 doctestArgs :: C.GenericPackageDescription -> [[String]]
 doctestArgs gpd = nub $
     [ libraryModuleArgs c
-    | c <- C.flattenPackageDescription gpd ^.. L.library . traverse
+    | c <- toListOf (L.library . traverse) (C.flattenPackageDescription gpd)
     ] ++
     [ libraryModuleArgs c
-    | c <- C.flattenPackageDescription gpd ^.. L.subLibraries . traverse
+    | c <- toListOf (L.subLibraries . traverse) (C.flattenPackageDescription gpd)
     ]
 
 libraryModuleArgs :: C.Library -> [String]
@@ -102,11 +102,11 @@ hlintJobVersionRange _ _ (HLintJob v)   = RangePoints (S.singleton (GHC v))
 hlintArgs :: C.GenericPackageDescription -> [[String]]
 hlintArgs gpd = nub $
     [ libraryModuleArgs c
-    | c <- C.flattenPackageDescription gpd ^.. L.library . traverse
+    | c <- toListOf (L.library . traverse) (C.flattenPackageDescription gpd)
     ] ++
     [ libraryModuleArgs c
-    | c <- C.flattenPackageDescription gpd ^.. L.subLibraries . traverse
+    | c <- toListOf (L.subLibraries . traverse) (C.flattenPackageDescription gpd)
     ] ++
     [ executableModuleArgs c
-    | c <- C.flattenPackageDescription gpd ^.. L.executables . traverse
+    | c <- toListOf (L.executables . traverse) (C.flattenPackageDescription gpd)
     ]

@@ -1,8 +1,9 @@
 {-# LANGUAGE CPP                 #-}
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE MultiWayIf          #-}
-{-# LANGUAGE OverloadedLabels    #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 
 -- | New-style @.travis.yml@ script generator using cabal 1.24's nix-style
 -- tech-preview facilities.
@@ -142,7 +143,7 @@ travisFromConfigFile args opts path = do
         Left []     -> putStrLnErr "panic: checkVersions failed without errors"
         Left (e:es) -> putStrLnErrs (e :| es)
 
-    let prj' | cfgGhcHead config = over (mapped . #pkgJobs) (S.insert GHCHead) prj
+    let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
              | otherwise         = prj
 
     ls <- genTravisFromConfigs args config prj' ghcs
@@ -156,7 +157,7 @@ travisFromConfigFile args opts path = do
     getCabalFiles :: m (Project URI Void (FilePath, GenericPackageDescription))
     getCabalFiles
         | isNothing isCabalProject = do
-            e <- liftIO $ readPackagesOfProject (emptyProject & #prjPackages .~ [path])
+            e <- liftIO $ readPackagesOfProject (emptyProject & field @"prjPackages" .~ [path])
             either (putStrLnErr . renderParseError) return e
         | otherwise = do
             contents <- liftIO $ BS.readFile path

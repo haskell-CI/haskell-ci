@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedLabels  #-}
+{-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications  #-}
 module HaskellCI.Config.HLint where
 
 import HaskellCI.Prelude
@@ -53,15 +54,15 @@ hlintConfigGrammar
     :: (OptionsGrammar g, Applicative (g HLintConfig))
     => g HLintConfig HLintConfig
 hlintConfigGrammar = HLintConfig
-    <$> C.booleanFieldDef  "hlint"                                             #cfgHLintEnabled False
+    <$> C.booleanFieldDef  "hlint"                                             (field @"cfgHLintEnabled") False
         ^^^ help "Enable HLint job"
-    <*> C.optionalFieldDef "hlint-job"                                         #cfgHLintJob HLintJobLatest
+    <*> C.optionalFieldDef "hlint-job"                                         (field @"cfgHLintJob") HLintJobLatest
         ^^^ metahelp "JOB" "Specify HLint job"
-    <*> C.optionalFieldAla "hlint-yaml"    C.FilePathNT                        #cfgHLintYaml
+    <*> C.optionalFieldAla "hlint-yaml"    C.FilePathNT                        (field @"cfgHLintYaml")
         ^^^ metahelp "PATH" "Use specific .hlint.yaml"
-    <*> C.monoidalFieldAla "hlint-options" (C.alaList' C.NoCommaFSep C.Token') #cfgHLintOptions
+    <*> C.monoidalFieldAla "hlint-options" (C.alaList' C.NoCommaFSep C.Token') (field @"cfgHLintOptions")
         ^^^ metahelp "OPTS" "Additional HLint options"
-    <*> C.optionalFieldDef "hlint-version"                                     #cfgHLintVersion defaultHLintVersion
+    <*> C.optionalFieldDef "hlint-version"                                     (field @"cfgHLintVersion") defaultHLintVersion
         ^^^ metahelp "RANGE" "HLint version"
-    <*> C.booleanFieldDef "hlint-download-binary"                              #cfgHLintDownload True
+    <*> C.booleanFieldDef "hlint-download-binary"                              (field @"cfgHLintDownload") True
         ^^^ help "Download HLint binary release"

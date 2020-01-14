@@ -7,7 +7,6 @@ import Prelude ()
 import Prelude.Compat
 
 import Control.Applicative  ((<|>))
-import Data.Generics.Labels ()
 import Data.List            (intercalate)
 
 import qualified Data.Foldable                   as F

@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module HaskellCI.Prelude (
     module Prelude.Compat,
@@ -22,6 +23,7 @@ import Data.Coerce            as X (coerce)
 import Data.Either            as X (partitionEithers)
 import Data.Foldable          as X (for_, toList, traverse_)
 import Data.Function          as X (on)
+import Data.Functor.Compat    as X ((<&>))
 import Data.Functor.Identity  as X (Identity (..))
 import Data.List              as X (foldl', intercalate, isPrefixOf, nub, stripPrefix, tails)
 import Data.List.NonEmpty     as X (NonEmpty (..), groupBy)
@@ -31,9 +33,11 @@ import Data.Set               as X (Set)
 import Data.String            as X (IsString (fromString))
 import Data.Void              as X (Void)
 import GHC.Generics           as X (Generic)
-import Lens.Micro             as X (mapped, over, (&), (.~), (<&>), (^.), (^..))
 import Network.URI            as X (URI, parseURI, uriToString)
 import Text.Read              as X (readMaybe)
+
+import Data.Generics.Lens.Lite  as X (field)
+import Distribution.Compat.Lens as X (over, toListOf, (&), (.~), (^.))
 
 import Distribution.Parsec  as X (simpleParsec)
 import Distribution.Pretty  as X (prettyShow)
@@ -41,11 +45,12 @@ import Distribution.Version as X (Version, VersionRange, anyVersion, mkVersion, 
 
 import qualified Distribution.Version as C
 
-import Data.Generics.Labels ()
-
 -------------------------------------------------------------------------------
 -- Extras
 -------------------------------------------------------------------------------
+
+mapped :: forall f a b. Functor f => (a -> Identity b) -> f a -> Identity (f b)
+mapped = coerce (fmap :: (a -> b) -> f a -> f b)
 
 head :: NonEmpty a -> a
 head (x :| _) = x
