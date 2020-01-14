@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedLabels  #-}
+{-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications  #-}
 module HaskellCI.Config.Doctest where
 
 import HaskellCI.Prelude
@@ -32,13 +33,13 @@ doctestConfigGrammar
     :: (OptionsGrammar g, Applicative (g DoctestConfig))
     => g DoctestConfig DoctestConfig
 doctestConfigGrammar = DoctestConfig
-    <$> rangeField         "doctest"                                              #cfgDoctestEnabled noVersion
+    <$> rangeField         "doctest"                                              (field @"cfgDoctestEnabled") noVersion
         ^^^ help "Enable Doctest job"
-    <*> C.monoidalFieldAla "doctest-options" (C.alaList' C.NoCommaFSep C.Token')  #cfgDoctestOptions
+    <*> C.monoidalFieldAla "doctest-options" (C.alaList' C.NoCommaFSep C.Token')  (field @"cfgDoctestOptions")
         ^^^ metahelp "OPTS" "Additional Doctest options"
-    <*> C.optionalFieldDef "doctest-version"                                      #cfgDoctestVersion defaultDoctestVersion
+    <*> C.optionalFieldDef "doctest-version"                                      (field @"cfgDoctestVersion") defaultDoctestVersion
         ^^^ metahelp "RANGE" "Doctest version"
-    <*> C.monoidalFieldAla "doctest-filter-packages" (C.alaList C.NoCommaFSep)    #cfgDoctestFilterEnvPkgs
+    <*> C.monoidalFieldAla "doctest-filter-packages" (C.alaList C.NoCommaFSep)    (field @"cfgDoctestFilterEnvPkgs")
         ^^^ metahelp "PKGS" "Filter packages from .ghc.environment file"
-    <*> C.monoidalFieldAla "doctest-skip" (C.alaList C.NoCommaFSep)               #cfgDoctestFilterSrcPkgs
+    <*> C.monoidalFieldAla "doctest-skip" (C.alaList C.NoCommaFSep)               (field @"cfgDoctestFilterSrcPkgs")
         ^^^ metahelp "PKGS" "Skip doctests for these packages"

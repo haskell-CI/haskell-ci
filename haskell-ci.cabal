@@ -156,10 +156,9 @@ library haskell-ci-internal
     , base-compat           ^>=0.11
     , cabal-install-parsers ^>=0.1 || ^>=0.2
     , exceptions            ^>=0.10.0
-    , generic-lens          ^>=1.2.0.0
+    , generic-lens-lite     ^>=0.1
     , HsYAML                ^>=0.2.0.0
     , lattices              ^>=2
-    , microlens             ^>=0.4.10
     , network-uri           ^>=2.6.1.0
     , optparse-applicative  ^>=0.15
     , temporary             ^>=1.3

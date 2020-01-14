@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedLabels  #-}
+{-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeApplications  #-}
 module HaskellCI.Config.ConstraintSet where
 
 import HaskellCI.Prelude
@@ -31,9 +32,9 @@ constraintSetGrammar
     :: (C.FieldGrammar g, Applicative (g ConstraintSet))
     => String -> g ConstraintSet ConstraintSet
 constraintSetGrammar name = ConstraintSet name
-    <$> C.optionalFieldDef "ghc"                                           #csGhcVersions anyVersion
-    <*> C.monoidalFieldAla "constraints" (C.alaList' C.CommaVCat NoCommas) #csConstraints
-    <*> C.booleanFieldDef  "tests"                                         #csTests False
-    <*> C.booleanFieldDef  "run-tests"                                     #csRunTests False
-    <*> C.booleanFieldDef  "benchmarks"                                    #csBenchmarks False
-    <*> C.booleanFieldDef  "haddock"                                       #csHaddock False
+    <$> C.optionalFieldDef "ghc"                                           (field @"csGhcVersions") anyVersion
+    <*> C.monoidalFieldAla "constraints" (C.alaList' C.CommaVCat NoCommas) (field @"csConstraints")
+    <*> C.booleanFieldDef  "tests"                                         (field @"csTests") False
+    <*> C.booleanFieldDef  "run-tests"                                     (field @"csRunTests") False
+    <*> C.booleanFieldDef  "benchmarks"                                    (field @"csBenchmarks") False
+    <*> C.booleanFieldDef  "haddock"                                       (field @"csHaddock") False
