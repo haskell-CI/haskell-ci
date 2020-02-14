@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE GADTs #-}
 module HaskellCI.YamlSyntax (
     Yaml (..),
     reann,
@@ -10,13 +10,12 @@ module HaskellCI.YamlSyntax (
     prettyYaml,
     ) where
 
+import HaskellCI.Prelude
 import Prelude ()
-import Prelude.Compat
 
-import Data.Bifunctor     (first)
-import Data.List.NonEmpty (NonEmpty (..))
+import Data.Bits          (shiftR, (.&.))
+import Data.Char          (isControl, isPrint, ord)
 import Data.Monoid        (Endo (..))
-import Data.String        (IsString (..))
 
 import qualified Data.Aeson              as Aeson
 import qualified Data.List.NonEmpty      as NE
@@ -26,6 +25,7 @@ import qualified Data.Text.Lazy          as TL
 import qualified Data.Text.Lazy.Encoding as TLE
 import qualified Data.YAML               as YAML
 
+import Numeric (showHex)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -137,13 +137,13 @@ instance ToYaml Aeson.Value where
 -- # top
 -- nested:
 --   # comment1
---   # 
+--   #
 --   # comment2
---   # 
+--   #
 --   # comment3
 --   foo: bar
 --   # comment4
---   # 
+--   #
 --   # comment5
 --   help: welcome
 --
@@ -183,12 +183,12 @@ prettyYaml comment' = flatten . go where
     comment :: ann -> [String]
     comment = concatMap lines' . comment' where
         lines' "" = [""]
-        lines' s  = lines s 
+        lines' s  = lines s
 
     go :: Yaml ann -> NonEmpty (Int, Line)
     go (YString ann s) = case literal s of
         Just ss -> pure (0, Line (comment ann) ss)
-        Nothing -> pure (0, Line (comment ann) (shows s))
+        Nothing -> pure (0, Line (comment ann) $ encodeYAMLString s)
 
     go (YBool ann b) =
         pure (0, Line (comment ann) (showString $ if b then "true" else "false"))
@@ -206,24 +206,24 @@ prettyYaml comment' = flatten . go where
                 (0, Line (comment ann +++ cs) $ showString "- " . z) :|
                 fmap (first succ) zs
 
-            Left (cs, ls) -> 
+            Left (cs, ls) ->
                 (0, Line (comment ann +++ cs) $ showString "- |") :|
                 [ (1, Line [] (showString l))
                 | l <- ls
-                ]         
+                ]
 
         yss :: [(Int, Line)]
         yss = do
             e <- goSub <$> xs
-            case e of 
+            case e of
                 Right ((_, Line cs z) :| zs) ->
                     (0, Line cs (showString "- " . z)) :
                     fmap (first succ) zs
-                Left (cs, ls) -> 
+                Left (cs, ls) ->
                     (0, Line cs $ showString "- |") :
                     [ (1, Line [] (showString l))
                     | l <- ls
-                    ]  
+                    ]
 
     go (YKeyValues ann [])     = pure (0, Line (comment ann) (showString "{}"))
     go (YKeyValues ann (x:xs)) = kv (comment ann) x <+> (xs >>= NE.toList . kv [])
@@ -236,14 +236,14 @@ prettyYaml comment' = flatten . go where
                     showString k . showString ": " . s) :|
                     []
             -- multiline non escaped
-            Left (cs', ls) -> 
+            Left (cs', ls) ->
                 (0, Line (cs +++ comment ann' +++ cs') $
                     showString k . showString ": |") :|
                     [ (1, Line [] (showString l))
                     | l <- ls
                     ]
             -- multiline
-            Right vs -> 
+            Right vs ->
                 (0, Line (cs +++ comment ann') $ showString k . showChar ':') :|
                 NE.toList (fmap (first succ) vs)
 
@@ -258,11 +258,11 @@ prettyYaml comment' = flatten . go where
         Just ss -> Right (pure (0, Line (comment ann) ss))
         Nothing -> case multiline s of
             Just ll -> Left (comment ann, ll)
-            Nothing -> Right (pure (0, Line (comment ann) (shows s)))
+            Nothing -> Right (pure (0, Line (comment ann) $ encodeYAMLString s))
     goSub y = Right (go y)
-        
+
     -- given "foo" can it be encode without quotes:
-    -- 
+    --
     --    foo
     --
     literal :: String -> Maybe ShowS
@@ -272,7 +272,7 @@ prettyYaml comment' = flatten . go where
       where
         t  = T.pack s
         bs = TE.encodeUtf8 t
-        
+
     -- when not top level, we can encode "foo\nbar\n" as
     --
     --     - |
@@ -315,3 +315,52 @@ prettyYaml comment' = flatten . go where
 
 -- a 'Line' is comments before in and actual text after!
 data Line = Line [String] ShowS
+
+-- | Encode string to our best knowledge YAML string should be encoded.
+-- Note: different than JSON
+--
+-- >>> putStrLn $ encodeYAMLString "\NULabcd\n" ""
+-- "\x00abcd\n"
+--
+encodeYAMLString :: String -> ShowS
+encodeYAMLString s
+    = showChar '"'
+    . appEndo (foldMap (Endo . f) s)
+    . showChar '"'
+  where
+    f :: Char -> ShowS
+    f '\\' = showString "\\\\"
+    f '\n' = showString "\\n"
+    f '"'  = showString "\\\""
+    f c | isControl c || ord c >= 128 || not (isPrint c)
+        = hexChar c
+        | otherwise
+        = showChar c
+
+-- | Produce a hex encoding of a character.
+-- Uses two hex chars if they are enough, otherwise four.
+-- For out of BMP characters, do nothing.
+--
+-- >>> putStrLn $ hexChar ' ' ""
+-- \x20
+--
+-- >>> putStrLn $ hexChar '\1234' ""
+-- \x04d2
+--
+hexChar :: Char -> ShowS
+hexChar c
+    | n > 65536 = showChar c
+    | n > 256   = showString "\\x"
+                . showHexDigit (shiftR n 16 .&. 0xf)
+                . showHexDigit (shiftR n  8 .&. 0xf)
+                . showHexDigit (shiftR n  4 .&. 0xf)
+                . showHexDigit (shiftR n  0 .&. 0xf)
+    | otherwise = showString "\\x"
+                . showHexDigit (shiftR n  4 .&. 0xf)
+                . showHexDigit (shiftR n  0 .&. 0xf)
+  where
+    n :: Int
+    n = ord c
+
+    showHexDigit :: Int -> ShowS
+    showHexDigit = showHex
