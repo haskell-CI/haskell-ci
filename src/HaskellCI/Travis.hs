@@ -440,7 +440,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 { tiChannels = cfgIrcChannels
                 , tiSkipJoin = True
                 , tiTemplate =
-                    [ "\"\\x0313" ++ projectName ++ "\\x03/\\x0306%{branch}\\x03 \\x0314%{commit}\\x03 %{build_url} %{message}\""
+                    [ "\x0313" ++ projectName ++ "\x03/\x0306%{branch}\x03 \x0314%{commit}\x03 %{build_url} %{message}"
                     ]
                 }
             }

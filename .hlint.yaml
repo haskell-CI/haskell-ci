@@ -6,6 +6,7 @@
 - ignore: {name: Redundant do}
 - ignore: {name: Use tuple-section}
 - ignore: {name: Use const}
+- ignore: {name: Too strict maybe}
 - ignore: {name: "Use :"}
 - ignore: {name: "Move guards forward"}
 - ignore: {name: "Avoid lambda using `infix`"}
