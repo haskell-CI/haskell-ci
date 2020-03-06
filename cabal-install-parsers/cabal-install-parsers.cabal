@@ -20,7 +20,7 @@ author:             Herbert Valerio Riedel, Oleg Grenrus
 maintainer:         hvr@gnu.org, oleg.grenrus@iki.fi
 category:           Development
 build-type:         Simple
-tested-with:        GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.2
+tested-with:        GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.3 || ==8.10.1
 extra-source-files:
   Changelog.md
   fixtures/*.project
@@ -52,7 +52,7 @@ library
     , base          >=4.10     && <4.14
     , binary        ^>=0.8.5
     , bytestring    ^>=0.10.8.1
-    , Cabal         ^>=3.0.0.0
+    , Cabal         ^>=3.0.0.0 || ^>=3.2.0.0
     , containers    ^>=0.5.7.1 || ^>=0.6.0.1
     , deepseq       ^>=1.4.2.0
     , directory     ^>=1.3.0.0

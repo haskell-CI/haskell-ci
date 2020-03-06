@@ -34,8 +34,8 @@ jobs:
     - compiler: ghc-8.10.1
       addons: {"apt":{"sources":[{"sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu xenial main","key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286"}],"packages":["ghc-8.10.1","cabal-install-3.2"]}}
       os: linux
-    - compiler: ghc-8.8.2
-      addons: {"apt":{"sources":[{"sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu xenial main","key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286"}],"packages":["ghc-8.8.2","cabal-install-3.0"]}}
+    - compiler: ghc-8.8.3
+      addons: {"apt":{"sources":[{"sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu xenial main","key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286"}],"packages":["ghc-8.8.3","cabal-install-3.0"]}}
       os: linux
     - compiler: ghc-8.6.5
       addons: {"apt":{"sources":[{"sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu xenial main","key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286"}],"packages":["ghc-8.6.5","cabal-install-3.0"]}}
@@ -128,7 +128,7 @@ install:
   - touch cabal.project
   - |
     echo "packages: ." >> cabal.project
-    if [ $HCNUMVER -lt 81000 ] || [ $HCNUMVER -gt 81001 ] ; then echo "packages: cabal-install-parsers" >> cabal.project ; fi
+    echo "packages: cabal-install-parsers" >> cabal.project
   - |
     echo "package haskell-ci"            >> cabal.project
     echo "  ghc-options: -Werror"        >> cabal.project
@@ -148,8 +148,8 @@ install:
   - ${CABAL} v2-freeze $WITHCOMPILER ${TEST} ${BENCH}
   - "cat cabal.project.freeze | sed -E 's/^(constraints: *| *)//' | sed 's/any.//'"
   - rm  cabal.project.freeze
-  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} --dep -j2 all
-  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --dep -j2 all
+  - travis_wait 40 ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} --dep -j2 all
+  - travis_wait 40 ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --dep -j2 all
 script:
   - DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)
   # Packaging...
@@ -166,7 +166,7 @@ script:
   - touch cabal.project
   - |
     echo "packages: ${PKGDIR_haskell_ci}" >> cabal.project
-    if [ $HCNUMVER -lt 81000 ] || [ $HCNUMVER -gt 81001 ] ; then echo "packages: ${PKGDIR_cabal_install_parsers}" >> cabal.project ; fi
+    echo "packages: ${PKGDIR_cabal_install_parsers}" >> cabal.project
   - |
     echo "package haskell-ci"            >> cabal.project
     echo "  ghc-options: -Werror"        >> cabal.project
@@ -192,14 +192,14 @@ script:
   # Doctest...
   - perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
   - (cd ${PKGDIR_haskell_ci} && doctest --fast -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src)
-  - if [ $HCNUMVER -lt 81000 ] || [ $HCNUMVER -gt 81001 ] ; then (cd ${PKGDIR_cabal_install_parsers} && doctest --fast src) ; fi
+  - (cd ${PKGDIR_cabal_install_parsers} && doctest --fast src)
   # HLint..
   - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src) ; fi
   - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${TOP}/.hlint.yaml cli) ; fi
   - if [ $HCNUMVER -ge 80800 ] && [ $HCNUMVER -lt 81000 ] ; then (cd ${PKGDIR_cabal_install_parsers} && hlint -h ${TOP}/.hlint.yaml src) ; fi
   # cabal check...
   - (cd ${PKGDIR_haskell_ci} && ${CABAL} -vnormal check)
-  - if [ $HCNUMVER -lt 81000 ] || [ $HCNUMVER -gt 81001 ] ; then (cd ${PKGDIR_cabal_install_parsers} && ${CABAL} -vnormal check) ; fi
+  - (cd ${PKGDIR_cabal_install_parsers} && ${CABAL} -vnormal check)
   # haddock...
   - ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK ${TEST} ${BENCH} all
   # Building without installed constraints for packages in global-db...

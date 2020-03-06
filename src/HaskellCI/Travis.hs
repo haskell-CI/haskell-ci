@@ -273,10 +273,10 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- Install dependencies
         when cfgInstallDeps $ do
             -- install dependencies
-            sh $ cabal "v2-build $WITHCOMPILER ${TEST} ${BENCH} --dep -j2 all"
+            sh $ cabalTW "v2-build $WITHCOMPILER ${TEST} ${BENCH} --dep -j2 all"
 
             -- install dependencies for no-test-no-bench
-            shForJob (Range cfgNoTestsNoBench) $ cabal "v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --dep -j2 all"
+            shForJob (Range cfgNoTestsNoBench) $ cabalTW "v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --dep -j2 all"
 
     -- Here starts the actual work to be performed for the package under test;
     -- any command which exits with a non-zero exit code causes the build to fail.
@@ -561,6 +561,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     cabal :: String -> String
     cabal cmd = "${CABAL} " ++ cmd
+
+    cabalTW :: String -> String
+    cabalTW cmd = "travis_wait 40 ${CABAL} " ++ cmd
 
     cabalInTmp :: String -> String
     cabalInTmp cmd = "(cd /tmp && " ++ cabal cmd ++ ")"
