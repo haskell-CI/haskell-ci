@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               cabal-install-parsers
-version:            0.2.1
+version:            0.3
 synopsis:           Utilities to work with cabal-install files
 description:
   @cabal-install-parsers@ provides parsers for @cabal-install@ files:
@@ -109,6 +109,7 @@ test-suite cabal-parsers-golden
     , containers
     , directory
     , filepath
+    , pretty
 
   -- dependencies needing explicit constraints
   build-depends:

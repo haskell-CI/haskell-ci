@@ -594,30 +594,8 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- copy files from original cabal.project
         case cfgCopyFields of
             CopyFieldsNone -> pure ()
-            CopyFieldsAll  -> traverse_ item (prjOrigFields prj)
-            CopyFieldsSome -> do
-                for_ (prjConstraints prj) $ \xs -> do
-                    let s = concat (lines xs)
-                    item $ C.PrettyField () "constraints" $ PP.text s
-
-                for_ (prjAllowNewer prj) $ \xs -> do
-                    let s = concat (lines xs)
-                    item $ C.PrettyField () "allow-newer" $ PP.text s
-
-                when (prjReorderGoals prj) $
-                    item $ C.PrettyField () "reorder-goals" $ PP.text "True"
-
-                for_ (prjMaxBackjumps prj) $ \bj ->
-                    item $ C.PrettyField () "max-backjumps" $ PP.text $ show bj
-
-                case prjOptimization prj of
-                    OptimizationOn      -> return ()
-                    OptimizationOff     -> item $ C.PrettyField () "optimization" $ PP.text "False"
-                    OptimizationLevel l -> item $ C.PrettyField () "optimization" $ PP.text $ show l
-
-                for_ (prjSourceRepos prj) $ \repo ->
-                    item $ C.PrettySection () "source-repository-package" [] $
-                        C.prettyFieldGrammar C.cabalSpecLatest sourceRepositoryPackageGrammar (srpHoist toList repo)
+            CopyFieldsSome -> copyFieldsSome
+            CopyFieldsAll  -> copyFieldsSome *> traverse_ item (prjOtherFields prj)
 
         -- local ghc-options
         unless (null cfgLocalGhcOptions) $ for_ pkgs $ \Pkg{pkgName} -> do
@@ -627,6 +605,31 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
         -- raw-project is after local-ghc-options so we can override per package.
         traverse_ item cfgRawProject
+
+    copyFieldsSome :: ListBuilder (C.PrettyField ()) ()
+    copyFieldsSome = do
+        for_ (prjConstraints prj) $ \xs -> do
+            let s = concat (lines xs)
+            item $ C.PrettyField () "constraints" $ PP.text s
+
+        for_ (prjAllowNewer prj) $ \xs -> do
+            let s = concat (lines xs)
+            item $ C.PrettyField () "allow-newer" $ PP.text s
+
+        when (prjReorderGoals prj) $
+            item $ C.PrettyField () "reorder-goals" $ PP.text "True"
+
+        for_ (prjMaxBackjumps prj) $ \bj ->
+            item $ C.PrettyField () "max-backjumps" $ PP.text $ show bj
+
+        case prjOptimization prj of
+            OptimizationOn      -> return ()
+            OptimizationOff     -> item $ C.PrettyField () "optimization" $ PP.text "False"
+            OptimizationLevel l -> item $ C.PrettyField () "optimization" $ PP.text $ show l
+
+        for_ (prjSourceRepos prj) $ \repo ->
+            item $ C.PrettySection () "source-repository-package" [] $
+                C.prettyFieldGrammar C.cabalSpecLatest sourceRepositoryPackageGrammar (srpHoist toList repo)
 
     generateCabalProject :: Bool -> ShM ()
     generateCabalProject dist = do

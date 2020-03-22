@@ -78,11 +78,11 @@ data Project uri opt pkg = Project
     , prjMaxBackjumps :: Maybe Int
     , prjOptimization :: Optimization
     , prjSourceRepos  :: [SourceRepositoryPackage Maybe]
-    , prjOrigFields   :: [C.PrettyField ()] -- ^ original fields
+    , prjOtherFields  :: [C.PrettyField ()] -- ^ other fields
     }
   deriving (Functor, Foldable, Traversable, Generic)
 
--- | Doesn't compare prjOrigFields
+-- | Doesn't compare prjOtherFields
 instance (Eq uri, Eq opt, Eq pkg) => Eq (Project uri opt pkg) where
     x == y = and
         [ eqOn prjPackages
@@ -168,9 +168,9 @@ parseProject = parseWith $ \fields0 -> do
   where
     knownFields = C.fieldGrammarKnownFieldList $ grammar []
 
-    parse origFields fields sections = do
-        let prettyOrigFields = map void $ C.fromParsecFields $ filter notPackages origFields
-        prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOrigFields
+    parse otherFields fields sections = do
+        let prettyOtherFields = map void $ C.fromParsecFields $ filter otherFieldName otherFields
+        prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOtherFields
         foldl' (&) prj <$> traverse parseSec (concat sections)
 
     parseSec :: C.Section C.Position -> C.ParseResult (Project Void String String -> Project Void String String)
@@ -181,12 +181,12 @@ parseProject = parseWith $ \fields0 -> do
 
     parseSec _ = return id
 
-notPackages :: C.Field ann -> Bool
-notPackages (C.Field (C.Name _ "packages") _) = False
-notPackages _                                 = True
+otherFieldName :: C.Field ann -> Bool
+otherFieldName (C.Field (C.Name _ fn) _) = fn `notElem` C.fieldGrammarKnownFieldList (grammar [])
+otherFieldName _                         = True
 
 grammar :: [C.PrettyField ()] -> C.ParsecFieldGrammar (Project Void String String) (Project Void String String)
-grammar origFields = Project
+grammar otherFields = Project
     <$> C.monoidalFieldAla "packages"          (C.alaList' C.FSep PackageLocation) prjPackagesL
     <*> C.monoidalFieldAla "optional-packages" (C.alaList' C.FSep PackageLocation) prjOptPackagesL
     <*> pure []
@@ -196,7 +196,7 @@ grammar origFields = Project
     <*> C.optionalFieldAla "max-backjumps"     Int'                                prjMaxBackjumpsL
     <*> C.optionalFieldDef "optimization"                                          prjOptimizationL OptimizationOn
     <*> pure []
-    <*> pure origFields
+    <*> pure otherFields
 
 -------------------------------------------------------------------------------
 -- Lenses
