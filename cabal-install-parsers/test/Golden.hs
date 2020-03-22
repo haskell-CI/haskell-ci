@@ -6,10 +6,12 @@ import Data.TreeDiff.Golden       (ediffGolden)
 import System.FilePath            ((-<.>), (</>))
 import Test.Tasty                 (TestName, TestTree, defaultMain, testGroup)
 import Test.Tasty.Golden.Advanced (goldenTest)
+import Text.PrettyPrint           (Doc, render)
 
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 
+import Distribution.Fields (PrettyField(..))
 import Distribution.Types.SourceRepo (RepoKind, RepoType, SourceRepo)
 
 import Cabal.Optimization
@@ -33,7 +35,6 @@ main = defaultMain $ testGroup "golden"
 -- orphans
 -------------------------------------------------------------------------------
 
--- skip orig fields
 instance (ToExpr uri, ToExpr opt, ToExpr pkg) => ToExpr (Project uri opt pkg) where
     toExpr prj = Rec "Project" $ Map.fromList
         [ field "prjPackages"     prjPackages
@@ -45,6 +46,7 @@ instance (ToExpr uri, ToExpr opt, ToExpr pkg) => ToExpr (Project uri opt pkg) wh
         , field "prjMaxBackjumps" prjMaxBackjumps
         , field "prjOptimization" prjOptimization
         , field "prjSourceRepos"  prjSourceRepos
+        , field "prjOtherFields"  prjOtherFields
         ]
       where
         field name f = (name, toExpr (f prj))
@@ -55,3 +57,10 @@ instance ToExpr SourceRepo
 instance ToExpr RepoKind
 instance ToExpr RepoType
 instance ToExpr (f FilePath) => ToExpr (SourceRepositoryPackage f)
+
+instance ToExpr Doc where
+  toExpr = toExpr . render
+
+instance ToExpr (PrettyField ann) where
+  toExpr (PrettyField _ fn d)       = App "PrettyField"   [toExpr fn, toExpr d]
+  toExpr (PrettySection _ fn ds ps) = App "PrettySection" [toExpr fn, toExpr ds, toExpr ps]

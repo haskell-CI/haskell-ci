@@ -2,9 +2,15 @@ Project
   {prjAllowNewer = [],
    prjConstraints = [],
    prjMaxBackjumps = Nothing,
-   prjOptPackages = [],
+   prjOptPackages = ["cabal-parsers"],
    prjOptimization = OptimizationOn,
-   prjPackages = [".", "cabal-parsers"],
+   prjOtherFields = [PrettyField "tests" "true",
+                     PrettySection
+                       "package"
+                       ["haskell-ci"]
+                       [PrettyField "ghc-options" "-Wall",
+                        PrettyField "ghc-options" "-Werror"]],
+   prjPackages = ["."],
    prjReorderGoals = False,
    prjSourceRepos = [],
    prjUriPackages = []}

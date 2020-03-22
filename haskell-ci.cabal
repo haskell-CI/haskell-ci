@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.9.20200306
+version:            0.9.20200321
 synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@haskell-ci@) for [Travis-CI](https://travis-ci.org/) for continuous-integration testing of Haskell Cabal packages.
@@ -154,7 +154,7 @@ library haskell-ci-internal
   build-depends:
     , aeson                 ^>=1.4.2.0
     , base-compat           ^>=0.11
-    , cabal-install-parsers ^>=0.1 || ^>=0.2
+    , cabal-install-parsers ^>=0.3
     , exceptions            ^>=0.10.0
     , generic-lens-lite     ^>=0.1
     , HsYAML                ^>=0.2.0.0
