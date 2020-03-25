@@ -9,3 +9,7 @@ tests: True
 package haskell-ci
   ghc-options: -Wall
   ghc-options: -Werror
+
+-- GHC-8.10
+-----------
+allow-newer: HsYAML:base

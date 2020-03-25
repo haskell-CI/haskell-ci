@@ -104,7 +104,6 @@ jobs:
       os: linux
   allow_failures:
     - compiler: ghc-head
-    - compiler: ghc-8.10.1
 before_install:
   - HC=$(echo "/opt/$CC/bin/ghc" | sed 's/-/\//')
   - WITHCOMPILER="-w $HC"
@@ -122,7 +121,7 @@ before_install:
   - TEST=--enable-tests
   - BENCH=--enable-benchmarks
   - HEADHACKAGE=false
-  - if [ $HCNUMVER -ge 81000 ] ; then HEADHACKAGE=true ; fi
+  - if [ $HCNUMVER -gt 81001 ] ; then HEADHACKAGE=true ; fi
   - rm -f $CABALHOME/config
   - |
     echo "verbose: normal +nowrap +markoutput"          >> $CABALHOME/config
