@@ -39,7 +39,7 @@ import HaskellCI.ParsecUtils
 import HaskellCI.TestedWith
 
 defaultHeadHackage :: VersionRange
-defaultHeadHackage = C.orLaterVersion (C.mkVersion [8,9])
+defaultHeadHackage = C.orLaterVersion (C.mkVersion [8,11])
 
 -- TODO: split other blocks like DoctestConfig
 data Config = Config
