@@ -157,6 +157,18 @@ install:
     echo ""                                        >> cabal.project
     echo "package servant"                         >> cabal.project
     echo "  tests: False"                          >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "package servant"                         >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods"  >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "package servant-client"                  >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods"  >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "package servant-docs"                    >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods"  >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "package servant-server"                  >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods"  >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant|servant-client|servant-docs|servant-server)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -197,6 +209,18 @@ script:
     echo ""                                        >> cabal.project
     echo "package servant"                         >> cabal.project
     echo "  tests: False"                          >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "package servant"                         >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods"  >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "package servant-client"                  >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods"  >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "package servant-docs"                    >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods"  >> cabal.project
+    echo ""                                        >> cabal.project
+    echo "package servant-server"                  >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods"  >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant|servant-client|servant-docs|servant-server)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true

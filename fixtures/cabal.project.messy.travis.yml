@@ -168,6 +168,17 @@ install:
     echo "packages: servant-docs" >> cabal.project
     echo "packages: servant-server" >> cabal.project
   - |
+    echo "package servant"                        >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods" >> cabal.project
+    echo ""                                       >> cabal.project
+    echo "package servant-client"                 >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods" >> cabal.project
+    echo ""                                       >> cabal.project
+    echo "package servant-docs"                   >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods" >> cabal.project
+    echo ""                                       >> cabal.project
+    echo "package servant-server"                 >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods" >> cabal.project
   - "for pkg in deepseq; do echo \"constraints: $pkg installed\" >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -202,6 +213,17 @@ script:
     echo "packages: ${PKGDIR_servant_docs}" >> cabal.project
     echo "packages: ${PKGDIR_servant_server}" >> cabal.project
   - |
+    echo "package servant"                        >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods" >> cabal.project
+    echo ""                                       >> cabal.project
+    echo "package servant-client"                 >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods" >> cabal.project
+    echo ""                                       >> cabal.project
+    echo "package servant-docs"                   >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods" >> cabal.project
+    echo ""                                       >> cabal.project
+    echo "package servant-server"                 >> cabal.project
+    echo "  ghc-options: -Werror=missing-methods" >> cabal.project
   - "for pkg in deepseq; do echo \"constraints: $pkg installed\" >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true

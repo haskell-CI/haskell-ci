@@ -77,6 +77,7 @@ data Config = Config
     , cfgApt                 :: S.Set String
     , cfgTravisPatches       :: [FilePath]
     , cfgInsertVersion       :: !Bool
+    , cfgErrorMissingMethods :: !Bool
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
@@ -140,6 +141,7 @@ emptyConfig = Config
     , cfgTravisPatches   = []
     , cfgInsertVersion   = True
     , cfgRawProject      = []
+    , cfgErrorMissingMethods = True
     }
 
 -------------------------------------------------------------------------------
@@ -218,6 +220,8 @@ configGrammar = Config
         ^^^ metahelp "PATCH" ".patch files to apply to the generated Travis YAML file"
     <*> C.booleanFieldDef "insert-version"                                                    (field @"cfgInsertVersion") True
         ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
+    <*> C.booleanFieldDef "error-missing-methods"                                             (field @"cfgErrorMissingMethods") True
+        ^^^ help "Insert -Werror=missing-methods for local packages"
     <*> C.blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar
     <*> C.blurFieldGrammar (field @"cfgHLint")   hlintConfigGrammar
     <*> pure [] -- constraint sets
