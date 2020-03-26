@@ -597,9 +597,12 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             CopyFieldsSome -> copyFieldsSome
             CopyFieldsAll  -> copyFieldsSome *> traverse_ item (prjOtherFields prj)
 
+        let localGhcOptions = cfgLocalGhcOptions
+                ++ [ "-Werror=missing-methods" | cfgErrorMissingMethods ]
+
         -- local ghc-options
-        unless (null cfgLocalGhcOptions) $ for_ pkgs $ \Pkg{pkgName} -> do
-            let s = unwords $ map (show . C.showToken) cfgLocalGhcOptions
+        unless (null localGhcOptions) $ for_ pkgs $ \Pkg{pkgName} -> do
+            let s = unwords $ map (show . C.showToken) localGhcOptions
             item $ C.PrettySection () "package" [PP.text pkgName] $ buildList $
                 item $ C.PrettyField () "ghc-options" $ PP.text s
 
