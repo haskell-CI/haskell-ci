@@ -124,19 +124,23 @@ install:
   - |
     echo "packages: ." >> cabal.project
     echo "packages: cabal-install-parsers" >> cabal.project
+  - echo 'package haskell-ci' >> cabal.project
+  - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
+  - echo 'package cabal-install-parsers' >> cabal.project
+  - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
   - |
-    echo "allow-newer: HsYAML:base"                       >> cabal.project
-    echo ""                                               >> cabal.project
-    echo "package haskell-ci"                             >> cabal.project
-    echo "  ghc-options: -Werror -Werror=missing-methods" >> cabal.project
-    echo ""                                               >> cabal.project
-    echo "package cabal-install-parsers"                  >> cabal.project
-    echo "  ghc-options: -Werror -Werror=missing-methods" >> cabal.project
-    echo ""                                               >> cabal.project
-    echo "keep-going:  False"                             >> cabal.project
-    echo ""                                               >> cabal.project
-    echo "package bytestring"                             >> cabal.project
-    echo "  tests: False"                                 >> cabal.project
+    echo "allow-newer: HsYAML:base"      >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package haskell-ci"            >> cabal.project
+    echo "  ghc-options: -Werror"        >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package cabal-install-parsers" >> cabal.project
+    echo "  ghc-options: -Werror"        >> cabal.project
+    echo ""                              >> cabal.project
+    echo "keep-going:  False"            >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package bytestring"            >> cabal.project
+    echo "  tests: False"                >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(Cabal|cabal-install-parsers|haskell-ci)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -164,19 +168,23 @@ script:
   - |
     echo "packages: ${PKGDIR_haskell_ci}" >> cabal.project
     echo "packages: ${PKGDIR_cabal_install_parsers}" >> cabal.project
+  - echo 'package haskell-ci' >> cabal.project
+  - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
+  - echo 'package cabal-install-parsers' >> cabal.project
+  - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
   - |
-    echo "allow-newer: HsYAML:base"                       >> cabal.project
-    echo ""                                               >> cabal.project
-    echo "package haskell-ci"                             >> cabal.project
-    echo "  ghc-options: -Werror -Werror=missing-methods" >> cabal.project
-    echo ""                                               >> cabal.project
-    echo "package cabal-install-parsers"                  >> cabal.project
-    echo "  ghc-options: -Werror -Werror=missing-methods" >> cabal.project
-    echo ""                                               >> cabal.project
-    echo "keep-going:  False"                             >> cabal.project
-    echo ""                                               >> cabal.project
-    echo "package bytestring"                             >> cabal.project
-    echo "  tests: False"                                 >> cabal.project
+    echo "allow-newer: HsYAML:base"      >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package haskell-ci"            >> cabal.project
+    echo "  ghc-options: -Werror"        >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package cabal-install-parsers" >> cabal.project
+    echo "  ghc-options: -Werror"        >> cabal.project
+    echo ""                              >> cabal.project
+    echo "keep-going:  False"            >> cabal.project
+    echo ""                              >> cabal.project
+    echo "package bytestring"            >> cabal.project
+    echo "  tests: False"                >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(Cabal|cabal-install-parsers|haskell-ci)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
