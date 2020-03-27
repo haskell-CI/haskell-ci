@@ -597,12 +597,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             CopyFieldsSome -> copyFieldsSome
             CopyFieldsAll  -> copyFieldsSome *> traverse_ item (prjOtherFields prj)
 
-        let localGhcOptions = cfgLocalGhcOptions
-                ++ [ "-Werror=missing-methods" | cfgErrorMissingMethods ]
-
         -- local ghc-options
-        unless (null localGhcOptions) $ for_ pkgs $ \Pkg{pkgName} -> do
-            let s = unwords $ map (show . C.showToken) localGhcOptions
+        unless (null cfgLocalGhcOptions) $ for_ pkgs $ \Pkg{pkgName} -> do
+            let s = unwords $ map (show . C.showToken) cfgLocalGhcOptions
             item $ C.PrettySection () "package" [PP.text pkgName] $ buildList $
                 item $ C.PrettyField () "ghc-options" $ PP.text s
 
@@ -648,6 +645,12 @@ makeTravis argv Config {..} prj JobVersions {..} = do
             , cmd <- toList $ forJob (RangePoints $ pkgJobs pkg) $
                 "echo \"packages: " ++ p ++ "\" >> cabal.project"
             ]
+
+        when cfgErrorMissingMethods $ for_ pkgs $ \Pkg{pkgName,pkgJobs} -> do
+            shForJob (Range (C.orLaterVersion (C.mkVersion [8,0])) /\ RangePoints pkgJobs) $
+                "echo 'package " ++ pkgName ++ "' >> cabal.project"
+            shForJob (Range (C.orLaterVersion (C.mkVersion [8,0])) /\ RangePoints pkgJobs) $
+                "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
 
         cat "cabal.project" $ lines $ C.showFields' (const []) 2 $ generateCabalProjectFields dist
 
