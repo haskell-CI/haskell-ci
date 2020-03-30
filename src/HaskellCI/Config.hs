@@ -32,6 +32,7 @@ import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
+import HaskellCI.Config.PackageScope
 import HaskellCI.Config.Ubuntu
 import HaskellCI.Newtypes
 import HaskellCI.OptionsGrammar
@@ -77,7 +78,7 @@ data Config = Config
     , cfgApt                 :: S.Set String
     , cfgTravisPatches       :: [FilePath]
     , cfgInsertVersion       :: !Bool
-    , cfgErrorMissingMethods :: !Bool
+    , cfgErrorMissingMethods :: !PackageScope
     , cfgDoctest             :: !DoctestConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
@@ -141,7 +142,7 @@ emptyConfig = Config
     , cfgTravisPatches   = []
     , cfgInsertVersion   = True
     , cfgRawProject      = []
-    , cfgErrorMissingMethods = True
+    , cfgErrorMissingMethods = PackageScopeLocal
     }
 
 -------------------------------------------------------------------------------
@@ -220,8 +221,8 @@ configGrammar = Config
         ^^^ metahelp "PATCH" ".patch files to apply to the generated Travis YAML file"
     <*> C.booleanFieldDef "insert-version"                                                    (field @"cfgInsertVersion") True
         ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
-    <*> C.booleanFieldDef "error-missing-methods"                                             (field @"cfgErrorMissingMethods") True
-        ^^^ help "Insert -Werror=missing-methods for local packages"
+    <*> C.optionalFieldDef "error-missing-methods"                                             (field @"cfgErrorMissingMethods") PackageScopeLocal
+        ^^^ metahelp "PKGSCOPE" "Insert -Werror=missing-methods for package scope"
     <*> C.blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar
     <*> C.blurFieldGrammar (field @"cfgHLint")   hlintConfigGrammar
     <*> pure [] -- constraint sets

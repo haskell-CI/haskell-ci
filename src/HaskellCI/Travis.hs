@@ -44,6 +44,7 @@ import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
+import HaskellCI.Config.PackageScope
 import HaskellCI.Config.Ubuntu
 import HaskellCI.Jobs
 import HaskellCI.List
@@ -646,11 +647,16 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 "echo \"packages: " ++ p ++ "\" >> cabal.project"
             ]
 
-        when cfgErrorMissingMethods $ for_ pkgs $ \Pkg{pkgName,pkgJobs} -> do
-            shForJob (Range (C.orLaterVersion (C.mkVersion [8,0])) /\ RangePoints pkgJobs) $
-                "echo 'package " ++ pkgName ++ "' >> cabal.project"
-            shForJob (Range (C.orLaterVersion (C.mkVersion [8,0])) /\ RangePoints pkgJobs) $
-                "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
+        case cfgErrorMissingMethods of
+            PackageScopeNone  -> pure ()
+            PackageScopeLocal -> for_ pkgs $ \Pkg{pkgName,pkgJobs} -> do
+                shForJob (Range (C.orLaterVersion (C.mkVersion [8,0])) /\ RangePoints pkgJobs) $
+                    "echo 'package " ++ pkgName ++ "' >> cabal.project"
+                shForJob (Range (C.orLaterVersion (C.mkVersion [8,0])) /\ RangePoints pkgJobs) $
+                    "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
+            PackageScopeAll   -> do
+                sh "echo 'package *' >> cabal.project"
+                sh "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
 
         cat "cabal.project" $ lines $ C.showFields' (const []) 2 $ generateCabalProjectFields dist
 
