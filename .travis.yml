@@ -124,9 +124,7 @@ install:
   - |
     echo "packages: ." >> cabal.project
     echo "packages: cabal-install-parsers" >> cabal.project
-  - echo 'package haskell-ci' >> cabal.project
-  - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
-  - echo 'package cabal-install-parsers' >> cabal.project
+  - echo 'package *' >> cabal.project
   - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
   - |
     echo "allow-newer: HsYAML:base"      >> cabal.project
@@ -168,9 +166,7 @@ script:
   - |
     echo "packages: ${PKGDIR_haskell_ci}" >> cabal.project
     echo "packages: ${PKGDIR_cabal_install_parsers}" >> cabal.project
-  - echo 'package haskell-ci' >> cabal.project
-  - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
-  - echo 'package cabal-install-parsers' >> cabal.project
+  - echo 'package *' >> cabal.project
   - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
   - |
     echo "allow-newer: HsYAML:base"      >> cabal.project

@@ -47,6 +47,9 @@ installed: +all -Cabal
 -- Options for local packages
 local-ghc-options: -Werror
 
+-- Add -Werror-missing-options to all, local (default), or none of the packages.
+error-missing-methods: all
+
 -- Build only these branches
 branches: master
 
