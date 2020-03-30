@@ -5,7 +5,7 @@ module HaskellCI.Config.Doctest where
 
 import HaskellCI.Prelude
 
-import Distribution.Version (withinVersion)
+import Distribution.Version (majorBoundVersion)
 
 import qualified Distribution.FieldGrammar      as C
 import qualified Distribution.Parsec.Newtypes   as C
@@ -23,7 +23,7 @@ data DoctestConfig = DoctestConfig
   deriving (Show, Generic)
 
 defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = withinVersion (mkVersion [0,16,2])
+defaultDoctestVersion = majorBoundVersion (mkVersion [0,16,3])
 
 -------------------------------------------------------------------------------
 -- Grammar

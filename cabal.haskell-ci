@@ -64,7 +64,7 @@ hlint-download-binary: True
 -- hlint-version: ==2.2.*
 
 -- Run doctest (on GHC-8.0+ which support .ghc.environment)
-doctest: <8.10
+doctest: True
 doctest-options: --fast
 -- doctest-version: ==0.13.*
 doctest-filter-packages: base-compat-batteries
