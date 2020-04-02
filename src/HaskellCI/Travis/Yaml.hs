@@ -50,8 +50,9 @@ newtype TravisBranches = TravisBranches
     }
   deriving Show
 
-newtype TravisNotifications = TravisNotifications
-    { tnIRC :: Maybe TravisIRC
+data TravisNotifications = TravisNotifications
+    { tnIRC   :: Maybe TravisIRC
+    , tnEmail :: Bool
     }
   deriving Show
 
@@ -181,8 +182,9 @@ instance ToYaml TravisBranches where
         ]
 
 instance ToYaml TravisNotifications where
-    toYaml TravisNotifications {..} = ykeyValuesFilt [] $ buildList $
+    toYaml TravisNotifications {..} = ykeyValuesFilt [] $ buildList $ do
         for_ tnIRC $ \y -> item $ "irc" ~> toYaml y
+        unless tnEmail $ item $ "email" ~> toYaml False
 
 instance ToYaml TravisIRC where
     toYaml TravisIRC {..} = ykeyValuesFilt []

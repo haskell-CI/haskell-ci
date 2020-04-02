@@ -127,15 +127,13 @@ install:
   - echo 'package *' >> cabal.project
   - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
   - |
-    echo "allow-newer: HsYAML:base"      >> cabal.project
-    echo ""                              >> cabal.project
     echo "package haskell-ci"            >> cabal.project
     echo "  ghc-options: -Werror"        >> cabal.project
     echo ""                              >> cabal.project
     echo "package cabal-install-parsers" >> cabal.project
     echo "  ghc-options: -Werror"        >> cabal.project
     echo ""                              >> cabal.project
-    echo "keep-going:  False"            >> cabal.project
+    echo "keep-going: False"             >> cabal.project
     echo ""                              >> cabal.project
     echo "package bytestring"            >> cabal.project
     echo "  tests: False"                >> cabal.project
@@ -169,15 +167,13 @@ script:
   - echo 'package *' >> cabal.project
   - "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
   - |
-    echo "allow-newer: HsYAML:base"      >> cabal.project
-    echo ""                              >> cabal.project
     echo "package haskell-ci"            >> cabal.project
     echo "  ghc-options: -Werror"        >> cabal.project
     echo ""                              >> cabal.project
     echo "package cabal-install-parsers" >> cabal.project
     echo "  ghc-options: -Werror"        >> cabal.project
     echo ""                              >> cabal.project
-    echo "keep-going:  False"            >> cabal.project
+    echo "keep-going: False"             >> cabal.project
     echo ""                              >> cabal.project
     echo "package bytestring"            >> cabal.project
     echo "  tests: False"                >> cabal.project
