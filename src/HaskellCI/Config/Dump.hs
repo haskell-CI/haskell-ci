@@ -53,6 +53,11 @@ instance C.FieldGrammar DumpGrammar where
         , ""
         ]
 
+    freeTextFieldDefST fn _ = DG
+        [ fromUTF8BS fn ++ ":"
+        , ""
+        ]
+
     prefixedFields _ _   = pure []
     knownField _         = pure ()
     deprecatedSince _  _ = id

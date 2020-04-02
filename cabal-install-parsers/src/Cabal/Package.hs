@@ -5,6 +5,7 @@ module Cabal.Package (
 
 import Control.Exception            (throwIO)
 import Data.ByteString              (ByteString)
+import Data.List.NonEmpty           (NonEmpty)
 
 import qualified Data.ByteString                        as BS
 import qualified Distribution.Fields                    as C
@@ -23,7 +24,7 @@ readPackage fp = do
     either throwIO return (parsePackage fp contents)
 
 -- | Parse @.cabal@ file.
-parsePackage :: FilePath -> ByteString -> Either ParseError C.GenericPackageDescription
+parsePackage :: FilePath -> ByteString -> Either (ParseError NonEmpty) C.GenericPackageDescription
 parsePackage fp contents = case C.runParseResult $ C.parseGenericPackageDescription contents of
     (ws, Left (_mv, errs)) -> Left $ ParseError fp contents errs ws
     (_, Right gpd)         -> Right gpd

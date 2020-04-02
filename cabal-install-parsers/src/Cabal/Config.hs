@@ -23,6 +23,7 @@ import Data.ByteString          (ByteString)
 import Data.Function            ((&))
 import Data.Functor.Identity    (Identity (..))
 import Data.List                (foldl')
+import Data.List.NonEmpty       (NonEmpty)
 import Data.Map                 (Map)
 import Data.Maybe               (fromMaybe)
 import Distribution.Compat.Lens (LensLike', over)
@@ -134,7 +135,7 @@ hackageHaskellOrg = "hackage.haskell.org"
 -------------------------------------------------------------------------------
 
 -- | Parse @~\/.cabal\/config@ file.
-parseConfig :: FilePath -> ByteString -> Either ParseError (Config Maybe)
+parseConfig :: FilePath -> ByteString -> Either (ParseError NonEmpty) (Config Maybe)
 parseConfig = parseWith $ \fields0 -> do
     let (fields1, sections) = C.partitionFields fields0
     let fields2 = M.filterWithKey (\k _ -> k `elem` knownFields) fields1

@@ -35,6 +35,7 @@ import Data.Foldable                (toList)
 import Data.Function                ((&))
 import Data.Functor                 (void)
 import Data.List                    (foldl')
+import Data.List.NonEmpty           (NonEmpty)
 import Data.Traversable             (for)
 import Data.Void                    (Void)
 import Distribution.Compat.Lens     (LensLike', over)
@@ -160,7 +161,7 @@ readProject fp = do
 -- >>> fmap prjPackages $ parseProject "cabal.project" "packages: foo bar/*.cabal"
 -- Right ["foo","bar/*.cabal"]
 --
-parseProject :: FilePath -> ByteString -> Either ParseError (Project Void String String)
+parseProject :: FilePath -> ByteString -> Either (ParseError NonEmpty) (Project Void String String)
 parseProject = parseWith $ \fields0 -> do
     let (fields1, sections) = C.partitionFields fields0
     let fields2  = M.filterWithKey (\k _ -> k `elem` knownFields) fields1
@@ -312,7 +313,7 @@ resolveProject filePath prj = runExceptT $ do
 --
 -- May throw 'IOException'.
 --
-readPackagesOfProject :: Project uri opt FilePath -> IO (Either ParseError (Project uri opt (FilePath, C.GenericPackageDescription)))
+readPackagesOfProject :: Project uri opt FilePath -> IO (Either (ParseError NonEmpty) (Project uri opt (FilePath, C.GenericPackageDescription)))
 readPackagesOfProject prj = runExceptT $ for prj $ \fp -> do
     contents <- liftIO $ BS.readFile fp
     either throwE (\gpd -> return (fp, gpd)) (parsePackage fp contents)
