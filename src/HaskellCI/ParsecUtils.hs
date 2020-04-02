@@ -38,5 +38,5 @@ readAndParseFile parser fpath = do
             hPutStr stderr $ renderParseError (ParseError fpath bs [] ws)
             return x
         (ws, Left (_, es)) -> do
-            hPutStr stderr $ renderParseError (ParseError fpath bs es ws)
+            hPutStr stderr $ renderParseError (ParseError fpath bs (toList es) ws)
             exitFailure

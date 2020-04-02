@@ -80,6 +80,9 @@ instance C.FieldGrammar OptparseGrammar where
     freeTextFieldDef fn l = OG
         [ SP $ \m h -> setOG l $ O.strOption $ optionMods fn m h ]
 
+    freeTextFieldDefST fn l = OG
+        [ SP $ \m h -> setOG l $ O.strOption $ optionMods fn m h ]
+
 instance OptionsGrammar OptparseGrammar where
     help h (OG ps) = OG
         [ SP $ \m _h -> p m (Just h)

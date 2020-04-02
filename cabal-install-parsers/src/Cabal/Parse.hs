@@ -1,4 +1,6 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE StandaloneDeriving   #-}
+{-# LANGUAGE UndecidableInstances #-}
 -- | License: GPL-3.0-or-later AND BSD-3-Clause
 --
 -- @.cabal@ and a like file parsing helpers.
@@ -12,6 +14,8 @@ import Control.DeepSeq           (NFData (..))
 import Control.Exception         (Exception (..))
 import Data.ByteString           (ByteString)
 import Data.Foldable             (for_)
+import Data.List.NonEmpty        (NonEmpty)
+import Data.Typeable             (Typeable)
 import Distribution.Simple.Utils (fromUTF8BS)
 import GHC.Generics              (Generic)
 import System.FilePath           (normalise)
@@ -31,7 +35,7 @@ parseWith
     :: ([C.Field C.Position] -> C.ParseResult a)  -- ^ parse
     -> FilePath                                   -- ^ filename
     -> ByteString                                 -- ^ contents
-    -> Either ParseError a
+    -> Either (ParseError NonEmpty) a
 parseWith parser fp bs = case C.runParseResult result of
     (_, Right x)       -> return x
     (ws, Left (_, es)) -> Left $ ParseError fp bs es ws
@@ -47,22 +51,24 @@ parseWith parser fp bs = case C.runParseResult result of
             parser fields
 
 -- | Parse error.
-data ParseError = ParseError
+data ParseError f = ParseError
     { peFilename :: FilePath
     , peContents :: ByteString
-    , peErrors   :: [C.PError]
+    , peErrors   :: f C.PError
     , peWarnings :: [C.PWarning]
     }
-  deriving (Show, Generic)
+  deriving (Generic)
 
-instance Exception ParseError where
+deriving instance (Show (f C.PError)) => Show (ParseError f)
+
+instance (Foldable f, Show (f C.PError), Typeable f) => Exception (ParseError f) where
     displayException = renderParseError
 
 -- | @since 0.2.1
-instance NFData ParseError
+instance (NFData (f C.PError)) => NFData (ParseError f)
 
 -- | Render parse error highlighting the part of the input file.
-renderParseError :: ParseError -> String
+renderParseError :: Foldable f => ParseError f -> String
 renderParseError (ParseError filepath contents errors warnings)
     | null errors && null warnings = ""
     | null errors = unlines $
