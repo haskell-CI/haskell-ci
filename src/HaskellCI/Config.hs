@@ -66,6 +66,7 @@ data Config = Config
     , cfgCheck               :: !Bool
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
+    , cfgEmailNotifications  :: Bool 
     , cfgProjectName         :: Maybe String
     , cfgFolds               :: S.Set Fold
     , cfgGhcHead             :: !Bool
@@ -129,6 +130,7 @@ emptyConfig = Config
     , cfgCheck           = True
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
+    , cfgEmailNotifications = True
     , cfgProjectName     = Nothing
     , cfgFolds           = S.empty
     , cfgGhcHead         = False
@@ -197,6 +199,8 @@ configGrammar = Config
         ^^^ metahelp "BRANCH" "Enable builds only for specific branches"
     <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        (field @"cfgIrcChannels")
         ^^^ metahelp "IRC" "Enable IRC notifications to given channel (e.g. 'irc.freenode.org#haskell-lens')"
+    <*> C.booleanFieldDef "email-notifications"                                               (field @"cfgEmailNotifications") True
+        ^^^ help "Disable email notifications"
     <*> C.optionalFieldAla    "project-name"              C.Token'                            (field @"cfgProjectName")
         ^^^ metahelp "NAME" "Project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
     <*> C.monoidalFieldAla    "folds"                     Folds                               (field @"cfgFolds")

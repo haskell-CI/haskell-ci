@@ -444,6 +444,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                     [ "\x0313" ++ projectName ++ "\x03/\x0306%{branch}\x03 \x0314%{commit}\x03 %{build_url} %{message}"
                     ]
                 }
+            , tnEmail = cfgEmailNotifications
             }
         , travisServices      = buildList $ do
             when cfgPostgres $ item "postgresql"
