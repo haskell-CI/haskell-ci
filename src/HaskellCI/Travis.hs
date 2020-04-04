@@ -416,6 +416,15 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                     when (hasLibrary && csHaddock cs) $
                         shForCs $ cabal $ "v2-haddock $WITHCOMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
+        -- At the end, we allow some raw travis scripts
+        unless (null cfgRawTravis) $ do
+            comment "Raw travis commands"
+            traverse_ sh
+                [ l
+                | l <- lines cfgRawTravis
+                , not (null l)
+                ]
+
     -- assemble travis configuration
     return Travis
         { travisLanguage      = "c"
