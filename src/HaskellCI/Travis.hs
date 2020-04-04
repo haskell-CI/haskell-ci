@@ -226,7 +226,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 | otherwise = " --constraint='doctest " ++ C.prettyShow (cfgDoctestVersion cfgDoctest) ++ "'"
         when doctestEnabled $
             shForJob (Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange) $
-                cabalInTmp $ "v2-install $WITHCOMPILER -j2 doctest" ++ doctestVersionConstraint
+                cabal $ "v2-install $WITHCOMPILER --ignore-project -j2 doctest" ++ doctestVersionConstraint
 
         -- Install hlint
         let hlintVersionConstraint
@@ -249,15 +249,15 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 forHLint "mkdir -p $CABALHOME/bin && ln -sf \"$HOME/.hlint/hlint-$HLINTVER/hlint\" $CABALHOME/bin/hlint"
                 forHLint "hlint --version"
 
-            else forHLint $ cabalInTmp $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
+            else forHLint $ cabal $ "v2-install $WITHCOMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
 
         -- Install cabal-plan (for ghcjs tests)
         when (anyGHCJS && cfgGhcjsTests) $ do
-            shForJob RangeGHCJS $ cabalInTmp "v2-install -w ghc-8.4.4 cabal-plan --constraint='cabal-plan ^>=0.6.0.0' --constraint='cabal-plan +exe'"
+            shForJob RangeGHCJS $ cabal "v2-install -w ghc-8.4.4 --ignore-project cabal-plan --constraint='cabal-plan ^>=0.6.0.0' --constraint='cabal-plan +exe'"
 
         -- Install happy
         when anyGHCJS $ for_ cfgGhcjsTools $ \t ->
-            shForJob RangeGHCJS $ cabalInTmp $ "v2-install -w ghc-8.4.4 " ++ C.prettyShow t
+            shForJob RangeGHCJS $ cabal $ "v2-install -w ghc-8.4.4 --ignore-project " ++ C.prettyShow t
 
         -- create cabal.project file
         generateCabalProject False
@@ -575,9 +575,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     cabalTW :: String -> String
     cabalTW cmd = "travis_wait 40 ${CABAL} " ++ cmd
-
-    cabalInTmp :: String -> String
-    cabalInTmp cmd = "(cd /tmp && " ++ cabal cmd ++ ")"
 
     forJob :: CompilerRange -> String -> Maybe String
     forJob vr cmd
