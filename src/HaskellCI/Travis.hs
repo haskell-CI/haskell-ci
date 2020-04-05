@@ -651,9 +651,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         case cfgErrorMissingMethods of
             PackageScopeNone  -> pure ()
             PackageScopeLocal -> for_ pkgs $ \Pkg{pkgName,pkgJobs} -> do
-                shForJob (Range (C.orLaterVersion (C.mkVersion [8,0])) /\ RangePoints pkgJobs) $
+                shForJob (Range (C.orLaterVersion (C.mkVersion [8,2])) /\ RangePoints pkgJobs) $
                     "echo 'package " ++ pkgName ++ "' >> cabal.project"
-                shForJob (Range (C.orLaterVersion (C.mkVersion [8,0])) /\ RangePoints pkgJobs) $
+                shForJob (Range (C.orLaterVersion (C.mkVersion [8,2])) /\ RangePoints pkgJobs) $
                     "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
             PackageScopeAll   -> do
                 sh "echo 'package *' >> cabal.project"

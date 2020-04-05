@@ -226,7 +226,7 @@ configGrammar = Config
     <*> C.booleanFieldDef "insert-version"                                                    (field @"cfgInsertVersion") True
         ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
     <*> C.optionalFieldDef "error-missing-methods"                                             (field @"cfgErrorMissingMethods") PackageScopeLocal
-        ^^^ metahelp "PKGSCOPE" "Insert -Werror=missing-methods for package scope"
+        ^^^ metahelp "PKGSCOPE" "Insert -Werror=missing-methods for package scope (none, local, all)"
     <*> C.blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar
     <*> C.blurFieldGrammar (field @"cfgHLint")   hlintConfigGrammar
     <*> pure [] -- constraint sets
