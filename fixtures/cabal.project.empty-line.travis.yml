@@ -167,14 +167,14 @@ install:
     echo "packages: servant-client" >> cabal.project
     echo "packages: servant-docs" >> cabal.project
     echo "packages: servant-server" >> cabal.project
-  - if [ $HCNUMVER -ge 80000 ] ; then echo 'package servant' >> cabal.project ; fi
-  - "if [ $HCNUMVER -ge 80000 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - if [ $HCNUMVER -ge 80000 ] ; then echo 'package servant-client' >> cabal.project ; fi
-  - "if [ $HCNUMVER -ge 80000 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - if [ $HCNUMVER -ge 80000 ] ; then echo 'package servant-docs' >> cabal.project ; fi
-  - "if [ $HCNUMVER -ge 80000 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - if [ $HCNUMVER -ge 80000 ] ; then echo 'package servant-server' >> cabal.project ; fi
-  - "if [ $HCNUMVER -ge 80000 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
+  - if [ $HCNUMVER -ge 80200 ] ; then echo 'package servant' >> cabal.project ; fi
+  - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
+  - if [ $HCNUMVER -ge 80200 ] ; then echo 'package servant-client' >> cabal.project ; fi
+  - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
+  - if [ $HCNUMVER -ge 80200 ] ; then echo 'package servant-docs' >> cabal.project ; fi
+  - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
+  - if [ $HCNUMVER -ge 80200 ] ; then echo 'package servant-server' >> cabal.project ; fi
+  - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - |
     echo "constraints: foundatiion >= 0.14"        >> cabal.project
     echo "allow-newer: servant-js:servant"         >> cabal.project
@@ -212,14 +212,14 @@ script:
     echo "packages: ${PKGDIR_servant_client}" >> cabal.project
     echo "packages: ${PKGDIR_servant_docs}" >> cabal.project
     echo "packages: ${PKGDIR_servant_server}" >> cabal.project
-  - if [ $HCNUMVER -ge 80000 ] ; then echo 'package servant' >> cabal.project ; fi
-  - "if [ $HCNUMVER -ge 80000 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - if [ $HCNUMVER -ge 80000 ] ; then echo 'package servant-client' >> cabal.project ; fi
-  - "if [ $HCNUMVER -ge 80000 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - if [ $HCNUMVER -ge 80000 ] ; then echo 'package servant-docs' >> cabal.project ; fi
-  - "if [ $HCNUMVER -ge 80000 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - if [ $HCNUMVER -ge 80000 ] ; then echo 'package servant-server' >> cabal.project ; fi
-  - "if [ $HCNUMVER -ge 80000 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
+  - if [ $HCNUMVER -ge 80200 ] ; then echo 'package servant' >> cabal.project ; fi
+  - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
+  - if [ $HCNUMVER -ge 80200 ] ; then echo 'package servant-client' >> cabal.project ; fi
+  - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
+  - if [ $HCNUMVER -ge 80200 ] ; then echo 'package servant-docs' >> cabal.project ; fi
+  - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
+  - if [ $HCNUMVER -ge 80200 ] ; then echo 'package servant-server' >> cabal.project ; fi
+  - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - |
     echo "constraints: foundatiion >= 0.14"        >> cabal.project
     echo "allow-newer: servant-js:servant"         >> cabal.project
