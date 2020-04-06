@@ -134,7 +134,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- macOS installing
         let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
         unless (null cfgOsx) $ do
-            sh $ "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then curl " ++ haskellOnMacos ++ " | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=head install cabal-install-head ${TRAVIS_COMPILER}; fi"
+            sh $ "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then curl " ++ haskellOnMacos ++ " | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=3.2.0.0 install cabal-install-3.2.0.0 ${TRAVIS_COMPILER}; fi"
             sh' [2034,2039] "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; WITHCOMPILER=\"-w $HC\"; HCPKG=${HC/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi"
         -- HCNUMVER, numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
         sh "HCNUMVER=$(${HC} --numeric-version|perl -ne '/^(\\d+)\\.(\\d+)\\.(\\d+)(\\.(\\d+))?$/; print(10000 * $1 + 100 * $2 + ($3 == 0 ? $5 != 1 : $3))')"
@@ -226,7 +226,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 | otherwise = " --constraint='doctest " ++ C.prettyShow (cfgDoctestVersion cfgDoctest) ++ "'"
         when doctestEnabled $
             shForJob (Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange) $
-                cabalInTmp $ "v2-install $WITHCOMPILER -j2 doctest" ++ doctestVersionConstraint
+                cabal $ "v2-install $WITHCOMPILER --ignore-project -j2 doctest" ++ doctestVersionConstraint
 
         -- Install hlint
         let hlintVersionConstraint
@@ -249,15 +249,15 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 forHLint "mkdir -p $CABALHOME/bin && ln -sf \"$HOME/.hlint/hlint-$HLINTVER/hlint\" $CABALHOME/bin/hlint"
                 forHLint "hlint --version"
 
-            else forHLint $ cabalInTmp $ "v2-install $WITHCOMPILER -j2 hlint" ++ hlintVersionConstraint
+            else forHLint $ cabal $ "v2-install $WITHCOMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
 
         -- Install cabal-plan (for ghcjs tests)
         when (anyGHCJS && cfgGhcjsTests) $ do
-            shForJob RangeGHCJS $ cabalInTmp "v2-install -w ghc-8.4.4 cabal-plan --constraint='cabal-plan ^>=0.6.0.0' --constraint='cabal-plan +exe'"
+            shForJob RangeGHCJS $ cabal "v2-install -w ghc-8.4.4 --ignore-project cabal-plan --constraint='cabal-plan ^>=0.6.0.0' --constraint='cabal-plan +exe'"
 
         -- Install happy
         when anyGHCJS $ for_ cfgGhcjsTools $ \t ->
-            shForJob RangeGHCJS $ cabalInTmp $ "v2-install -w ghc-8.4.4 " ++ C.prettyShow t
+            shForJob RangeGHCJS $ cabal $ "v2-install -w ghc-8.4.4 --ignore-project " ++ C.prettyShow t
 
         -- create cabal.project file
         generateCabalProject False
@@ -416,6 +416,15 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                     when (hasLibrary && csHaddock cs) $
                         shForCs $ cabal $ "v2-haddock $WITHCOMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
+        -- At the end, we allow some raw travis scripts
+        unless (null cfgRawTravis) $ do
+            comment "Raw travis commands"
+            traverse_ sh
+                [ l
+                | l <- lines cfgRawTravis
+                , not (null l)
+                ]
+
     -- assemble travis configuration
     return Travis
         { travisLanguage      = "c"
@@ -566,9 +575,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     cabalTW :: String -> String
     cabalTW cmd = "travis_wait 40 ${CABAL} " ++ cmd
-
-    cabalInTmp :: String -> String
-    cabalInTmp cmd = "(cd /tmp && " ++ cabal cmd ++ ")"
 
     forJob :: CompilerRange -> String -> Maybe String
     forJob vr cmd

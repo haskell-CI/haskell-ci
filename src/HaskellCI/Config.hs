@@ -84,11 +84,12 @@ data Config = Config
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
     , cfgRawProject          :: [C.PrettyField ()]
+    , cfgRawTravis           :: !String
     }
   deriving (Generic)
 
 defaultCabalInstallVersion :: Maybe Version
-defaultCabalInstallVersion = Just (C.mkVersion [3,0])
+defaultCabalInstallVersion = Just (C.mkVersion [3,2])
 
 emptyConfig :: Config
 emptyConfig = Config
@@ -144,6 +145,7 @@ emptyConfig = Config
     , cfgTravisPatches   = []
     , cfgInsertVersion   = True
     , cfgRawProject      = []
+    , cfgRawTravis       = ""
     , cfgErrorMissingMethods = PackageScopeLocal
     }
 
@@ -225,12 +227,14 @@ configGrammar = Config
         ^^^ metahelp "PATCH" ".patch files to apply to the generated Travis YAML file"
     <*> C.booleanFieldDef "insert-version"                                                    (field @"cfgInsertVersion") True
         ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
-    <*> C.optionalFieldDef "error-missing-methods"                                             (field @"cfgErrorMissingMethods") PackageScopeLocal
+    <*> C.optionalFieldDef "error-missing-methods"                                            (field @"cfgErrorMissingMethods") PackageScopeLocal
         ^^^ metahelp "PKGSCOPE" "Insert -Werror=missing-methods for package scope (none, local, all)"
     <*> C.blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar
     <*> C.blurFieldGrammar (field @"cfgHLint")   hlintConfigGrammar
     <*> pure [] -- constraint sets
     <*> pure [] -- raw project fields
+    <*> C.freeTextFieldDef "raw-travis"                                                       (field @"cfgRawTravis")
+        ^^^ help "Raw travis commands which will be run at the very end of the script"
 
 -------------------------------------------------------------------------------
 -- Reading
