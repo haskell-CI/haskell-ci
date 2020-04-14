@@ -2,6 +2,10 @@
 #
 #   haskell-ci '--config=cabal.project.haskell-ci' '--travis-patches=cabal.project.travis-patch.patch' 'cabal.project.travis-patch'
 #
+# To regenerate the script (for example after adjusting tested-with) run
+#
+#   haskell-ci regenerate
+#
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
 version: ~> 1.0

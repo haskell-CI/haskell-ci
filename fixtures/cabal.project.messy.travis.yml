@@ -2,6 +2,10 @@
 #
 #   haskell-ci '-o' 'cabal.project.messy.travis.yml' '--config=cabal.project.haskell-ci' '--ghc-head' '--apt=fftw3-dev' '--installed=-all +deepseq' 'cabal.project.messy'
 #
+# To regenerate the script (for example after adjusting tested-with) run
+#
+#   haskell-ci regenerate
+#
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
 version: ~> 1.0
