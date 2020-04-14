@@ -1,3 +1,12 @@
+## 0.10 - 2020-04-14
+
+- Allow turning off email notifications
+- Use generic-lens-lite instead of generic-lens (smaller dependency footprint)
+- Add GHC-8.10, use cabal-install-3.2
+- Fix escaping of irc-notification template
+- Remove output colouring, it was relying on Cabal's internal features
+- Add `-Werror=missing-methods` by default.
+
 ## 0.8 - 2019-11-26
 
 - Split parsing utilities into [cabal-install-parsers package](https://hackage.haskell.org/package/cabal-install-parsers)
