@@ -65,6 +65,10 @@ travisHeader insertVersion argv =
     , ""
     , "  haskell-ci " ++ unwords [ "'" ++ a ++ "'" | a <- argv ]
     , ""
+    , "To regenerate the script (for example after adjusting tested-with) run"
+    , ""
+    , "  haskell-ci regenerate"
+    , ""
     , "For more information, see https://github.com/haskell-CI/haskell-ci"
     , ""
     ] ++
