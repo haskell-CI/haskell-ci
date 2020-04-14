@@ -13,3 +13,8 @@ allow-newer:
   servant-js:servant
 allow-newer:
   servant-js:servant-foreign
+
+source-repository-package
+  type: git
+  location: https://github.com/haskell-servant/servant-auth
+  tag: 4a134c3db79293d28f8b74a02863047e41fbaf56
