@@ -174,18 +174,27 @@ parseProject = parseWith $ \fields0 -> do
         prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOtherFields
         foldl' (&) prj <$> traverse parseSec (concat sections)
 
+    -- Special case for source-repository-package. If you add another such
+    -- special case, make sure to update otherFieldName appropriately.
     parseSec :: C.Section C.Position -> C.ParseResult (Project Void String String -> Project Void String String)
-    parseSec (C.MkSection (C.Name _pos name) [] fields) | name == "source-repository-package" = do
+    parseSec (C.MkSection (C.Name _pos name) [] fields) | name == sourceRepoSectionName = do
         let fields' = fst $ C.partitionFields fields
         repos <- C.parseFieldGrammar C.cabalSpecLatest fields' sourceRepositoryPackageGrammar
         return $ over prjSourceReposL (++ toList (srpFanOut repos))
 
     parseSec _ = return id
 
+-- | Returns 'True' if a field should be a part of 'prjOtherFields'. This
+-- excludes any field that is a part of 'grammar' as well as
+-- @source-repository-package@ (see 'parseProject', which has a special case
+-- for it).
 otherFieldName :: C.Field ann -> Bool
-otherFieldName (C.Field (C.Name _ fn) _) = fn `notElem` C.fieldGrammarKnownFieldList (grammar [])
-otherFieldName _                         = True
+otherFieldName (C.Field (C.Name _ fn) _)     = fn `notElem` C.fieldGrammarKnownFieldList (grammar [])
+otherFieldName (C.Section (C.Name _ fn) _ _) = fn /= sourceRepoSectionName
 
+-- | This contains a subset of the fields in the @cabal.project@ grammar that
+-- are distinguished by a 'Project'. Note that this does not /not/ contain
+-- @source-repository-package@, as that is handled separately in 'parseProject'.
 grammar :: [C.PrettyField ()] -> C.ParsecFieldGrammar (Project Void String String) (Project Void String String)
 grammar otherFields = Project
     <$> C.monoidalFieldAla "packages"          (C.alaList' C.FSep PackageLocation) prjPackagesL
@@ -198,6 +207,9 @@ grammar otherFields = Project
     <*> C.optionalFieldDef "optimization"                                          prjOptimizationL OptimizationOn
     <*> pure []
     <*> pure otherFields
+
+sourceRepoSectionName :: C.FieldName
+sourceRepoSectionName = "source-repository-package"
 
 -------------------------------------------------------------------------------
 -- Lenses
