@@ -73,9 +73,15 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
     $ haskell-ci cabal.project --output .travis.yml
     ```
 
-    The `haskell-ci` tool looks at the `Tested-With` line in your
-    `*.cabal` files and generates a Travis build that tests each compiler
-    version you listed in parallel.
+    The `haskell-ci` tool looks at the `Tested-With` line in your `*.cabal`
+    files and generates a Travis build that tests each compiler version you
+    listed in parallel. While `cabal-install` accepts globs in the project
+    resolving to folders, for `haskell-ci` these need to resolve to cabal
+    files.
+
+    ```diff
+    -- packages: */*.cabal ../{foo,bar}/
+    ++ packages: */*.cabal ../{foo,bar}/*.cabal
 
 * Step 5: Create a branch with your new Travis file and push your branch:
 
