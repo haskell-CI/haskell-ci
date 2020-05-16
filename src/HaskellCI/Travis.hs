@@ -603,7 +603,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         for_ uris $ \uri ->
             item $ C.PrettyField () "packages" $ PP.text $ uriToString id uri ""
 
-        -- copy files from original cabal.project
+        -- copy fields from original cabal.project
         case cfgCopyFields of
             CopyFieldsNone -> pure ()
             CopyFieldsSome -> copyFieldsSome
