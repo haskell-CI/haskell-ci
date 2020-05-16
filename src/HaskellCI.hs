@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE MultiWayIf          #-}
 {-# LANGUAGE OverloadedStrings   #-}
@@ -36,6 +35,7 @@ import Distribution.Text
 import Distribution.Version
 
 import qualified Data.ByteString       as BS
+import qualified Data.Map as Map
 import qualified Data.List.NonEmpty    as NE
 import qualified Data.Set              as S
 import qualified Data.Traversable      as T
@@ -55,6 +55,7 @@ import HaskellCI.Package
 import HaskellCI.TestedWith
 import HaskellCI.Travis
 import HaskellCI.YamlSyntax
+import HaskellCI.VersionInfo
 
 -------------------------------------------------------------------------------
 -- Main
@@ -99,6 +100,10 @@ main = do
                     (f, opts') <- parseTravis argv
                     doTravis argv f (optionsWithOutputFile newFp <> opts' <> opts)
         CommandTravis f -> doTravis argv0 f opts
+        CommandVersionInfo -> do
+            putStrLn $ "haskell-ci " ++ haskellCIVerStr ++ " with dependencies"
+            ifor_ dependencies $ \p v -> do
+                putStrLn $ "  " ++ p ++ "-" ++ v
   where
     findArgv :: [String] -> Maybe (Maybe Version, [String])
     findArgv ls = do
@@ -114,6 +119,9 @@ main = do
     prettyMajVersion :: Version -> String
     prettyMajVersion v = case ghcMajVer v of
         (x, y) -> show x ++ "." ++ show y
+
+    ifor_ :: Map.Map k v -> (k -> v -> IO a) -> IO ()
+    ifor_ xs f = Map.foldlWithKey' (\m k a -> m >> void (f k a)) (return ()) xs
 
 defaultTravisPath :: FilePath
 defaultTravisPath = ".travis.yml"

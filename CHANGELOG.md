@@ -1,3 +1,9 @@
+## 0.10.1 - 20020-05-16
+
+- Add version-info command to help debugging issues with `haskell-ci`
+- Bump default HLint version to 3.1
+- Support ShellCheck with GHC-8.8 and GHC-8.10
+
 ## 0.10 - 2020-04-14
 
 - Allow turning off email notifications
