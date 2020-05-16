@@ -54,6 +54,7 @@ import HaskellCI.Sh
 import HaskellCI.ShVersionRange
 import HaskellCI.Tools
 import HaskellCI.Travis.Yaml
+import HaskellCI.VersionInfo
 
 -------------------------------------------------------------------------------
 -- Travis header

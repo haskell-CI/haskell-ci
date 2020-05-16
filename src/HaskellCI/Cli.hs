@@ -12,10 +12,7 @@ import qualified Options.Applicative as O
 
 import HaskellCI.Config
 import HaskellCI.OptparseGrammar
-
-#ifndef CURRENT_PACKAGE_VERSION
-#define CURRENT_PACKAGE_VERSION "???"
-#endif
+import HaskellCI.VersionInfo
 
 -------------------------------------------------------------------------------
 -- Command
@@ -26,6 +23,7 @@ data Command
     | CommandRegenerate
     | CommandListGHC
     | CommandDumpConfig
+    | CommandVersionInfo
   deriving Show
 
 -------------------------------------------------------------------------------
@@ -78,9 +76,6 @@ versionP = O.infoOption haskellCIVerStr $ mconcat
     , O.help "Print version information"
     ]
 
-haskellCIVerStr :: String
-haskellCIVerStr = CURRENT_PACKAGE_VERSION
-
 cliParserInfo :: O.ParserInfo (Command, Options)
 cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helper) $ mconcat
     [ O.fullDesc
@@ -88,10 +83,11 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
     ]
   where
     cmdP = O.subparser (mconcat
-        [ O.command "regenerate"  $ O.info (pure CommandRegenerate) $ O.progDesc "Regenerate .travis.yml"
-        , O.command "travis"      $ O.info travisP                  $ O.progDesc "Generate travis-ci config"
-        , O.command "list-ghc"    $ O.info (pure CommandListGHC)    $ O.progDesc "List known GHC versions"
-        , O.command "dump-config" $ O.info (pure CommandDumpConfig) $ O.progDesc "Dump cabal.haskell-ci config with default values"
+        [ O.command "regenerate"   $ O.info (pure CommandRegenerate)  $ O.progDesc "Regenerate .travis.yml"
+        , O.command "travis"       $ O.info travisP                   $ O.progDesc "Generate travis-ci config"
+        , O.command "list-ghc"     $ O.info (pure CommandListGHC)     $ O.progDesc "List known GHC versions"
+        , O.command "dump-config"  $ O.info (pure CommandDumpConfig)  $ O.progDesc "Dump cabal.haskell-ci config with default values"
+        , O.command "version-info" $ O.info (pure CommandVersionInfo) $ O.progDesc "Print versions info haskell-ci was compiled with"
         ]) <|> travisP
 
     travisP = CommandTravis

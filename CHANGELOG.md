@@ -1,3 +1,7 @@
+## 0.10.1 - 20020-05-16
+
+- Add version-info command to help debugging issues with `haskell-ci`
+
 ## 0.10 - 2020-04-14
 
 - Allow turning off email notifications
