@@ -168,8 +168,8 @@ library haskell-ci-internal
     , unordered-containers   ^>=0.2.10.0
 
   -- ShellCheck. Would need newer transformers for older GHC
-  if (flag(shellcheck) && impl(ghc >=7.10 && <8.7))
-    build-depends: ShellCheck ==0.7.0
+  if (flag(shellcheck) && impl(ghc >=7.10 && <8.11))
+    build-depends: ShellCheck ==0.7.0 || ==0.7.1
 
 executable haskell-ci
   main-is:          Main.hs
