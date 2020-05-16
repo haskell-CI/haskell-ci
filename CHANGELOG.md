@@ -1,4 +1,4 @@
-## 0.10.1 - 20020-05-16
+## 0.10.1 - 2020-05-16
 
 - Add version-info command to help debugging issues with `haskell-ci`
 - Bump default HLint version to 3.1
