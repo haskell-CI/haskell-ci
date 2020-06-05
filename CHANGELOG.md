@@ -1,3 +1,8 @@
+## 0.10.2 - 2020-06-05
+
+- Bump default doctest version to 0.17
+- Fix HCPKG variable in macOS builds [#395](https://github.com/haskell-CI/haskell-ci/issues/395)
+
 ## 0.10.1 - 2020-05-16
 
 - Add version-info command to help debugging issues with `haskell-ci`
