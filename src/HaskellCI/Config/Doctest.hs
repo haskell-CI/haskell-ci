@@ -23,7 +23,7 @@ data DoctestConfig = DoctestConfig
   deriving (Show, Generic)
 
 defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = majorBoundVersion (mkVersion [0,16,3])
+defaultDoctestVersion = majorBoundVersion (mkVersion [0,17])
 
 -------------------------------------------------------------------------------
 -- Grammar
