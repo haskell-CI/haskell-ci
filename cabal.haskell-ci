@@ -34,7 +34,7 @@ haddock: True
 
 -- Install dependencies in a separate step
 -- If your project has inplace packages, you want to disable this.
--- install-dependencies-step: True
+-- install-dependencies: True
 
 -- --no-tests --no-benchmarks build is useful to verify that package
 -- builds when less constrained
