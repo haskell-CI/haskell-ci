@@ -1,3 +1,7 @@
+## 0.10.3 - 2020-08-10
+
+- Add GHC-8.8.4 and GHC-8.10.2
+
 ## 0.10.2 - 2020-06-05
 
 - Bump default doctest version to 0.17
