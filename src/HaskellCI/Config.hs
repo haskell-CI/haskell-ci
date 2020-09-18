@@ -89,7 +89,7 @@ data Config = Config
   deriving (Generic)
 
 defaultCabalInstallVersion :: Maybe Version
-defaultCabalInstallVersion = Just (C.mkVersion [3,2])
+defaultCabalInstallVersion = Just (C.mkVersion [3,4])
 
 emptyConfig :: Config
 emptyConfig = Config

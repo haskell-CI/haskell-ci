@@ -1,3 +1,7 @@
+## 0.12 - TBD
+
+- Use `cabal-install-3.4`
+
 ## 0.10.3 - 2020-08-10
 
 - Add GHC-8.8.4 and GHC-8.10.2

@@ -137,7 +137,7 @@ correspondingCabalVersion
     -> Maybe Version
 correspondingCabalVersion Nothing   _         = Nothing
 correspondingCabalVersion (Just _)  GHCHead   = Nothing
-correspondingCabalVersion (Just _)  (GHCJS _) = Just (mkVersion [3,0])
+correspondingCabalVersion (Just _)  (GHCJS _) = Just (mkVersion [3,4])
 correspondingCabalVersion (Just cv) (GHC gv)
     | gv >= mkVersion [8,10] = Just $ max (mkVersion [3,2]) cv
     | otherwise              = Just $ max (mkVersion [3,0]) cv
