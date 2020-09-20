@@ -198,7 +198,7 @@ test-suite golden
 
   -- dependencies needing explicit constraints
   build-depends:
-    , ansi-terminal  >=0.10    && <0.12
+    , ansi-terminal  ^>=0.10 || ^>=0.11
     , Diff           ^>=0.4.0
     , tasty          >=1.0     && <1.4
     , tasty-golden   ^>=2.3.1.1
