@@ -175,9 +175,9 @@ sha256 = SHA256 . SHA256.hash
 -- | Make SHA256 from base16-encoded string.
 mkSHA256 :: Text -> Either String SHA256
 mkSHA256 t = case Base16.decode (TE.encodeUtf8 t) of
-    (bs, rest) | not (BS.null rest)  -> Left $ "Base16 encoding leftovers" ++ show rest
-               | BS.length bs /= 32  -> Left $ "Base16 of wrong length, expected 32, got " ++ show (BS.length bs)
-               | otherwise           -> Right (SHA256 bs)
+    Left err                      -> Left $ "Base16 decoding failure: " ++ err
+    Right bs | BS.length bs /= 32 -> Left $ "Base16 of wrong length, expected 32, got " ++ show (BS.length bs)
+             | otherwise          -> Right (SHA256 bs)
 
 -- | Unsafe variant of 'mkSHA256'.
 unsafeMkSHA256 :: Text -> SHA256
@@ -223,9 +223,9 @@ instance Show MD5 where
 -- | Make MD5 from base16-encoded string.
 mkMD5 :: Text -> Either String MD5
 mkMD5 t = case Base16.decode (TE.encodeUtf8 t) of
-    (bs, rest) | not (BS.null rest)  -> Left $ "Base16 encoding leftovers" ++ show rest
-               | BS.length bs /= 16  -> Left $ "Base16 of wrong length, expected 16, got " ++ show (BS.length bs)
-               | otherwise           -> Right (MD5 bs)
+    Left err                      -> Left $ "Base16 decoding failure: " ++ err
+    Right bs | BS.length bs /= 16 -> Left $ "Base16 of wrong length, expected 16, got " ++ show (BS.length bs)
+             | otherwise          -> Right (MD5 bs)
 
 {-
 -- | Unsafe variant of 'mkMD5'.
