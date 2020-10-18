@@ -1,3 +1,9 @@
+## 0.4
+
+- Rewrite `Cabal.Index` module
+  - Added `riTarOffset` field to `ReleaseInfo`
+- Update dependencies
+
 ## 0.3
 
 - Require `Cabal-3.2`.

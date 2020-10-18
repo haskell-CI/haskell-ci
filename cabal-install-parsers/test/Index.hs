@@ -2,12 +2,16 @@
 module Main (main) where
 
 import Prelude          hiding (pi)
-import Test.Tasty       (defaultMain, testGroup, testGroup)
+import System.IO        (IOMode (ReadMode), withFile)
+import Test.Tasty       (defaultMain, testGroup)
 import Test.Tasty.HUnit (assertBool, assertEqual, assertFailure, testCaseSteps)
 
-import qualified Data.Map.Strict      as Map
-import qualified Distribution.Package as C
-import qualified Distribution.Version as C
+import qualified Codec.Archive.Tar.Entry as Tar
+import qualified Codec.Archive.Tar.Index as Tar
+import qualified Data.ByteString.Lazy    as LBS
+import qualified Data.Map.Strict         as Map
+import qualified Distribution.Package    as C
+import qualified Distribution.Version    as C
 
 import Cabal.Config
 import Cabal.Index
@@ -43,6 +47,20 @@ main = defaultMain $ testGroup "Cabal.Index"
                     assertEqual "tarball hash"
                         (unsafeMkSHA256 "17c67cdaca651e18f310b21b2b12bac6bcec5188c3ac0e4b64cc60c94d7e4d2e")
                         (riTarball ri)
+
+                    -- check contents
+                    withFile indexPath ReadMode $ \hdl -> do
+                        entry <- Tar.hReadEntry hdl (riTarOffset ri)
+                        case Tar.entryContent entry of
+                            Tar.NormalFile bs fs -> do
+                                assertEqual "entry content size"
+                                    7251
+                                    fs
+                                assertEqual "entry content (prefix)"
+                                    "name:            aeson\r\nversion:         1.4.4.0\r\nx-revision: 1\r\nlicense:       "
+                                    (LBS.take 80 bs)
+
+                            _ -> assertFailure "invalid entry content"
 
         step "binary (deprecated versions)"
         case Map.lookup (C.mkPackageName "binary") meta of
