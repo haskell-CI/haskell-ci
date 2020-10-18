@@ -2,6 +2,9 @@
 
 - Rewrite `Cabal.Index` module
   - Added `riTarOffset` field to `ReleaseInfo`
+  - Make `SHA256` be backed by four `Word64`.
+    Hackage cache file size drops from 11673149 to 4423787 bytes.
+
 - Update dependencies
 
 ## 0.3

@@ -1,13 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
+import Data.String      (IsString (..))
 import Prelude          hiding (pi)
 import System.IO        (IOMode (ReadMode), withFile)
 import Test.Tasty       (defaultMain, testGroup)
-import Test.Tasty.HUnit (assertBool, assertEqual, assertFailure, testCaseSteps)
+import Test.Tasty.HUnit (assertBool, assertEqual, assertFailure, testCase, testCaseSteps)
 
 import qualified Codec.Archive.Tar.Entry as Tar
 import qualified Codec.Archive.Tar.Index as Tar
+import qualified Data.ByteString         as BS
+import qualified Data.ByteString.Base16  as Base16
 import qualified Data.ByteString.Lazy    as LBS
 import qualified Data.Map.Strict         as Map
 import qualified Distribution.Package    as C
@@ -18,7 +21,20 @@ import Cabal.Index
 
 main :: IO ()
 main = defaultMain $ testGroup "Cabal.Index"
-    [ testCaseSteps "low-level approach" $ \step -> do
+    [ testGroup "SHA256"
+        [ testCase "Base16.encode . getSHA256 . unsafeMkSHA256 rountrip" $ do
+            let s :: IsString s => s
+                s = "a6f5eddcff9526c786a1b77bdfade54b42f67c066b379bbc4b55ffb291e6c7d6"
+
+            let expected :: BS.ByteString
+                expected = s
+
+            assertEqual "hash"
+                expected
+                (Base16.encode . getSHA256 . unsafeMkSHA256 $ s)
+        ]
+
+    , testCaseSteps "low-level approach" $ \step -> do
         step "Read ~/.cabal/config"
         cfg <- readConfig
 

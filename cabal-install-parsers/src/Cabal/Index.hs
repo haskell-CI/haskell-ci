@@ -18,9 +18,8 @@ module Cabal.Index (
     piPreferredVersions,
     ReleaseInfo (..),
     -- ** Hashes
-    SHA256,
+    SHA256 (..),
     sha256,
-    validSHA256,
     mkSHA256,
     unsafeMkSHA256,
     getSHA256,
@@ -41,7 +40,7 @@ module Cabal.Index (
 import Prelude hiding (pi)
 
 import Control.Exception (Exception, IOException, bracket, evaluate, handle, throwIO)
-import Control.Monad     (unless, void)
+import Data.Bits         (shiftL, (.|.), shiftR, (.&.))
 import Data.ByteString   (ByteString)
 import Data.Int          (Int64)
 import Data.Map.Strict   (Map)
@@ -55,9 +54,12 @@ import qualified Codec.Archive.Tar.Index             as Tar
 import qualified Crypto.Hash.SHA256                  as SHA256
 import qualified Data.Aeson                          as A
 import qualified Data.Binary                         as Binary
+import qualified Data.Binary.Get                     as Binary.Get
+import qualified Data.Binary.Put                     as Binary.Put
 import qualified Data.ByteString                     as BS
 import qualified Data.ByteString.Base16              as Base16
 import qualified Data.ByteString.Lazy                as LBS
+import qualified Data.ByteString.Unsafe              as BS.Unsafe
 import qualified Data.Map.Strict                     as Map
 import qualified Data.Text.Encoding                  as TE
 import qualified Data.Time.Clock.POSIX               as Time
@@ -170,55 +172,137 @@ elaborateIndexFile fp = case FP.splitDirectories fp of
     xs -> Left $ show xs
 
 -------------------------------------------------------------------------------
--- Hashes
+-- SHA256
 -------------------------------------------------------------------------------
 
--- | SHA256 result.
-newtype SHA256 = SHA256 ByteString
+-- | SHA256 digest. 256 bytes.
+data SHA256 = SHA256 !Word64 !Word64 !Word64 !Word64
   deriving (Eq, Ord)
 
 -- | Hash strict 'ByteString'.
 sha256 :: ByteString -> SHA256
-sha256 = SHA256 . SHA256.hash
+sha256 = sha256Digest . check . SHA256.hash
+  where
+    check bs
+        | BS.length bs == 32 = bs
+        | otherwise          = error $ "panic! SHA256.hash returned ByteStrign of length " ++ show (BS.length bs) ++ " /= 32"
+
+-- unsafe construct. You should check the length of bytestring beforehand.
+sha256Digest :: ByteString -> SHA256
+sha256Digest bs = SHA256
+    (   (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  0)) 56)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  1)) 48)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  2)) 40)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  3)) 32)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  4)) 24)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  5)) 16)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  6))  8)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  7))  0)
+    )
+    (   (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  8)) 56)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  9)) 48)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 10)) 40)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 11)) 32)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 12)) 24)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 13)) 16)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 14))  8)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 15))  0)
+    )
+    (   (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 16)) 56)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 17)) 48)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 18)) 40)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 19)) 32)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 20)) 24)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 21)) 16)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 22))  8)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 23))  0)
+    )
+    (   (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 24)) 56)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 25)) 48)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 26)) 40)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 27)) 32)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 28)) 24)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 29)) 16)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 30))  8)
+    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 31))  0)
+    )
 
 -- | Make SHA256 from base16-encoded string.
 mkSHA256 :: Text -> Either String SHA256
 mkSHA256 t = case Base16.decode (TE.encodeUtf8 t) of
     Left err                      -> Left $ "Base16 decoding failure: " ++ err
     Right bs | BS.length bs /= 32 -> Left $ "Base16 of wrong length, expected 32, got " ++ show (BS.length bs)
-             | otherwise          -> Right (SHA256 bs)
+             | otherwise          -> Right (sha256Digest bs)
 
 -- | Unsafe variant of 'mkSHA256'.
 unsafeMkSHA256 :: Text -> SHA256
 unsafeMkSHA256 = either error id . mkSHA256
 
-emptySHA256 :: SHA256
-emptySHA256 = SHA256 BS.empty
-
--- | Check invariants of 'SHA256'
-validSHA256 :: SHA256 -> Bool
-validSHA256 (SHA256 bs) = BS.length bs == 32
-
--- | Get underlying 'ByteString' of 'SHA256'.
+-- | Get 'ByteString' representation of 'SHA256'.
 getSHA256 :: SHA256 -> ByteString
-getSHA256 (SHA256 bs) = bs
+getSHA256 (SHA256 a b c d) = BS.pack
+    [ fromIntegral ((shiftR a 56) .&. 0xff)
+    , fromIntegral ((shiftR a 48) .&. 0xff)
+    , fromIntegral ((shiftR a 40) .&. 0xff)
+    , fromIntegral ((shiftR a 32) .&. 0xff)
+    , fromIntegral ((shiftR a 24) .&. 0xff)
+    , fromIntegral ((shiftR a 16) .&. 0xff)
+    , fromIntegral ((shiftR a  8) .&. 0xff)
+    , fromIntegral ((shiftR a  0) .&. 0xff)
+
+    , fromIntegral ((shiftR b 56) .&. 0xff)
+    , fromIntegral ((shiftR b 48) .&. 0xff)
+    , fromIntegral ((shiftR b 40) .&. 0xff)
+    , fromIntegral ((shiftR b 32) .&. 0xff)
+    , fromIntegral ((shiftR b 24) .&. 0xff)
+    , fromIntegral ((shiftR b 16) .&. 0xff)
+    , fromIntegral ((shiftR b  8) .&. 0xff)
+    , fromIntegral ((shiftR b  0) .&. 0xff)
+
+    , fromIntegral ((shiftR c 56) .&. 0xff)
+    , fromIntegral ((shiftR c 48) .&. 0xff)
+    , fromIntegral ((shiftR c 40) .&. 0xff)
+    , fromIntegral ((shiftR c 32) .&. 0xff)
+    , fromIntegral ((shiftR c 24) .&. 0xff)
+    , fromIntegral ((shiftR c 16) .&. 0xff)
+    , fromIntegral ((shiftR c  8) .&. 0xff)
+    , fromIntegral ((shiftR c  0) .&. 0xff)
+
+    , fromIntegral ((shiftR d 56) .&. 0xff)
+    , fromIntegral ((shiftR d 48) .&. 0xff)
+    , fromIntegral ((shiftR d 40) .&. 0xff)
+    , fromIntegral ((shiftR d 32) .&. 0xff)
+    , fromIntegral ((shiftR d 24) .&. 0xff)
+    , fromIntegral ((shiftR d 16) .&. 0xff)
+    , fromIntegral ((shiftR d  8) .&. 0xff)
+    , fromIntegral ((shiftR d  0) .&. 0xff)
+    ]
 
 instance C.Pretty SHA256 where
     pretty = PP.text . C.fromUTF8BS . Base16.encode . getSHA256
 
 instance Show SHA256 where
-    showsPrec d (SHA256 bs)
+    showsPrec d h
         = showParen (d > 10)
         $ showString "unsafeMkSHA256 "
-        . shows (Base16.encode bs)
+        . shows (Base16.encode (getSHA256 h))
 
 instance Binary.Binary SHA256 where
-    put (SHA256 bs) = Binary.put bs
+    put (SHA256 a b c d) = do
+        Binary.Put.putWord64be a
+        Binary.Put.putWord64be b
+        Binary.Put.putWord64be c
+        Binary.Put.putWord64be d
     get = do
-        bs <- Binary.get
-        case BS.length bs of
-            32 -> return (SHA256 bs)
-            l  -> fail $ "Invalid SHA256 length " ++ show l
+        a <- Binary.Get.getWord64be
+        b <- Binary.Get.getWord64be
+        c <- Binary.Get.getWord64be
+        d <- Binary.Get.getWord64be
+        return (SHA256 a b c d)
+
+-------------------------------------------------------------------------------
+-- MD5
+-------------------------------------------------------------------------------
 
 newtype MD5 = MD5 ByteString
   deriving (Eq, Ord)
@@ -308,18 +392,17 @@ indexMetadata indexFilepath mindexState = do
                 offset :: Tar.TarEntryOffset
                 offset = entryTarOffset indexEntry
 
-                f :: Maybe PackageInfo -> Maybe PackageInfo
-                f Nothing = Just PackageInfo
-                    { piVersions  = Map.singleton ver (ReleaseInfo 0 offset digest emptySHA256)
-                    , piPreferred = C.anyVersion
+                f :: Maybe TmpPackageInfo -> Maybe TmpPackageInfo
+                f Nothing = Just TmpPackageInfo
+                    { tmpPiVersions  = Map.singleton ver (TmpReleaseInfo 0 offset (Just digest) Nothing)
+                    , tmpPiPreferred = C.anyVersion
                     }
-                f (Just pi) = Just pi { piVersions = Map.alter g ver (piVersions pi) }
+                f (Just pi) = Just pi { tmpPiVersions = Map.alter g ver (tmpPiVersions pi) }
 
-                g :: Maybe ReleaseInfo -> Maybe ReleaseInfo
-                g Nothing                           = Just $ ReleaseInfo 0        offset digest emptySHA256
-                g (Just (ReleaseInfo r _o c t))
-                    | r == 0 && not (validSHA256 c) = Just $ ReleaseInfo 0        offset digest t
-                    | otherwise                     = Just $ ReleaseInfo (succ r) offset digest t
+                g :: Maybe TmpReleaseInfo -> Maybe TmpReleaseInfo
+                g Nothing                                 = Just $ TmpReleaseInfo 0        offset (Just digest) Nothing
+                g (Just (TmpReleaseInfo _r _o Nothing t)) = Just $ TmpReleaseInfo 0        offset (Just digest) t
+                g (Just (TmpReleaseInfo  r _o _c      t)) = Just $ TmpReleaseInfo (succ r) offset (Just digest) t
 
             PackageJson pn ver -> case A.eitherDecodeStrict contents of
                     Left err -> throwIO $ MetadataParseError (entryPath indexEntry) err
@@ -328,16 +411,16 @@ indexMetadata indexFilepath mindexState = do
                             Just t  -> return (Map.alter (f t) pn m)
                             Nothing -> throwIO $ MetadataParseError (entryPath indexEntry) $ "Invalid targets in " ++ entryPath indexEntry ++ " -- " ++ show ts
                       where
-                        f :: Target -> Maybe PackageInfo -> Maybe PackageInfo
-                        f t Nothing   = Just PackageInfo
-                            { piVersions  = Map.singleton ver (ReleaseInfo 0 0 emptySHA256 (hashSHA256 (targetHashes t)))
-                            , piPreferred = C.anyVersion
+                        f :: Target -> Maybe TmpPackageInfo -> Maybe TmpPackageInfo
+                        f t Nothing   = Just TmpPackageInfo
+                            { tmpPiVersions  = Map.singleton ver (TmpReleaseInfo 0 0 Nothing (Just (hashSHA256 (targetHashes t))))
+                            , tmpPiPreferred = C.anyVersion
                             }
-                        f t (Just pi) = Just pi { piVersions = Map.alter (g t) ver (piVersions pi) }
+                        f t (Just pi) = Just pi { tmpPiVersions = Map.alter (g t) ver (tmpPiVersions pi) }
 
-                        g :: Target -> Maybe ReleaseInfo -> Maybe ReleaseInfo
-                        g t Nothing                      = Just $ ReleaseInfo 0 0 emptySHA256 (hashSHA256 (targetHashes t))
-                        g t (Just (ReleaseInfo r o c _)) = Just $ ReleaseInfo r o c (hashSHA256 (targetHashes t))
+                        g :: Target -> Maybe TmpReleaseInfo -> Maybe TmpReleaseInfo
+                        g t Nothing                         = Just $ TmpReleaseInfo 0 0 Nothing (Just (hashSHA256 (targetHashes t)))
+                        g t (Just (TmpReleaseInfo r o c _)) = Just $ TmpReleaseInfo r o c       (Just (hashSHA256 (targetHashes t)))
 
             PreferredVersions pn
                     | BS.null contents -> return m
@@ -350,24 +433,35 @@ indexMetadata indexFilepath mindexState = do
                         C.spaces
                         C.parsec
 
-                    f :: C.VersionRange -> Maybe PackageInfo -> Maybe PackageInfo
-                    f vr Nothing = Just PackageInfo
-                        { piVersions  = Map.empty
-                        , piPreferred = vr
+                    f :: C.VersionRange -> Maybe TmpPackageInfo -> Maybe TmpPackageInfo
+                    f vr Nothing = Just TmpPackageInfo
+                        { tmpPiVersions  = Map.empty
+                        , tmpPiPreferred = vr
                         }
-                    f vr (Just pi) = Just pi { piPreferred = vr }
+                    f vr (Just pi) = Just pi { tmpPiPreferred = vr }
 
     -- check invariants and return
     postCheck result
-    return result
 
-postCheck :: Map C.PackageName PackageInfo -> IO ()
-postCheck meta = ifor_ meta $ \pn pi -> ifor_ (piVersions pi) $ \ver ri -> do
-    unless (validSHA256 (riCabal ri))   $ throwIO $ InvalidHash pn ver "cabal"
-    unless (validSHA256 (riTarball ri)) $ throwIO $ InvalidHash pn ver "tarball"
+postCheck :: Map C.PackageName TmpPackageInfo -> IO (Map C.PackageName PackageInfo)
+postCheck meta = ifor meta $ \pn pi -> do
+    versions <- ifor (tmpPiVersions pi) $ \ver ri -> do
+        cabal   <- maybe (throwIO $ InvalidHash pn ver "cabal")   return (tmpRiCabal   ri)
+        tarball <- maybe (throwIO $ InvalidHash pn ver "tarball") return (tmpRiTarball ri)
+        return ReleaseInfo
+            { riRevision  = tmpRiRevision ri
+            , riTarOffset = tmpRiTarOffset ri
+            , riCabal     = cabal
+            , riTarball   = tarball
+            }
+
+    return PackageInfo
+        { piPreferred = tmpPiPreferred pi
+        , piVersions  = versions
+        }
   where
-    ifor_ :: Map k v -> (k -> v -> IO a) -> IO ()
-    ifor_ xs f = Map.foldlWithKey' (\m k a -> m >> void (f k a)) (return ()) xs
+    ifor :: Map k v -> (k -> v -> IO v') -> IO (Map k v')
+    ifor = flip Map.traverseWithKey
 
 -- | Thrown when we cannot parse @package.json@ or @preferred-versions@ files.
 data MetadataParseError = MetadataParseError FilePath String
@@ -380,6 +474,22 @@ data InvalidHash = InvalidHash C.PackageName C.Version String
   deriving (Show)
 
 instance Exception InvalidHash
+
+-------------------------------------------------------------------------------
+-- Temporary types for indexMetadata
+-------------------------------------------------------------------------------
+
+data TmpPackageInfo = TmpPackageInfo
+    { tmpPiVersions  :: Map C.Version TmpReleaseInfo  -- ^ individual package releases
+    , tmpPiPreferred :: C.VersionRange                -- ^ preferred versions range
+    }
+
+data TmpReleaseInfo = TmpReleaseInfo
+    { tmpRiRevision  :: !Word32              -- ^ revision number
+    , tmpRiTarOffset :: !Tar.TarEntryOffset  -- ^ offset into tar file
+    , tmpRiCabal     :: !(Maybe SHA256)      -- ^ hash of the last revision of @.cabal@ file
+    , tmpRiTarball   :: !(Maybe SHA256)      -- ^ hash of the @.tar.gz@ file.
+    }
 
 -------------------------------------------------------------------------------
 -- Hackage
