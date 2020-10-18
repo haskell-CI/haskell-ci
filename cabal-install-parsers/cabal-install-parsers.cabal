@@ -88,6 +88,7 @@ test-suite cabal-parsers-index
   build-depends:
     , base
     , bytestring
+    , base16-bytestring
     , Cabal
     , cabal-install-parsers
     , containers
