@@ -40,17 +40,18 @@ module Cabal.Index (
 
 import Prelude hiding (pi)
 
-import Control.Exception
-       (Exception, IOException, bracket, evaluate, handle, throwIO)
+import Control.Exception (Exception, IOException, bracket, evaluate, handle, throwIO)
 import Control.Monad     (unless, void)
 import Data.ByteString   (ByteString)
 import Data.Int          (Int64)
 import Data.Map.Strict   (Map)
 import Data.Text         (Text)
+import Data.Word         (Word32, Word64)
 import GHC.Generics      (Generic)
 
 import qualified Codec.Archive.Tar                   as Tar
 import qualified Codec.Archive.Tar.Entry             as Tar
+import qualified Codec.Archive.Tar.Index             as Tar
 import qualified Crypto.Hash.SHA256                  as SHA256
 import qualified Data.Aeson                          as A
 import qualified Data.Binary                         as Binary
@@ -90,9 +91,11 @@ foldIndex
     -> IO a
 foldIndex fp ini action = do
     contents <- LBS.readFile fp
-    foldEntries go throwIO ini (Tar.read contents)
+    Acc _ result <- foldEntries go throwIO (Acc 0 ini) (Tar.read contents)
+    return result
   where
-    go !acc entry = case Tar.entryContent entry of
+    go (Acc offset acc) entry = case Tar.entryContent entry of
+        -- file entry
         Tar.NormalFile contents _ -> do
             bs <- evaluate $ LBS.toStrict contents
             idxFile <- either (throwIO . InvalidIndexFile) return (elaborateIndexFile fpath)
@@ -102,12 +105,17 @@ foldIndex fp ini action = do
                     , entryOwnership   = Tar.entryOwnership entry
                     , entryTime        = Tar.entryTime entry
                     , entryType        = idxFile
+                    , entryTarOffset   = offset
                     }
-            action entry' bs acc
-        Tar.Directory -> return acc
-        _             -> return acc
+            next <- action entry' bs acc
+            return (Acc (Tar.nextEntryOffset entry offset) next)
+
+        -- all other entries
+        _ -> return (Acc (Tar.nextEntryOffset entry offset) acc)
      where
        fpath = Tar.entryPath entry
+
+data Acc a = Acc !Tar.TarEntryOffset !a
 
 foldEntries :: (a -> Tar.Entry -> IO a) -> (e -> IO a) -> a -> Tar.Entries e -> IO a
 foldEntries next fail' = go where
@@ -120,11 +128,12 @@ foldEntries next fail' = go where
 -------------------------------------------------------------------------------
 
 data IndexEntry = IndexEntry
-    { entryPath        :: FilePath
-    , entryType        :: IndexFileType
-    , entryPermissions :: Tar.Permissions
-    , entryOwnership   :: Tar.Ownership
-    , entryTime        :: Tar.EpochTime
+    { entryPath        :: !FilePath
+    , entryType        :: !IndexFileType
+    , entryPermissions :: !Tar.Permissions
+    , entryOwnership   :: !Tar.Ownership
+    , entryTime        :: !Tar.EpochTime
+    , entryTarOffset   :: !Tar.TarEntryOffset
     }
   deriving Show
 
@@ -261,9 +270,10 @@ piPreferredVersions pi =
 
 -- | Package's release information.
 data ReleaseInfo = ReleaseInfo
-    { riRevision :: Word    -- ^ revision number
-    , riCabal    :: SHA256  -- ^ hash of the last revision of @.cabal@ file
-    , riTarball  :: SHA256  -- ^ hash of the @.tar.gz@ file.
+    { riRevision  :: !Word32              -- ^ revision number
+    , riTarOffset :: !Tar.TarEntryOffset  -- ^ offset into tar file
+    , riCabal     :: !SHA256              -- ^ hash of the last revision of @.cabal@ file
+    , riTarball   :: !SHA256              -- ^ hash of the @.tar.gz@ file.
     }
   deriving (Eq, Show, Generic)
 
@@ -282,46 +292,57 @@ indexMetadata
     -> Maybe Tar.EpochTime  -- ^ index state to stop
     -> IO (Map C.PackageName PackageInfo)
 indexMetadata indexFilepath mindexState = do
-    result <- foldIndex indexFilepath Map.empty $ \indexEntry contents m ->
-        if maybe False (entryTime indexEntry >) mindexState
+    let shouldStop :: Tar.EpochTime -> Bool
+        shouldStop = case mindexState of
+            Nothing         -> \_ -> False
+            Just indexState -> \t -> t >= indexState
+
+    result <- foldIndex indexFilepath Map.empty $ \indexEntry contents !m ->
+        if shouldStop (entryTime indexEntry)
         then return m
         else case entryType indexEntry of
-            CabalFile pn ver -> return $ Map.alter f pn m where
+            CabalFile pn ver -> return (Map.alter f pn m) where
+                digest :: SHA256
+                digest = sha256 contents
+
+                offset :: Tar.TarEntryOffset
+                offset = entryTarOffset indexEntry
+
                 f :: Maybe PackageInfo -> Maybe PackageInfo
                 f Nothing = Just PackageInfo
-                    { piVersions  = Map.singleton ver (ReleaseInfo 0 (sha256 contents) emptySHA256)
+                    { piVersions  = Map.singleton ver (ReleaseInfo 0 offset digest emptySHA256)
                     , piPreferred = C.anyVersion
                     }
                 f (Just pi) = Just pi { piVersions = Map.alter g ver (piVersions pi) }
 
                 g :: Maybe ReleaseInfo -> Maybe ReleaseInfo
-                g Nothing                           = Just $ ReleaseInfo 0        (sha256 contents) emptySHA256
-                g (Just (ReleaseInfo r c t))
-                    | r == 0 && not (validSHA256 c) = Just $ ReleaseInfo 0        (sha256 contents) t
-                    | otherwise                     = Just $ ReleaseInfo (succ r) (sha256 contents) t
+                g Nothing                           = Just $ ReleaseInfo 0        offset digest emptySHA256
+                g (Just (ReleaseInfo r _o c t))
+                    | r == 0 && not (validSHA256 c) = Just $ ReleaseInfo 0        offset digest t
+                    | otherwise                     = Just $ ReleaseInfo (succ r) offset digest t
 
             PackageJson pn ver -> case A.eitherDecodeStrict contents of
                     Left err -> throwIO $ MetadataParseError (entryPath indexEntry) err
                     Right (PJ (Signed (Targets ts))) ->
                         case Map.lookup ("<repo>/package/" ++ C.prettyShow pn ++ "-" ++ C.prettyShow ver ++ ".tar.gz") ts of
-                            Just t  -> return $ Map.alter (f t) pn m
+                            Just t  -> return (Map.alter (f t) pn m)
                             Nothing -> throwIO $ MetadataParseError (entryPath indexEntry) $ "Invalid targets in " ++ entryPath indexEntry ++ " -- " ++ show ts
                       where
                         f :: Target -> Maybe PackageInfo -> Maybe PackageInfo
                         f t Nothing   = Just PackageInfo
-                            { piVersions  = Map.singleton ver (ReleaseInfo 0 emptySHA256 (hashSHA256 (targetHashes t)))
+                            { piVersions  = Map.singleton ver (ReleaseInfo 0 0 emptySHA256 (hashSHA256 (targetHashes t)))
                             , piPreferred = C.anyVersion
                             }
                         f t (Just pi) = Just pi { piVersions = Map.alter (g t) ver (piVersions pi) }
 
                         g :: Target -> Maybe ReleaseInfo -> Maybe ReleaseInfo
-                        g t Nothing                    = Just $ ReleaseInfo 0 emptySHA256 (hashSHA256 (targetHashes t))
-                        g t (Just (ReleaseInfo r c _)) = Just $ ReleaseInfo r c (hashSHA256 (targetHashes t))
+                        g t Nothing                      = Just $ ReleaseInfo 0 0 emptySHA256 (hashSHA256 (targetHashes t))
+                        g t (Just (ReleaseInfo r o c _)) = Just $ ReleaseInfo r o c (hashSHA256 (targetHashes t))
 
             PreferredVersions pn
                     | BS.null contents -> return m
                     | otherwise        -> case explicitEitherParsecBS preferredP contents of
-                        Right vr -> return $ Map.alter (f vr) pn m
+                        Right vr -> return (Map.alter (f vr) pn m)
                         Left err -> throwIO $ MetadataParseError (entryPath indexEntry) err
                   where
                     preferredP = do
@@ -335,7 +356,6 @@ indexMetadata indexFilepath mindexState = do
                         , piPreferred = vr
                         }
                     f vr (Just pi) = Just pi { piPreferred = vr }
-          
 
     -- check invariants and return
     postCheck result
@@ -368,7 +388,10 @@ instance Exception InvalidHash
 -- | Read the config and then Hackage index metadata.
 --
 -- This method caches the result in @XDG_CACHE/cabal-parsers@ directory.
-cachedHackageMetadata :: IO (Map C.PackageName PackageInfo)
+--
+-- Returns the location of index tarball and its contents.
+--
+cachedHackageMetadata :: IO (FilePath, Map C.PackageName PackageInfo)
 cachedHackageMetadata = do
     -- read config
     cfg <- readConfig
@@ -389,7 +412,7 @@ cachedHackageMetadata = do
         mcache <- readCache cacheFile
         case mcache of
             Just cache | cacheSize cache == size && cacheTime cache == time ->
-                return $ cacheData cache
+                return (indexPath, cacheData cache)
             _ -> do
                 meta <- indexMetadata indexPath Nothing
                 LBS.writeFile cacheFile $ Binary.encode Cache
@@ -398,7 +421,7 @@ cachedHackageMetadata = do
                     , cacheSize  = size
                     , cacheData  = meta
                     }
-                return meta
+                return (indexPath, meta)
 
   where
     readCache :: FilePath -> IO (Maybe Cache)
@@ -455,8 +478,8 @@ instance Binary.Binary Magic where
         m <- Binary.get
         if m == magicNumber then return Magic else fail "Got wrong magic number"
 
-magicNumber :: Int64
-magicNumber = 0xfedcba09
+magicNumber :: Word64
+magicNumber = 0xF000F000F0004000
 
 -------------------------------------------------------------------------------
 -- mini bool-singetons

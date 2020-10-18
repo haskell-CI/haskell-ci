@@ -157,7 +157,7 @@ library haskell-ci-internal
   build-depends:
     , aeson                  ^>=1.4.2.0 || ^>=1.5.0.0
     , base-compat            ^>=0.11
-    , cabal-install-parsers  ^>=0.3
+    , cabal-install-parsers  ^>=0.4
     , exceptions             ^>=0.10.0
     , generic-lens-lite      ^>=0.1
     , HsYAML                 ^>=0.2.0.0
