@@ -243,7 +243,7 @@ script:
   # build & run tests, build benchmarks
   - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} all
   # Testing...
-  - ${CABAL} v2-test $WITHCOMPILER ${TEST} ${BENCH} all
+  - ${CABAL} v2-test $WITHCOMPILER ${TEST} ${BENCH} all --test-show-details=direct
   # cabal check...
   - (cd ${PKGDIR_servant} && ${CABAL} -vnormal check)
   - (cd ${PKGDIR_servant_client} && ${CABAL} -vnormal check)
