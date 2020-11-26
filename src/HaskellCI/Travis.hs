@@ -329,7 +329,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- cabal v2-test fails if there are no test-suites.
         foldedSh FoldTest "Testing..." cfgFolds $ do
             shForJob (RangeGHC /\ Range (cfgTests /\ cfgRunTests) /\ hasTests) $
-                cabal "v2-test $WITHCOMPILER ${TEST} ${BENCH} all"
+                cabal "v2-test $WITHCOMPILER ${TEST} ${BENCH} all --test-show-details=direct"
 
             when cfgGhcjsTests $ shForJob (RangeGHCJS /\ hasTests) $ unwords
                 [ "cabal-plan list-bins '*:test:*' | while read -r line; do"
@@ -417,7 +417,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 foldedSh' FoldConstraintSets name ("Constraint set " ++ name) cfgFolds $ do
                     shForCs $ cabal $ "v2-build $WITHCOMPILER " ++ allFlags ++ " all"
                     when (csRunTests cs) $
-                        shForCs' hasTests $ cabal $ "v2-test $WITHCOMPILER " ++ allFlags ++ " all"
+                        shForCs' hasTests $ cabal $ "v2-test $WITHCOMPILER " ++ allFlags ++ " all --test-show-details=direct"
                     when (hasLibrary && csHaddock cs) $
                         shForCs $ cabal $ "v2-haddock $WITHCOMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
