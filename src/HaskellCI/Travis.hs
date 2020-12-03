@@ -2,50 +2,33 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
-{-# OPTIONS_GHC -Wno-unused-imports -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
 module HaskellCI.Travis (
     makeTravis,
     travisHeader,
     ) where
 
 import HaskellCI.Prelude
-import Prelude           (head)
 
-import qualified Data.Map.Strict                               as M
-import qualified Data.Set                                      as S
-import qualified Distribution.CabalSpecVersion                 as C
-import qualified Distribution.FieldGrammar                     as C
-import qualified Distribution.FieldGrammar.Pretty              as C
-import qualified Distribution.Fields.Pretty                    as C
-import qualified Distribution.Package                          as C
-import qualified Distribution.PackageDescription               as C
-import qualified Distribution.PackageDescription.Configuration as C
-import qualified Distribution.PackageDescription.FieldGrammar  as C
-import qualified Distribution.Pretty                           as C
-import qualified Distribution.Types.GenericPackageDescription  as C
-import qualified Distribution.Types.SourceRepo                 as C
-import qualified Distribution.Types.VersionRange               as C
-import qualified Distribution.Version                          as C
-import qualified Text.PrettyPrint                              as PP
+import qualified Data.Map.Strict                 as M
+import qualified Data.Set                        as S
+import qualified Distribution.Fields.Pretty      as C
+import qualified Distribution.Package            as C
+import qualified Distribution.Pretty             as C
+import qualified Distribution.Types.VersionRange as C
+import qualified Distribution.Version            as C
 
-import qualified Distribution.Types.BuildInfo.Lens          as L
-import qualified Distribution.Types.PackageDescription.Lens as L
-
-import Cabal.Optimization
 import Cabal.Project
-import Cabal.SourceRepo
-import HaskellCI.Cli
+import HaskellCI.Auxiliary
 import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.ConstraintSet
-import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
-import HaskellCI.Config.Ubuntu
 import HaskellCI.Jobs
 import HaskellCI.List
 import HaskellCI.MonadErr
@@ -88,7 +71,7 @@ makeTravis
     -> Project URI Void Package
     -> JobVersions
     -> Either ShError Travis -- TODO: writer
-makeTravis argv Config {..} prj JobVersions {..} = do
+makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
     -- before caching: clear some redundant stuff
     beforeCache <- runSh $ when cfgCache $ do
         sh "rm -fv $CABALHOME/packages/hackage.haskell.org/build-reports.log"
@@ -105,9 +88,9 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- This have to be first
         when anyGHCJS $ sh $ unlines
             [ "if echo $CC | grep -q ghcjs; then"
-            , "    GHCJS=true;"
+            , "    GHCJS=true; GHCJSARITH=1;"
             , "else"
-            , "    GHCJS=false;"
+            , "    GHCJS=false; GHCJSARITH=0;"
             , "fi"
             ]
 
@@ -403,7 +386,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         -- we can test with other constraint sets
         unless (null cfgConstraintSets) $ do
             comment "Constraint sets"
-            sh "rm -rf cabal.project.local"
+            sh "rm -f cabal.project.local"
 
             for_ cfgConstraintSets $ \cs -> do
                 let name            = csName cs
@@ -524,9 +507,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         , travisScript        = script
         }
   where
-    pkgs = prjPackages prj
-    uris = prjUriPackages prj
-    projectName = fromMaybe (pkgName $ Prelude.head pkgs) cfgProjectName
+    Auxiliary {..} = auxiliary config prj jobs
 
     justIf True x  = Just x
     justIf False _ = Nothing
@@ -559,17 +540,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
         label' | null sfx  = showFold label
                | otherwise = showFold label ++ "-" ++ sfx
 
-    doctestEnabled = any (maybeGHC False (`C.withinRange` cfgDoctestEnabled cfgDoctest)) versions
-
-    -- version range which has tests
-    hasTests :: CompilerRange
-    hasTests = RangePoints $ S.unions
-        [ pkgJobs
-        | Pkg{pkgGpd,pkgJobs} <- pkgs
-        , not $ null $ C.condTestSuites pkgGpd
-        ]
-
-    hasLibrary = any (\Pkg{pkgGpd} -> isJust $ C.condLibrary pkgGpd) pkgs
 
     -- GHC versions which need head.hackage
     headGhcVers :: Set CompilerVersion
@@ -598,52 +568,6 @@ makeTravis argv Config {..} prj JobVersions {..} = do
 
     -- catForJob vr fp contents = shForJob vr (catCmd Double fp contents)
 
-    generateCabalProjectFields :: Bool -> [C.PrettyField ()]
-    generateCabalProjectFields dist = buildList $ do
-        -- generate package fields for URI packages.
-        for_ uris $ \uri ->
-            item $ C.PrettyField () "packages" $ PP.text $ uriToString id uri ""
-
-        -- copy fields from original cabal.project
-        case cfgCopyFields of
-            CopyFieldsNone -> pure ()
-            CopyFieldsSome -> copyFieldsSome
-            CopyFieldsAll  -> copyFieldsSome *> traverse_ item (prjOtherFields prj)
-
-        -- local ghc-options
-        unless (null cfgLocalGhcOptions) $ for_ pkgs $ \Pkg{pkgName} -> do
-            let s = unwords $ map (show . C.showToken) cfgLocalGhcOptions
-            item $ C.PrettySection () "package" [PP.text pkgName] $ buildList $
-                item $ C.PrettyField () "ghc-options" $ PP.text s
-
-        -- raw-project is after local-ghc-options so we can override per package.
-        traverse_ item cfgRawProject
-
-    copyFieldsSome :: ListBuilder (C.PrettyField ()) ()
-    copyFieldsSome = do
-        for_ (prjConstraints prj) $ \xs -> do
-            let s = concat (lines xs)
-            item $ C.PrettyField () "constraints" $ PP.text s
-
-        for_ (prjAllowNewer prj) $ \xs -> do
-            let s = concat (lines xs)
-            item $ C.PrettyField () "allow-newer" $ PP.text s
-
-        when (prjReorderGoals prj) $
-            item $ C.PrettyField () "reorder-goals" $ PP.text "True"
-
-        for_ (prjMaxBackjumps prj) $ \bj ->
-            item $ C.PrettyField () "max-backjumps" $ PP.text $ show bj
-
-        case prjOptimization prj of
-            OptimizationOn      -> return ()
-            OptimizationOff     -> item $ C.PrettyField () "optimization" $ PP.text "False"
-            OptimizationLevel l -> item $ C.PrettyField () "optimization" $ PP.text $ show l
-
-        for_ (prjSourceRepos prj) $ \repo ->
-            item $ C.PrettySection () "source-repository-package" [] $
-                C.prettyFieldGrammar C.cabalSpecLatest sourceRepositoryPackageGrammar (srpHoist toList repo)
-
     generateCabalProject :: Bool -> ShM ()
     generateCabalProject dist = do
         comment "Generate cabal.project"
@@ -670,7 +594,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
                 sh "echo 'package *' >> cabal.project"
                 sh "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
 
-        cat "cabal.project" $ lines $ C.showFields' (const []) 2 $ generateCabalProjectFields dist
+        cat "cabal.project" $ lines $ C.showFields' (const []) 2 extraCabalProjectFields
 
         -- also write cabal.project.local file with
         -- @
@@ -711,15 +635,7 @@ makeTravis argv Config {..} prj JobVersions {..} = do
     withHaddock :: String
     withHaddock = "--with-haddock $HADDOCK"
 
-pkgNameDirVariable' :: String -> String
-pkgNameDirVariable' n = "PKGDIR_" ++ map f n where
-    f '-' = '_'
-    f c   = c
 
-pkgNameDirVariable :: String -> String
-pkgNameDirVariable n = "${PKGDIR_" ++ map f n ++ "}" where
-    f '-' = '_'
-    f c   = c
 
 data Quotes = Single | Double
 

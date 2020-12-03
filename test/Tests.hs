@@ -7,10 +7,12 @@ import Prelude.Compat
 import HaskellCI             hiding (main)
 import HaskellCI.Diagnostics (runDiagnosticsT)
 
+import Control.Arrow              (first)
 import Control.Exception          (ErrorCall (..), throwIO)
 import Data.Algorithm.Diff        (PolyDiff (..), getGroupedDiff)
 import Data.List                  (stripPrefix)
 import Data.Maybe                 (mapMaybe)
+import Distribution.Simple.Utils  (fromUTF8BS)
 import System.Directory           (doesFileExist, setCurrentDirectory)
 import System.FilePath            (addExtension)
 import Test.Tasty                 (TestName, TestTree, defaultMain, testGroup)
@@ -54,7 +56,7 @@ fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
     (argv, opts) <- makeTravisFlags
     let genConfig = travisFromConfigFile argv opts fp
-    runDiagnosticsT genConfig
+    first (fmap (lines . fromUTF8BS)) <$> runDiagnosticsT genConfig
   where
     outputRef = addExtension fp "travis.yml"
     errorRef = addExtension fp "stderr"
@@ -70,13 +72,8 @@ fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
         case result of
             Nothing -> throwIO (ErrorCall "No REGENDATA in result file.")
             Just argv -> do
-                (opts, _fp) <- parseOpts argv
+                (_fp, opts) <- parseOptions argv
                 return (argv, opts)
-
-parseOpts :: [String] -> IO (Options, FilePath)
-parseOpts argv = do
-    (path, opts) <- parseTravis argv
-    return (opts, path)
 
 data Result
     = Success [String] [String]

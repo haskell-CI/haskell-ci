@@ -14,29 +14,30 @@
 module HaskellCI (
     main,
     -- * for tests
-    parseTravis,
+    parseOptions,
     travisFromConfigFile, Options (..), defaultOptions,
     ) where
 
 import HaskellCI.Prelude
 
+import Control.Exception     (try)
 import Data.List             (nubBy, sort, sortBy, (\\))
-import System.Directory      (canonicalizePath, doesFileExist, makeRelativeToCurrentDirectory, setCurrentDirectory)
+import System.Directory      (doesFileExist, setCurrentDirectory)
 import System.Environment    (getArgs)
 import System.Exit           (ExitCode (..), exitFailure)
 import System.FilePath.Posix (takeDirectory, takeFileName)
-import System.IO             (hClose, hFlush, hPutStr, hPutStrLn, stderr)
+import System.IO             (hClose, hFlush, hPutStrLn, stderr)
 import System.IO.Temp        (withSystemTempFile)
 import System.Process        (readProcessWithExitCode)
 
 import Distribution.PackageDescription (GenericPackageDescription, package, packageDescription, testedWith)
-import Distribution.Simple.Utils       (fromUTF8BS)
+import Distribution.Simple.Utils       (fromUTF8BS, toUTF8BS)
 import Distribution.Text
 import Distribution.Version
 
 import qualified Data.ByteString       as BS
-import qualified Data.Map as Map
 import qualified Data.List.NonEmpty    as NE
+import qualified Data.Map              as Map
 import qualified Data.Set              as S
 import qualified Data.Traversable      as T
 import qualified Distribution.Compiler as Compiler
@@ -46,6 +47,7 @@ import qualified Options.Applicative   as O
 import Cabal.Parse
 import Cabal.Project
 import HaskellCI.Cli
+import HaskellCI.Bash
 import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.Dump
@@ -54,8 +56,10 @@ import HaskellCI.Jobs
 import HaskellCI.Package
 import HaskellCI.TestedWith
 import HaskellCI.Travis
-import HaskellCI.YamlSyntax
 import HaskellCI.VersionInfo
+import HaskellCI.YamlSyntax
+
+import qualified HaskellCI.Bash.Template as Bash
 
 -------------------------------------------------------------------------------
 -- Main
@@ -71,46 +75,22 @@ main = do
             for_ groupedVersions $ \(v, vs) -> do
                 putStr $ prettyMajVersion v ++ ": "
                 putStrLn $ intercalate ", " (map display $ toList vs)
+
         CommandDumpConfig -> do
             putStr $ unlines $ runDG configGrammar
 
         CommandRegenerate -> do
-            let fp = case optOutput opts of
-                    Just (OutputFile fp') -> fp'
-                    _                     -> defaultTravisPath
+            regenerateTravis opts
+            regenerateBash opts
 
-            -- read, and then change to the directory
-            contents <- fromUTF8BS <$> BS.readFile fp
-            absFp <- canonicalizePath fp
-            let dir = takeDirectory fp
-            setCurrentDirectory dir
-            newFp <- makeRelativeToCurrentDirectory absFp
-
-            case findArgv (lines contents) of
-                Nothing     -> do
-                    hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ fp
-                    exitFailure
-                Just (mversion, argv) -> do
-                    -- warn if we regenerate using older haskell-ci
-                    for_ mversion $ \version -> for_ (simpleParsec haskellCIVerStr) $ \haskellCIVer ->
-                        when (haskellCIVer < version) $ do
-                            hPutStrLn stderr $ "Regenerating using older haskell-ci-" ++ haskellCIVerStr
-                            hPutStrLn stderr $ "File generated using haskell-ci-" ++ prettyShow version
-
-                    (f, opts') <- parseTravis argv
-                    doTravis argv f (optionsWithOutputFile newFp <> opts' <> opts)
         CommandTravis f -> doTravis argv0 f opts
+        CommandBash f   -> doBash argv0 f opts
+
         CommandVersionInfo -> do
             putStrLn $ "haskell-ci " ++ haskellCIVerStr ++ " with dependencies"
             ifor_ dependencies $ \p v -> do
                 putStrLn $ "  " ++ p ++ "-" ++ v
   where
-    findArgv :: [String] -> Maybe (Maybe Version, [String])
-    findArgv ls = do
-        l <- findMaybe (afterInfix "REGENDATA") ls
-        first simpleParsec <$> (readMaybe l :: Maybe (String, [String]))
-            <|> (,) Nothing <$> (readMaybe l :: Maybe [String])
-
     groupedVersions :: [(Version, NonEmpty Version)]
     groupedVersions = map ((\vs -> (head vs, vs)) . NE.sortBy (flip compare))
                     . groupBy ((==) `on` ghcMajVer)
@@ -123,26 +103,29 @@ main = do
     ifor_ :: Map.Map k v -> (k -> v -> IO a) -> IO ()
     ifor_ xs f = Map.foldlWithKey' (\m k a -> m >> void (f k a)) (return ()) xs
 
+-------------------------------------------------------------------------------
+-- Travis
+-------------------------------------------------------------------------------
+
 defaultTravisPath :: FilePath
 defaultTravisPath = ".travis.yml"
 
 doTravis :: [String] -> FilePath -> Options -> IO ()
 doTravis args path opts = do
-    ls <- travisFromConfigFile args opts path
-    let contents = unlines ls
+    contents <- travisFromConfigFile args opts path
     case optOutput opts of
-        Nothing              -> writeFile defaultTravisPath contents
-        Just OutputStdout    -> putStr contents
-        Just (OutputFile fp) -> writeFile fp contents
+        Nothing              -> BS.writeFile defaultTravisPath contents
+        Just OutputStdout    -> BS.putStr contents
+        Just (OutputFile fp) -> BS.writeFile fp contents
 
 travisFromConfigFile
     :: forall m. (MonadIO m, MonadDiagnostics m, MonadMask m)
     => [String]
     -> Options
     -> FilePath
-    -> m [String]
+    -> m ByteString
 travisFromConfigFile args opts path = do
-    cabalFiles <- getCabalFiles
+    cabalFiles <- getCabalFiles path
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config) cabalFiles
@@ -156,22 +139,6 @@ travisFromConfigFile args opts path = do
 
     ls <- genTravisFromConfigs args config prj' ghcs
     patchTravis config ls
-  where
-    isCabalProject :: Maybe FilePath
-    isCabalProject
-        | "cabal.project" `isPrefixOf` takeFileName path = Just path
-        | otherwise = Nothing
-
-    getCabalFiles :: m (Project URI Void (FilePath, GenericPackageDescription))
-    getCabalFiles
-        | isNothing isCabalProject = do
-            e <- liftIO $ readPackagesOfProject (emptyProject & field @"prjPackages" .~ [path])
-            either (putStrLnErr . renderParseError) return e
-        | otherwise = do
-            contents <- liftIO $ BS.readFile path
-            prj0 <- either (putStrLnErr . renderParseError) return $ parseProject path contents
-            prj1 <- either (putStrLnErr . renderResolveError) return =<< liftIO (resolveProject path prj0)
-            either (putStrLnErr . renderParseError) return =<< liftIO (readPackagesOfProject prj1)
 
 genTravisFromConfigs
     :: (Monad m, MonadDiagnostics m)
@@ -179,16 +146,16 @@ genTravisFromConfigs
     -> Config
     -> Project URI Void Package
     -> Set CompilerVersion
-    -> m [String]
+    -> m ByteString
 genTravisFromConfigs argv config prj vs = do
     let jobVersions = makeJobVersions config vs
     case makeTravis argv config prj jobVersions of
         Left err     -> putStrLnErr $ displayException err
         Right travis -> do
-            describeJobs (cfgTestedWith config) jobVersions (prjPackages prj)
-            return $
-                lines (prettyYaml id $ reann (travisHeader (cfgInsertVersion config) argv ++) $ toYaml travis)
-                ++
+            describeJobs "Travis-CI config" (cfgTestedWith config) jobVersions (prjPackages prj)
+            return $ toUTF8BS $
+                (prettyYaml id $ reann (travisHeader (cfgInsertVersion config) argv ++) $ toYaml travis)
+                ++ unlines
                 [ ""
                 , "# REGENDATA " ++ if cfgInsertVersion config then show (haskellCIVerStr, argv) else show argv
                 , "# EOF"
@@ -199,16 +166,16 @@ genTravisFromConfigs argv config prj vs = do
 -- it would be awkward to patch the generated output otherwise).
 patchTravis
     :: (MonadIO m, MonadMask m)
-    => Config -> [String] -> m [String]
-patchTravis cfg ls
-  | null patches = pure ls
+    => Config -> ByteString -> m ByteString
+patchTravis cfg input
+  | null patches = pure input
   | otherwise =
       withSystemTempFile ".travis.yml.tmp" $ \fp h -> liftIO $ do
-        hPutStr h $ unlines ls
+        BS.hPutStr h input
         hFlush h
         for_ patches $ applyPatch fp
         hClose h
-        lines . fromUTF8BS <$> BS.readFile fp
+        BS.readFile fp
   where
     patches :: [FilePath]
     patches = cfgTravisPatches cfg
@@ -231,6 +198,157 @@ patchTravis cfg ls
                 , "Stdout: " ++ stdOut
                 , "Stderr: " ++ stdErr
                 ]
+
+regenerateTravis :: Options -> IO ()
+regenerateTravis opts = do
+    let fp = defaultTravisPath
+
+    -- change the directory
+    for_ (optCwd opts) setCurrentDirectory
+
+    -- read, and then change to the directory
+    withContents fp noTravisYml $ \contents -> case findRegendataArgv contents of
+        Nothing     -> do
+            hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ fp
+            exitFailure
+
+        Just (mversion, argv) -> do
+            -- warn if we regenerate using older haskell-ci
+            for_ mversion $ \version -> for_ (simpleParsec haskellCIVerStr) $ \haskellCIVer ->
+                when (haskellCIVer < version) $ do
+                    hPutStrLn stderr $ "Regenerating using older haskell-ci-" ++ haskellCIVerStr
+                    hPutStrLn stderr $ "File generated using haskell-ci-" ++ prettyShow version
+
+            (f, opts') <- parseOptions argv
+            doTravis argv f ( optionsWithOutputFile fp <> opts' <> opts)
+  where
+    noTravisYml :: IO ()
+    noTravisYml = putStrLn "No .travis.yml, skipping travis regeration"
+
+-------------------------------------------------------------------------------
+-- Bash
+-------------------------------------------------------------------------------
+
+defaultBashPath :: FilePath
+defaultBashPath = "haskell-ci.sh"
+
+doBash :: [String] -> FilePath -> Options -> IO ()
+doBash args path opts = do
+    contents <- bashFromConfigFile args opts path
+    case optOutput opts of
+        Nothing              -> BS.writeFile defaultBashPath contents
+        Just OutputStdout    -> BS.putStr contents
+        Just (OutputFile fp) -> BS.writeFile fp contents
+
+bashFromConfigFile
+    :: forall m. (MonadIO m, MonadDiagnostics m, MonadMask m)
+    => [String]
+    -> Options
+    -> FilePath
+    -> m ByteString
+bashFromConfigFile args opts path = do
+    cabalFiles <- getCabalFiles path
+    config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
+    let config = optConfigMorphism opts config'
+    pkgs <- T.mapM (configFromCabalFile config) cabalFiles
+    (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
+        Right x     -> return x
+        Left []     -> putStrLnErr "panic: checkVersions failed without errors"
+        Left (e:es) -> putStrLnErrs (e :| es)
+
+    let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
+             | otherwise         = prj
+
+    genBashFromConfigs args config prj' ghcs
+
+genBashFromConfigs
+    :: (Monad m, MonadIO m, MonadDiagnostics m)
+    => [String]
+    -> Config
+    -> Project URI Void Package
+    -> Set CompilerVersion
+    -> m ByteString
+genBashFromConfigs argv config prj vs = do
+    let jobVersions = makeJobVersions config vs
+    case makeBash argv config prj jobVersions of
+        Left err    -> putStrLnErr $ displayException err
+        Right bashZ -> do
+            describeJobs "Bash script" (cfgTestedWith config) jobVersions (prjPackages prj)
+            fmap toUTF8BS $ liftIO $ Bash.renderIO bashZ
+                { Bash.zRegendata = if cfgInsertVersion config then show (haskellCIVerStr, argv) else show argv
+                }
+
+regenerateBash :: Options -> IO ()
+regenerateBash opts = do
+    let fp = defaultBashPath
+
+    -- change the directory
+    for_ (optCwd opts) setCurrentDirectory
+
+    -- read, and then change to the directory
+    withContents fp noBashScript $ \contents -> case findRegendataArgv contents of
+        Nothing     -> do
+            hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ fp
+            exitFailure
+
+        Just (mversion, argv) -> do
+            -- warn if we regenerate using older haskell-ci
+            for_ mversion $ \version -> for_ (simpleParsec haskellCIVerStr) $ \haskellCIVer ->
+                when (haskellCIVer < version) $ do
+                    hPutStrLn stderr $ "Regenerating using older haskell-ci-" ++ haskellCIVerStr
+                    hPutStrLn stderr $ "File generated using haskell-ci-" ++ prettyShow version
+
+            (f, opts') <- parseOptions argv
+            doBash argv f ( optionsWithOutputFile fp <> opts' <> opts)
+  where
+    noBashScript :: IO ()
+    noBashScript = putStrLn "No haskell-ci.sh, skipping bash regeration"
+
+-------------------------------------------------------------------------------
+-- Utilities
+-------------------------------------------------------------------------------
+
+withContents
+    :: FilePath            -- ^ filepath
+    -> IO r                -- ^ what to do when file don't exist
+    -> (String -> IO r)    -- ^ continuation
+    -> IO r
+withContents path no kont = do
+    e <- try (BS.readFile path) :: IO (Either IOError BS.ByteString)
+    case e of
+        Left _         -> no
+        Right contents -> kont (fromUTF8BS contents)
+
+-- | Find @REGENDATA@ in a string
+findRegendataArgv :: String -> Maybe (Maybe Version, [String])
+findRegendataArgv contents = do
+    l <- findMaybe (afterInfix "REGENDATA") (lines contents)
+    first simpleParsec <$> (readMaybe l :: Maybe (String, [String]))
+        <|> (,) Nothing <$> (readMaybe l :: Maybe [String])
+
+-- | Read project file and associated .cabal files.
+getCabalFiles
+    :: (MonadDiagnostics m, MonadIO m)
+    => FilePath
+    -> m (Project URI Void (FilePath, GenericPackageDescription))
+getCabalFiles path
+    | isNothing isCabalProject = do
+        e <- liftIO $ readPackagesOfProject (emptyProject & field @"prjPackages" .~ [path])
+        either (putStrLnErr . renderParseError) return e
+    | otherwise = do
+        contents <- liftIO $ BS.readFile path
+        prj0 <- either (putStrLnErr . renderParseError) return $ parseProject path contents
+        prj1 <- either (putStrLnErr . renderResolveError) return =<< liftIO (resolveProject path prj0)
+        either (putStrLnErr . renderParseError) return =<< liftIO (readPackagesOfProject prj1)
+  where
+    isCabalProject :: Maybe FilePath
+    isCabalProject
+        | "cabal.project" `isPrefixOf` takeFileName path = Just path
+        | otherwise = Nothing
+
+-------------------------------------------------------------------------------
+-- Config
+-------------------------------------------------------------------------------
 
 configFromCabalFile
     :: (MonadIO m, MonadDiagnostics m)

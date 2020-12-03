@@ -1,15 +1,14 @@
 module HaskellCI.ShVersionRange (
     compilerVersionPredicate,
+    compilerVersionArithPredicate,
     ) where
 
 import HaskellCI.Prelude
 
 import Algebra.Lattice (joins)
 import Algebra.Heyting.Free (Free (..))
-import Algebra.Lattice.Wide (Wide (..))
 
 import qualified Algebra.Heyting.Free as F
-import qualified Algebra.Lattice.Wide as W
 import qualified Data.Set             as S
 import qualified Distribution.Version as C
 
@@ -19,10 +18,19 @@ import HaskellCI.Compiler
 -- >>> import Distribution.Pretty (prettyShow)
 
 compilerVersionPredicate :: Set CompilerVersion -> CompilerRange -> String
-compilerVersionPredicate cvs cr
-    | S.null ghcjsS = wideToString $ freeToWide ghcFree
-    | otherwise     = wideToString $ freeToWide $
-        (Var "$GHCJS" /\ ghcjsFree) \/ (Var "! $GHCJS" /\ ghcFree)
+compilerVersionPredicate = compilerVersionPredicateImpl (toTest . freeToArith) where
+    toTest expr = "[ " ++ expr ++ " -ne 0 ]"
+
+compilerVersionArithPredicate :: Set CompilerVersion -> CompilerRange -> String
+compilerVersionArithPredicate = compilerVersionPredicateImpl freeToArith
+
+compilerVersionPredicateImpl
+    :: (Free String -> String)
+    -> Set CompilerVersion -> CompilerRange -> String
+compilerVersionPredicateImpl conv cvs cr
+    | S.null ghcjsS = conv ghcFree
+    | otherwise     = conv $
+        (Var "GHCJSARITH" /\ ghcjsFree) \/ (Var "! GHCJSARITH" /\ ghcFree)
   where
     R hdS ghcS ghcjsS = partitionCompilerVersions cvs
     R hdR ghcR ghcjsR = simplifyCompilerRange cr
@@ -66,7 +74,7 @@ compilerVersionPredicate cvs cr
 
         earlier u | isMaxGHC u = C.anyVersion
                   | otherwise  = C.earlierVersion u
-      
+
 
     ghcRange :: VersionRange
     ghcRange = foldr (\/) C.noVersion $ map findGhc $ S.toList ghcS'
@@ -115,7 +123,7 @@ ghcVersionPredicate' = conj . C.asVersionIntervals
 
     disj :: C.VersionInterval -> Free String
     disj (C.LowerBound v C.InclusiveBound, C.UpperBound u C.InclusiveBound)
-        | v == u                = Var ("[ $HCNUMVER -eq " ++ f v ++ " ]")
+        | v == u                = Var ("HCNUMVER == " ++ f v)
     disj (lb, C.NoUpperBound)
         | isInclZero lb         = top
         | otherwise             = Var (lower lb)
@@ -126,11 +134,11 @@ ghcVersionPredicate' = conj . C.asVersionIntervals
     isInclZero (C.LowerBound v C.InclusiveBound) = v == C.mkVersion [0]
     isInclZero (C.LowerBound _ C.ExclusiveBound) = False
 
-    lower (C.LowerBound v C.InclusiveBound) = "[ $HCNUMVER -ge " ++ f v ++ " ]"
-    lower (C.LowerBound v C.ExclusiveBound) = "[ $HCNUMVER -gt " ++ f v ++ " ]"
+    lower (C.LowerBound v C.InclusiveBound) = "HCNUMVER >= " ++ f v
+    lower (C.LowerBound v C.ExclusiveBound) = "HCNUMVER > " ++ f v
 
-    upper v C.InclusiveBound = "[ $HCNUMVER -le " ++ f v ++ " ]"
-    upper v C.ExclusiveBound = "[ $HCNUMVER -lt " ++ f v ++ " ]"
+    upper v C.InclusiveBound = "HCNUMVER <= " ++ f v
+    upper v C.ExclusiveBound = "HCNUMVER < " ++ f v
 
     f = ghcVersionToString
 
@@ -182,22 +190,20 @@ roundDown = go S.empty . S.toList where
     up' x []     = [x + 1]
     up' x (y:ys) = x : up' y ys
 
-wideToString :: Wide String -> String
-wideToString W.Bottom     = "false"
-wideToString W.Top        = "top"
-wideToString (W.Middle x) = x
+-------------------------------------------------------------------------------
+-- Arithmetic expression
+-------------------------------------------------------------------------------
 
-
-freeToWide :: Free String -> Wide String
-freeToWide z
-    | z == top    = top
-    | z == bottom = bottom
-    | otherwise   = Middle (go 0 z)
+freeToArith :: Free String -> String
+freeToArith z
+    | z == top    = "1"
+    | z == bottom = "0"
+    | otherwise   = "$((" ++ go 0 z ++ "))"
   where
     go :: Int -> Free String -> String
     go _ (Var x)  = x
-    go _ F.Bottom = "false"
-    go _ F.Top    = "true"
+    go _ F.Bottom = "1"
+    go _ F.Top    = "0"
 
     go d (x :/\: y) = parens (d > 3)
         $ go 4 x ++ " && " ++ go 3 y
@@ -205,7 +211,7 @@ freeToWide z
         $ go 3 x ++ " || " ++ go 2 y
 
     go d (x :=>: y) = parens (d > 2)
-        $ "! { " ++ go 0 x ++ " ; } || " ++ go 2 y
+        $ "! (" ++ go 0 x ++ ") || " ++ go 2 y
 
     parens :: Bool -> String -> String
     parens True  s = "{ " ++ s ++ "; }"
