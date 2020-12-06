@@ -19,9 +19,14 @@ data JobVersions = JobVersions
     , omittedOsxVersions :: Set Version
     }
 
-describeJobs :: MonadDiagnostics m => TestedWithJobs -> JobVersions -> [Package] -> m ()
-describeJobs twj JobVersions {..} pkgs = do
-    putStrLnInfo $ "Generating Travis-CI config for testing for GHC versions: " ++ ghcVersions
+describeJobs
+    :: MonadDiagnostics m
+    => String          -- ^ config
+    -> TestedWithJobs
+    -> JobVersions
+    -> [Package] -> m ()
+describeJobs typ twj JobVersions {..} pkgs = do
+    putStrLnInfo $ "Generating " ++ typ ++ " for testing for GHC versions: " ++ ghcVersions
     case twj of
         TestedWithUniform -> pure ()
         TestedWithAny     -> for_ pkgs $ \pkg -> do

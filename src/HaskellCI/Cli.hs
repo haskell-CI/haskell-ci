@@ -20,6 +20,7 @@ import HaskellCI.VersionInfo
 
 data Command
     = CommandTravis FilePath
+    | CommandBash FilePath
     | CommandRegenerate
     | CommandListGHC
     | CommandDumpConfig
@@ -33,19 +34,21 @@ data Command
 data Options = Options
     { optOutput         :: Maybe Output
     , optConfig         :: Maybe FilePath
+    , optCwd            :: Maybe FilePath
     , optConfigMorphism :: Config -> Config
     }
 
 data Output = OutputStdout | OutputFile FilePath
 
 instance Semigroup Options where
-    Options b d e <> Options b' d' e' =
-        Options (b <|> b') (d <|> d') (e' . e)
+    Options b d c e <> Options b' d' c' e' =
+        Options (b <|> b') (d <|> d') (c <|> c') (e' . e)
 
 defaultOptions :: Options
 defaultOptions = Options
     { optOutput         = Nothing
     , optConfig         = Nothing
+    , optCwd            = Nothing
     , optConfigMorphism = id
     }
 
@@ -62,6 +65,7 @@ optionsP :: O.Parser Options
 optionsP = Options
     <$> O.optional outputP
     <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
+    <*> O.optional (O.strOption (O.long "cwd" <> O.metavar "Dir" <> O.help "Directory to change to"))
     <*> runOptparseGrammar configGrammar
 
 outputP :: O.Parser Output
@@ -83,8 +87,9 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
     ]
   where
     cmdP = O.subparser (mconcat
-        [ O.command "regenerate"   $ O.info (pure CommandRegenerate)  $ O.progDesc "Regenerate .travis.yml"
+        [ O.command "regenerate"   $ O.info (pure CommandRegenerate)  $ O.progDesc "Regenerate outputs"
         , O.command "travis"       $ O.info travisP                   $ O.progDesc "Generate travis-ci config"
+        , O.command "bash"         $ O.info bashP                     $ O.progDesc "Generate local-bash-docker script"
         , O.command "list-ghc"     $ O.info (pure CommandListGHC)     $ O.progDesc "List known GHC versions"
         , O.command "dump-config"  $ O.info (pure CommandDumpConfig)  $ O.progDesc "Dump cabal.haskell-ci config with default values"
         , O.command "version-info" $ O.info (pure CommandVersionInfo) $ O.progDesc "Print versions info haskell-ci was compiled with"
@@ -93,18 +98,25 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
     travisP = CommandTravis
         <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
 
+    bashP = CommandBash
+        <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
+
 -------------------------------------------------------------------------------
 -- Parsing helpers
 -------------------------------------------------------------------------------
 
-parseTravis :: [String] -> IO (FilePath, Options)
-parseTravis argv = case res of
-    O.Success x -> return x
+parseOptions :: [String] -> IO (FilePath, Options)
+parseOptions argv = case res of
+    O.Success (cmd, opts) -> do
+        path <- fromCmd cmd
+        return (path, opts)
     O.Failure f -> case O.renderFailure f "haskell-ci" of
         (help, _) -> hPutStrLn stderr help >> exitFailure
     O.CompletionInvoked _ -> exitFailure -- unexpected
   where
-    res = O.execParserPure (O.prefs mempty) (O.info ((,) <$> cmdP <*> optionsP) mempty) argv
-    cmdP = O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
+    res = O.execParserPure (O.prefs mempty) cliParserInfo argv
 
-
+    fromCmd :: Command -> IO FilePath
+    fromCmd (CommandTravis fp) = return fp
+    fromCmd (CommandBash fp)   = return fp
+    fromCmd cmd                = fail $ "Command without filepath: " ++ show cmd

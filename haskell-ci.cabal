@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.11.20201125
+version:            0.11.20201205
 synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@haskell-ci@) for [Travis-CI](https://travis-ci.org/) for continuous-integration testing of Haskell Cabal packages.
@@ -85,6 +85,9 @@ library haskell-ci-internal
 
   exposed-modules:
     HaskellCI
+    HaskellCI.Auxiliary
+    HaskellCI.Bash
+    HaskellCI.Bash.Template
     HaskellCI.Cli
     HaskellCI.Compiler
     HaskellCI.Config
@@ -166,6 +169,7 @@ library haskell-ci-internal
     , optparse-applicative   ^>=0.16
     , temporary              ^>=1.3
     , unordered-containers   ^>=0.2.10.0
+    , zinza                  ^>=0.2
 
   -- ShellCheck. Would need newer transformers for older GHC
   if (flag(shellcheck) && impl(ghc >=7.10 && <8.11))
@@ -195,10 +199,11 @@ test-suite golden
     , filepath
     , haskell-ci-internal
     , transformers
+    , Cabal
 
   -- dependencies needing explicit constraints
   build-depends:
-    , ansi-terminal  ^>=0.10 || ^>=0.11
+    , ansi-terminal  >=0.10    && <0.12
     , Diff           ^>=0.4.0
-    , tasty          >=1.0     && <1.4
+    , tasty          >=1.0     && <1.5
     , tasty-golden   ^>=2.3.1.1

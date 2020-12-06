@@ -81,7 +81,7 @@ before_install:
   - TEST=--enable-tests
   - BENCH=--enable-benchmarks
   - HEADHACKAGE=false
-  - if [ $HCNUMVER -gt 81001 ] ; then HEADHACKAGE=true ; fi
+  - if [ $((HCNUMVER > 81001)) -ne 0 ] ; then HEADHACKAGE=true ; fi
   - rm -f $CABALHOME/config
   - |
     echo "verbose: normal +nowrap +markoutput"          >> $CABALHOME/config
@@ -205,11 +205,11 @@ script:
   - rm -f cabal.project.local
   - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all
   # Constraint sets
-  - rm -rf cabal.project.local
+  - rm -f cabal.project.local
   # Constraint set deepseq-1.4
   - echo 'Constraint set deepseq-1.4' && echo -en 'travis_fold:start:constraint-sets-deepseq-1.4\\r'
-  - if [ $HCNUMVER -lt 80400 ] ; then ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
-  - if [ $HCNUMVER -lt 80400 ] ; then ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
+  - if [ $((HCNUMVER < 80400)) -ne 0 ] ; then ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
+  - if [ $((HCNUMVER < 80400)) -ne 0 ] ; then ${CABAL} v2-haddock $WITHCOMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
   - echo -en 'travis_fold:end:constraint-sets-deepseq-1.4\\r'
 
 # REGENDATA ["--config=cabal.haskell-ci","cabal.project"]
