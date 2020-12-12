@@ -55,7 +55,7 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
             change_dir "$SRCDIR"
             run_cmd "mkdir -p \"$BUILDDIR/sdist\""
             -- TODO: check if cabal-install-3.4 can be run on read only system
-            run_cmd "cabal sdist all --output-dir \"$BUILDDIR/sdist\""
+            run_cmd "$CABAL sdist all --output-dir \"$BUILDDIR/sdist\""
 
         -- find and unpack sdist
         step "unpack" $ do
@@ -124,12 +124,12 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
             run_cmd "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dry-run all"
             run_cmd "cabal-plan"
 
-        -- install dependneices
+        -- install dependencies
         when cfgInstallDeps $ step "install dependencies" $ do
             run_cmd "$CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only all"
             run_cmd "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only all"
 
-        unless (equivVersionRanges C.noVersion cfgNoTestsNoBench) $ step "build wo tests" $ do
+        unless (equivVersionRanges C.noVersion cfgNoTestsNoBench) $ step "build w/o tests" $ do
             run_cmd "$CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all"
 
         -- build

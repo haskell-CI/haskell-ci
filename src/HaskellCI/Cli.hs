@@ -21,6 +21,7 @@ import HaskellCI.VersionInfo
 data Command
     = CommandTravis FilePath
     | CommandBash FilePath
+    | CommandGitHub FilePath
     | CommandRegenerate
     | CommandListGHC
     | CommandDumpConfig
@@ -90,6 +91,7 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
         [ O.command "regenerate"   $ O.info (pure CommandRegenerate)  $ O.progDesc "Regenerate outputs"
         , O.command "travis"       $ O.info travisP                   $ O.progDesc "Generate travis-ci config"
         , O.command "bash"         $ O.info bashP                     $ O.progDesc "Generate local-bash-docker script"
+        , O.command "github"       $ O.info githubP                   $ O.progDesc "Generate GitHub Actions config"
         , O.command "list-ghc"     $ O.info (pure CommandListGHC)     $ O.progDesc "List known GHC versions"
         , O.command "dump-config"  $ O.info (pure CommandDumpConfig)  $ O.progDesc "Dump cabal.haskell-ci config with default values"
         , O.command "version-info" $ O.info (pure CommandVersionInfo) $ O.progDesc "Print versions info haskell-ci was compiled with"
@@ -99,6 +101,9 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
         <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
 
     bashP = CommandBash
+        <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
+
+    githubP = CommandGitHub
         <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
 
 -------------------------------------------------------------------------------
@@ -119,4 +124,5 @@ parseOptions argv = case res of
     fromCmd :: Command -> IO FilePath
     fromCmd (CommandTravis fp) = return fp
     fromCmd (CommandBash fp)   = return fp
+    fromCmd (CommandGitHub fp) = return fp
     fromCmd cmd                = fail $ "Command without filepath: " ++ show cmd

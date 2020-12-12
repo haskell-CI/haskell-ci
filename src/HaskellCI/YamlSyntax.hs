@@ -8,6 +8,10 @@ module HaskellCI.YamlSyntax (
     reann,
     ToYaml (..),
     prettyYaml,
+    -- * Helpers
+    (~>),
+    ykeyValuesFilt,
+    ylistFilt,
     ) where
 
 import HaskellCI.Prelude
@@ -305,8 +309,9 @@ prettyYaml comment' = flatten . go where
 
     flatten :: NonEmpty (Int, Line) -> String
     flatten xs = appEndo (foldMap f xs) "" where
-        f (lvl, Line cs s) =
-            foldMap showComment cs <> g s
+        f (lvl, Line cs s)
+            | null (s "") = foldMap showComment cs <> Endo (showChar '\n')
+            | otherwise   = foldMap showComment cs <> g s
           where
             showComment "" = g (showString "#")
             showComment c  = g (showString "# " . showString c)
@@ -364,3 +369,29 @@ hexChar c
 
     showHexDigit :: Int -> ShowS
     showHexDigit = showHex
+
+-------------------------------------------------------------------------------
+-- Helpers
+-------------------------------------------------------------------------------
+
+(~>) :: String -> Yaml [String] -> ([String], String, Yaml [String])
+k ~> v = ([],k,v)
+
+ykeyValuesFilt :: ann -> [(ann, String, Yaml ann)] -> Yaml ann
+ykeyValuesFilt ann xs = YKeyValues ann
+    [ x
+    | x@(_,_,y)  <- xs
+    , not (isEmpty y)
+    ]
+
+ylistFilt :: ann -> [Yaml ann] -> Yaml ann
+ylistFilt ann xs = YList ann
+    [ x
+    | x <- xs
+    , not (isEmpty x)
+    ]
+
+isEmpty :: Yaml ann -> Bool
+isEmpty (YList _ [])      = True
+isEmpty (YKeyValues _ []) = True
+isEmpty _                 = False

@@ -4,15 +4,15 @@
 -- | @travis.yaml@ structure.
 module HaskellCI.Travis.Yaml where
 
-import           HaskellCI.Prelude
+import HaskellCI.Prelude
 
-import qualified Data.Aeson              as Aeson
-import qualified Data.List.NonEmpty      as NE
+import qualified Data.Aeson         as Aeson
+import qualified Data.List.NonEmpty as NE
 
-import           HaskellCI.Config.Ubuntu
-import           HaskellCI.List
-import           HaskellCI.Sh
-import           HaskellCI.YamlSyntax
+import HaskellCI.Config.Ubuntu
+import HaskellCI.List
+import HaskellCI.Sh
+import HaskellCI.YamlSyntax
 
 -------------------------------------------------------------------------------
 -- Data
@@ -104,9 +104,6 @@ newtype TravisAllowFailure = TravisAllowFailure
 -- Serialisation helpers (move to Travis.Yaml?)
 -------------------------------------------------------------------------------
 
-(~>) :: String -> Yaml [String] -> ([String], String, Yaml [String])
-k ~> v = ([],k,v)
-
 (^^^) :: ([String], String, Yaml [String]) -> String -> ([String], String, Yaml [String])
 (a,b,c) ^^^ d = (d : a, b, c)
 
@@ -125,25 +122,6 @@ shListToYaml shs = YList [] $ concat
     gr (Comment c : rest) = case gr rest of
         (cs, xs) : xss -> (c : cs, xs) : xss
         []             -> [] -- end of comments are lost
-
-ykeyValuesFilt :: ann -> [(ann, String, Yaml ann)] -> Yaml ann
-ykeyValuesFilt ann xs = YKeyValues ann
-    [ x
-    | x@(_,_,y)  <- xs
-    , not (isEmpty y)
-    ]
-
-ylistFilt :: ann -> [Yaml ann] -> Yaml ann
-ylistFilt ann xs = YList ann
-    [ x
-    | x <- xs
-    , not (isEmpty x)
-    ]
-
-isEmpty :: Yaml ann -> Bool
-isEmpty (YList _ [])      = True
-isEmpty (YKeyValues _ []) = True
-isEmpty _                 = False
 
 -------------------------------------------------------------------------------
 -- ToYaml

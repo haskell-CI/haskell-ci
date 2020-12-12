@@ -22,7 +22,7 @@ import HaskellCI.Prelude
 
 import Control.Exception     (try)
 import Data.List             (nubBy, sort, sortBy, (\\))
-import System.Directory      (doesFileExist, setCurrentDirectory)
+import System.Directory      (createDirectoryIfMissing, doesFileExist, setCurrentDirectory)
 import System.Environment    (getArgs)
 import System.Exit           (ExitCode (..), exitFailure)
 import System.FilePath.Posix (takeDirectory, takeFileName)
@@ -46,12 +46,13 @@ import qualified Options.Applicative   as O
 
 import Cabal.Parse
 import Cabal.Project
-import HaskellCI.Cli
 import HaskellCI.Bash
+import HaskellCI.Cli
 import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.Dump
 import HaskellCI.Diagnostics
+import HaskellCI.GitHub
 import HaskellCI.Jobs
 import HaskellCI.Package
 import HaskellCI.TestedWith
@@ -80,11 +81,13 @@ main = do
             putStr $ unlines $ runDG configGrammar
 
         CommandRegenerate -> do
-            regenerateTravis opts
             regenerateBash opts
+            regenerateGitHub opts
+            regenerateTravis opts
 
+        CommandBash   f -> doBash argv0 f opts
+        CommandGitHub f -> doGitHub argv0 f opts
         CommandTravis f -> doTravis argv0 f opts
-        CommandBash f   -> doBash argv0 f opts
 
         CommandVersionInfo -> do
             putStrLn $ "haskell-ci " ++ haskellCIVerStr ++ " with dependencies"
@@ -223,7 +226,7 @@ regenerateTravis opts = do
             doTravis argv f ( optionsWithOutputFile fp <> opts' <> opts)
   where
     noTravisYml :: IO ()
-    noTravisYml = putStrLn "No .travis.yml, skipping travis regeration"
+    noTravisYml = putStrLn "No .travis.yml, skipping travis regeneration"
 
 -------------------------------------------------------------------------------
 -- Bash
@@ -302,7 +305,91 @@ regenerateBash opts = do
             doBash argv f ( optionsWithOutputFile fp <> opts' <> opts)
   where
     noBashScript :: IO ()
-    noBashScript = putStrLn "No haskell-ci.sh, skipping bash regeration"
+    noBashScript = putStrLn "No haskell-ci.sh, skipping bash regeneration"
+
+-------------------------------------------------------------------------------
+-- GitHub actions
+-------------------------------------------------------------------------------
+
+defaultGitHubPath :: FilePath
+defaultGitHubPath = ".github/workflows/haskell-ci.yml"
+
+doGitHub :: [String] -> FilePath -> Options -> IO ()
+doGitHub args path opts = do
+    contents <- githubFromConfigFile args opts path
+    case optOutput opts of
+        Nothing              -> do
+            createDir defaultGitHubPath
+            BS.writeFile defaultGitHubPath contents
+        Just OutputStdout    -> BS.putStr contents
+        Just (OutputFile fp) -> do
+            createDir fp
+            BS.writeFile fp contents
+  where
+    createDir p = createDirectoryIfMissing True (takeDirectory p)
+
+githubFromConfigFile
+    :: forall m. (MonadIO m, MonadDiagnostics m, MonadMask m)
+    => [String]
+    -> Options
+    -> FilePath
+    -> m ByteString
+githubFromConfigFile args opts path = do
+    cabalFiles <- getCabalFiles path
+    config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
+    let config = optConfigMorphism opts config'
+    pkgs <- T.mapM (configFromCabalFile config) cabalFiles
+    (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
+        Right x     -> return x
+        Left []     -> putStrLnErr "panic: checkVersions failed without errors"
+        Left (e:es) -> putStrLnErrs (e :| es)
+
+    let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
+             | otherwise         = prj
+
+    genGitHubFromConfigs args config prj' ghcs
+
+genGitHubFromConfigs
+    :: (Monad m, MonadIO m, MonadDiagnostics m)
+    => [String]
+    -> Config
+    -> Project URI Void Package
+    -> Set CompilerVersion
+    -> m ByteString
+genGitHubFromConfigs argv config prj vs = do
+    let jobVersions = makeJobVersions config vs
+    case makeGitHub argv config prj jobVersions of
+        Left err     -> putStrLnErr $ displayException err
+        Right github -> do
+            describeJobs "GitHub config" (cfgTestedWith config) jobVersions (prjPackages prj)
+            return $ toUTF8BS $
+                (prettyYaml id $ reann (githubHeader (cfgInsertVersion config) argv ++) $ toYaml github)
+
+regenerateGitHub :: Options -> IO ()
+regenerateGitHub opts = do
+    -- change the directory
+    for_ (optCwd opts) setCurrentDirectory
+
+    -- read, and then change to the directory
+    withContents fp noGitHubScript $ \contents -> case findRegendataArgv contents of
+        Nothing     -> do
+            hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ fp
+            exitFailure
+
+        Just (mversion, argv) -> do
+            -- warn if we regenerate using older haskell-ci
+            for_ mversion $ \version -> for_ (simpleParsec haskellCIVerStr) $ \haskellCIVer ->
+                when (haskellCIVer < version) $ do
+                    hPutStrLn stderr $ "Regenerating using older haskell-ci-" ++ haskellCIVerStr
+                    hPutStrLn stderr $ "File generated using haskell-ci-" ++ prettyShow version
+
+            (f, opts') <- parseOptions argv
+            doGitHub argv f ( optionsWithOutputFile fp <> opts' <> opts)
+  where
+    fp = defaultGitHubPath
+
+    noGitHubScript :: IO ()
+    noGitHubScript = putStrLn $ "No " ++ fp ++ ", skipping GitHub config regeneration"
 
 -------------------------------------------------------------------------------
 -- Utilities
