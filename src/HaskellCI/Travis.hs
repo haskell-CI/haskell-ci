@@ -312,7 +312,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
         -- cabal v2-test fails if there are no test-suites.
         foldedSh FoldTest "Testing..." cfgFolds $ do
             shForJob (RangeGHC /\ Range (cfgTests /\ cfgRunTests) /\ hasTests) $
-                cabal "v2-test $WITHCOMPILER ${TEST} ${BENCH} all --test-show-details=direct"
+                cabal $ "v2-test $WITHCOMPILER ${TEST} ${BENCH} all" ++ testShowDetails
 
             when cfgGhcjsTests $ shForJob (RangeGHCJS /\ hasTests) $ unwords
                 [ "cabal-plan list-bins '*:test:*' | while read -r line; do"

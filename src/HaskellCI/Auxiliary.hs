@@ -40,6 +40,7 @@ data Auxiliary = Auxiliary
     , hasTests                :: CompilerRange
     , hasLibrary              :: Bool
     , extraCabalProjectFields :: [C.PrettyField ()]
+    , testShowDetails         :: String
     }
 
 auxiliary :: Config -> Project URI Void Package -> JobVersions -> Auxiliary
@@ -50,6 +51,10 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
     projectName = fromMaybe (pkgName $ Prelude.head pkgs) cfgProjectName
 
     doctestEnabled = any (maybeGHC False (`C.withinRange` cfgDoctestEnabled cfgDoctest)) versions
+
+    testShowDetails
+        | cfgTestOutputDirect = " --test-show-details=direct"
+        | otherwise           = ""
 
     -- version range which has tests
     hasTests :: CompilerRange
