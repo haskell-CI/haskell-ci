@@ -52,14 +52,14 @@ githubHeader insertVersion argv =
     , "For more information, see https://github.com/haskell-CI/haskell-ci"
     , ""
     ] ++
-    if insertVersion then
-    [ "version: " ++ haskellCIVerStr
-    , ""
-    ] else []
-    ++
+    verlines ++
     [ "REGENDATA " ++ if insertVersion then show (haskellCIVerStr, argv) else show argv
     , ""
     ]
+  where
+    verlines
+        | insertVersion = [ "version: " ++ haskellCIVerStr , "" ]
+        | otherwise     = []
 
 -------------------------------------------------------------------------------
 -- GitHub
@@ -267,7 +267,7 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
         -- tests
         githubRun "tests" $ do
             let range = RangeGHC /\ Range (cfgTests /\ cfgRunTests) /\ hasTests
-            sh_if range "$CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct"
+            sh_if range $ "$CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all" ++ testShowDetails
 
         -- doctest
         when doctestEnabled $ githubRun "doctest" $ do

@@ -63,6 +63,7 @@ data Config = Config
     , cfgHeadHackage         :: !VersionRange
     , cfgGhcjsTests          :: !Bool
     , cfgGhcjsTools          :: ![C.PackageName]
+    , cfgTestOutputDirect    :: !Bool
     , cfgCheck               :: !Bool
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
@@ -128,6 +129,7 @@ emptyConfig = Config
     , cfgHeadHackage     = defaultHeadHackage
     , cfgGhcjsTests      = False
     , cfgGhcjsTools      = []
+    , cfgTestOutputDirect = True
     , cfgCheck           = True
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
@@ -195,6 +197,8 @@ configGrammar = Config
         ^^^ help "Run tests with GHCJS (experimental, relies on cabal-plan finding test-suites)"
     <*> C.monoidalFieldAla    "ghcjs-tools"               (C.alaList C.FSep)                  (field @"cfgGhcjsTools")
 --        ^^^ metahelp "TOOL" "Additional host tools to install with GHCJS"
+    <*> C.booleanFieldDef "test-output-direct"                                                (field @"cfgTestOutputDirect") True
+        ^^^ help "Use --test-show-details=direct, may cause problems with build-type: Custom"
     <*> C.booleanFieldDef "cabal-check"                                                       (field @"cfgCheck") True
         ^^^ help "Disable cabal check run"
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        (field @"cfgOnlyBranches")
