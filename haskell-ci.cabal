@@ -60,12 +60,12 @@ extra-source-files:
   fixtures/cabal.project.travis-patch.stderr
   fixtures/cabal.project.travis-patch.travis.yml
   fixtures/doc/tutorial/tutorial.cabal
-  fixtures/servant-client-core/servant-client-core.cabal
+  fixtures/servant/servant.cabal
   fixtures/servant-client/servant-client.cabal
+  fixtures/servant-client-core/servant-client-core.cabal
   fixtures/servant-docs/servant-docs.cabal
   fixtures/servant-foreign/servant-foreign.cabal
   fixtures/servant-server/servant-server.cabal
-  fixtures/servant/servant.cabal
 
 source-repository head
   type:     git
@@ -88,8 +88,6 @@ library haskell-ci-internal
     HaskellCI.Auxiliary
     HaskellCI.Bash
     HaskellCI.Bash.Template
-    HaskellCI.GitHub
-    HaskellCI.GitHub.Yaml
     HaskellCI.Cli
     HaskellCI.Compiler
     HaskellCI.Config
@@ -104,6 +102,8 @@ library haskell-ci-internal
     HaskellCI.Config.PackageScope
     HaskellCI.Config.Ubuntu
     HaskellCI.Diagnostics
+    HaskellCI.GitHub
+    HaskellCI.GitHub.Yaml
     HaskellCI.Jobs
     HaskellCI.List
     HaskellCI.MonadErr
@@ -166,6 +166,7 @@ library haskell-ci-internal
     , exceptions             ^>=0.10.0
     , generic-lens-lite      ^>=0.1
     , HsYAML                 ^>=0.2.0.0
+    , indexed-traversable    ^>=0.1
     , lattices               ^>=2
     , network-uri            ^>=2.6.1.0
     , optparse-applicative   ^>=0.16
@@ -197,11 +198,11 @@ test-suite golden
     , base
     , base-compat
     , bytestring
+    , Cabal
     , directory
     , filepath
     , haskell-ci-internal
     , transformers
-    , Cabal
 
   -- dependencies needing explicit constraints
   build-depends:

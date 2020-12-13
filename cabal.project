@@ -9,3 +9,5 @@ tests: True
 package haskell-ci
   ghc-options: -Wall
   ghc-options: -Werror
+
+packages: https://hackage.haskell.org/package/indexed-traversable-0.1/candidate/indexed-traversable-0.1.tar.gz

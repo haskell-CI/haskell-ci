@@ -37,7 +37,6 @@ import Distribution.Version
 
 import qualified Data.ByteString       as BS
 import qualified Data.List.NonEmpty    as NE
-import qualified Data.Map              as Map
 import qualified Data.Set              as S
 import qualified Data.Traversable      as T
 import qualified Distribution.Compiler as Compiler
@@ -102,9 +101,6 @@ main = do
     prettyMajVersion :: Version -> String
     prettyMajVersion v = case ghcMajVer v of
         (x, y) -> show x ++ "." ++ show y
-
-    ifor_ :: Map.Map k v -> (k -> v -> IO a) -> IO ()
-    ifor_ xs f = Map.foldlWithKey' (\m k a -> m >> void (f k a)) (return ()) xs
 
 -------------------------------------------------------------------------------
 -- Travis
