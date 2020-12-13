@@ -534,7 +534,7 @@ render z_root = execWriter $ do
   tell "# update cabal index\n"
   tell "if $CABAL_UPDATE; then\n"
   tell "    put_info \"Updating Hackage index\"\n"
-  tell "    run_cmd cabal v2-update -v\n"
+  tell "    run_cmd $CABAL v2-update -v\n"
   tell "fi\n"
   tell "\n"
   tell "# install cabal-plan\n"

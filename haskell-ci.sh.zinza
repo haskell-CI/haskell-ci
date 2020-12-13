@@ -441,7 +441,7 @@ run_cmd $CABAL --version
 # update cabal index
 if $CABAL_UPDATE; then
     put_info "Updating Hackage index"
-    run_cmd cabal v2-update -v
+    run_cmd $CABAL v2-update -v
 fi
 
 # install cabal-plan

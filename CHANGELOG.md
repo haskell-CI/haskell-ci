@@ -1,6 +1,8 @@
 ## 0.12 - TBD
 
 - Use `cabal-install-3.4`
+- Add `bash` (Bash + Docker) generator
+- Add `github` (GitHub Actions) generator
 
 ## 0.10.3 - 2020-08-10
 
