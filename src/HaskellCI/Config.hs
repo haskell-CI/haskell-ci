@@ -67,7 +67,7 @@ data Config = Config
     , cfgCheck               :: !Bool
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
-    , cfgEmailNotifications  :: Bool 
+    , cfgEmailNotifications  :: Bool
     , cfgProjectName         :: Maybe String
     , cfgFolds               :: S.Set Fold
     , cfgGhcHead             :: !Bool
@@ -79,6 +79,7 @@ data Config = Config
     , cfgOsx                 :: S.Set Version
     , cfgApt                 :: S.Set String
     , cfgTravisPatches       :: [FilePath]
+    , cfgGitHubPatches       :: [FilePath]
     , cfgInsertVersion       :: !Bool
     , cfgErrorMissingMethods :: !PackageScope
     , cfgDoctest             :: !DoctestConfig
@@ -145,6 +146,7 @@ emptyConfig = Config
     , cfgOsx             = S.empty
     , cfgApt             = S.empty
     , cfgTravisPatches   = []
+    , cfgGitHubPatches   = []
     , cfgInsertVersion   = True
     , cfgRawProject      = []
     , cfgRawTravis       = ""
@@ -229,6 +231,8 @@ configGrammar = Config
         ^^^ metahelp "PKG" "Additional apt packages to install"
     <*> C.monoidalFieldAla    "travis-patches"            (C.alaList' C.NoCommaFSep C.Token') (field @"cfgTravisPatches")
         ^^^ metahelp "PATCH" ".patch files to apply to the generated Travis YAML file"
+    <*> C.monoidalFieldAla    "github-patches"            (C.alaList' C.NoCommaFSep C.Token') (field @"cfgGitHubPatches")
+        ^^^ metahelp "PATCH" ".patch files to apply to the generated GitHub Actions YAML file"
     <*> C.booleanFieldDef "insert-version"                                                    (field @"cfgInsertVersion") True
         ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
     <*> C.optionalFieldDef "error-missing-methods"                                            (field @"cfgErrorMissingMethods") PackageScopeLocal

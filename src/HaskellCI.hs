@@ -164,44 +164,6 @@ genTravisFromConfigs argv config prj vs = do
                 , "# EOF"
                 ]
 
--- | Adjust the generated Travis YAML output with patch files, if specified.
--- We do this in a temporary file in case the user did not pass --output (as
--- it would be awkward to patch the generated output otherwise).
-patchTravis
-    :: (MonadIO m, MonadMask m)
-    => Config -> ByteString -> m ByteString
-patchTravis cfg input
-  | null patches = pure input
-  | otherwise =
-      withSystemTempFile ".travis.yml.tmp" $ \fp h -> liftIO $ do
-        BS.hPutStr h input
-        hFlush h
-        for_ patches $ applyPatch fp
-        hClose h
-        BS.readFile fp
-  where
-    patches :: [FilePath]
-    patches = cfgTravisPatches cfg
-
-    applyPatch :: FilePath -- ^ The temporary file path to patch
-               -> FilePath -- ^ The path of the .patch file
-               -> IO ()
-    applyPatch temp patch = do
-        exists <- doesFileExist patch
-        unless exists $ putStrLnErr $ "Cannot find " ++ patch
-        (ec, stdOut, stdErr) <- readProcessWithExitCode
-            "patch" [ "--input", patch
-            , "--silent"
-            , temp
-            ] ""
-        case ec of
-            ExitSuccess -> pure ()
-            ExitFailure n -> putStrLnErr $ unlines
-                [ "patch returned exit code " ++ show n
-                , "Stdout: " ++ stdOut
-                , "Stderr: " ++ stdErr
-                ]
-
 regenerateTravis :: Options -> IO ()
 regenerateTravis opts = do
     let fp = defaultTravisPath
@@ -347,7 +309,8 @@ githubFromConfigFile args opts path = do
     let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
              | otherwise         = prj
 
-    genGitHubFromConfigs args config prj' ghcs
+    ls <- genGitHubFromConfigs args config prj' ghcs
+    patchGitHub config ls
 
 genGitHubFromConfigs
     :: (Monad m, MonadIO m, MonadDiagnostics m)
@@ -390,6 +353,55 @@ regenerateGitHub opts = do
 
     noGitHubScript :: IO ()
     noGitHubScript = putStrLn $ "No " ++ fp ++ ", skipping GitHub config regeneration"
+
+-------------------------------------------------------------------------------
+-- Patches
+-------------------------------------------------------------------------------
+
+patchTravis
+    :: (MonadIO m, MonadMask m)
+    => Config -> ByteString -> m ByteString
+patchTravis = patchYAML . cfgTravisPatches
+
+patchGitHub
+    :: (MonadIO m, MonadMask m)
+    => Config -> ByteString -> m ByteString
+patchGitHub = patchYAML . cfgGitHubPatches
+
+-- | Adjust the generated YAML output with patch files, if specified.
+-- We do this in a temporary file in case the user did not pass --output (as
+-- it would be awkward to patch the generated output otherwise).
+patchYAML
+    :: (MonadIO m, MonadMask m)
+    => [FilePath] -> ByteString -> m ByteString
+patchYAML patches input
+  | null patches = pure input
+  | otherwise =
+      withSystemTempFile "yml.tmp" $ \fp h -> liftIO $ do
+        BS.hPutStr h input
+        hFlush h
+        for_ patches $ applyPatch fp
+        hClose h
+        BS.readFile fp
+  where
+    applyPatch :: FilePath -- ^ The temporary file path to patch
+               -> FilePath -- ^ The path of the .patch file
+               -> IO ()
+    applyPatch temp patch = do
+        exists <- doesFileExist patch
+        unless exists $ putStrLnErr $ "Cannot find " ++ patch
+        (ec, stdOut, stdErr) <- readProcessWithExitCode
+            "patch" [ "--input", patch
+            , "--silent"
+            , temp
+            ] ""
+        case ec of
+            ExitSuccess -> pure ()
+            ExitFailure n -> putStrLnErr $ unlines
+                [ "patch returned exit code " ++ show n
+                , "Stdout: " ++ stdOut
+                , "Stderr: " ++ stdErr
+                ]
 
 -------------------------------------------------------------------------------
 -- Utilities
