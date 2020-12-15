@@ -65,6 +65,13 @@ travisHeader insertVersion argv =
 -- Generate travis configuration
 -------------------------------------------------------------------------------
 
+{-
+Travis CI–specific notes:
+
+* We use -j2 for parallelism, as Travis' virtual environments use 2 cores, per
+  https://docs.travis-ci.com/user/reference/overview/#virtualisation-environment-vs-operating-system.
+-}
+
 makeTravis
     :: [String]
     -> Config
@@ -241,11 +248,11 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
 
         -- Install cabal-plan (for ghcjs tests)
         when (anyGHCJS && cfgGhcjsTests) $ do
-            shForJob RangeGHCJS $ cabal "v2-install -w ghc-8.4.4 --ignore-project cabal-plan --constraint='cabal-plan ^>=0.6.0.0' --constraint='cabal-plan +exe'"
+            shForJob RangeGHCJS $ cabal "v2-install -w ghc-8.4.4 --ignore-project -j2 cabal-plan --constraint='cabal-plan ^>=0.6.0.0' --constraint='cabal-plan +exe'"
 
         -- Install happy
         when anyGHCJS $ for_ cfgGhcjsTools $ \t ->
-            shForJob RangeGHCJS $ cabal $ "v2-install -w ghc-8.4.4 --ignore-project " ++ C.prettyShow t
+            shForJob RangeGHCJS $ cabal $ "v2-install -w ghc-8.4.4 --ignore-project -j2" ++ C.prettyShow t
 
         -- create cabal.project file
         generateCabalProject False

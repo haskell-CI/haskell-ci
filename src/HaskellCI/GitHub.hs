@@ -65,6 +65,13 @@ githubHeader insertVersion argv =
 -- GitHub
 -------------------------------------------------------------------------------
 
+{-
+GitHub Actions–specific notes:
+
+* We use -j2 for parallelism, as GitHub's virtual machines use 2 cores, per
+  https://docs.github.com/en/free-pro-team@latest/actions/reference/specifications-for-github-hosted-runners#supported-runners-and-hardware-resources.
+-}
+
 makeGitHub
     :: [String]
     -> Config
@@ -253,8 +260,8 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
 
         -- install dependencies
         when cfgInstallDeps $ githubRun "install dependencies" $ do
-            sh "$CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only all"
-            sh "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only all"
+            sh "$CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j2 all"
+            sh "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j2 all"
 
         -- build w/o tests benchs
         unless (equivVersionRanges C.noVersion cfgNoTestsNoBench) $ githubRun "build w/o tests" $ do

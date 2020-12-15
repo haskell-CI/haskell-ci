@@ -447,7 +447,7 @@ run_cmd cabal-plan --version
 # install doctest
 put_info "install doctest"
 # install doctest
-run_cmd $CABAL v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'
+run_cmd $CABAL v2-install $ARG_COMPILER --ignore-project -j doctest --constraint='doctest ^>=0.17'
 run_cmd doctest --version
 
 # sdist
@@ -497,8 +497,8 @@ run_cmd cabal-plan
 
 # install dependencies
 put_info "install dependencies"
-run_cmd $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only all
-run_cmd $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only all
+run_cmd $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j all
+run_cmd $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j all
 
 # build w/o tests
 put_info "build w/o tests"
