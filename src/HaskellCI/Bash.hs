@@ -29,6 +29,13 @@ import HaskellCI.Sh
 import HaskellCI.ShVersionRange
 import HaskellCI.Tools
 
+{-
+Bash-specific notes:
+
+* We use -j for parallelism, as the exact number of cores depends on the
+  particular machine the script is being run on.
+-}
+
 makeBash
     :: [String]
     -> Config
@@ -41,7 +48,7 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
         when doctestEnabled $ step "install doctest" $ do
             let range = (Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange)
             comment "install doctest"
-            run_cmd_if range "$CABAL v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'"
+            run_cmd_if range "$CABAL v2-install $ARG_COMPILER --ignore-project -j doctest --constraint='doctest ^>=0.17'"
             run_cmd_if range "doctest --version"
 
         -- install hlint
@@ -126,8 +133,8 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
 
         -- install dependencies
         when cfgInstallDeps $ step "install dependencies" $ do
-            run_cmd "$CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only all"
-            run_cmd "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only all"
+            run_cmd "$CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j all"
+            run_cmd "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j all"
 
         unless (equivVersionRanges C.noVersion cfgNoTestsNoBench) $ step "build w/o tests" $ do
             run_cmd "$CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all"
