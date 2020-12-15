@@ -70,10 +70,14 @@ instance ToYaml GitHub where
         ]
 
 instance ToYaml GitHubOn where
-    toYaml GitHubOn {..} = ykeyValuesFilt []
-        [ "push"         ~> branches
-        , "pull_request" ~> branches
-        ]
+    toYaml GitHubOn {..}
+        | null ghBranches
+        = ylistFilt [] ["push", "pull_request"]
+        | otherwise
+        = ykeyValuesFilt []
+              [ "push"         ~> branches
+              , "pull_request" ~> branches
+              ]
       where
         branches = ykeyValuesFilt []
             [ "branches" ~> ylistFilt [] (map fromString ghBranches)
