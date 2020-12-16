@@ -24,8 +24,11 @@ jobs:
     runs-on: ubuntu-18.04
     container:
       image: buildpack-deps:bionic
+    continue-on-error: ${{ matrix.continue-on-error }}
     strategy:
       matrix:
+        continue-on-error:
+          - false
         include:
           - ghc: 8.10.1
           - ghc: 8.8.3

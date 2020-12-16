@@ -30,8 +30,14 @@ data GitHubJob = GitHubJob
     { ghjName      :: String
     , ghjRunsOn    :: String
     , ghjContainer :: Maybe String
-    , ghjMatrix    :: [M.Map String String]
+    , ghjMatrix    :: [GitHubMatrixEntry]
     , ghjSteps     :: [GitHubStep]
+    }
+  deriving (Show)
+
+data GitHubMatrixEntry = GitHubMatrixEntry
+    { ghmeGhcVersion      :: Version
+    , ghmeContinueOnError :: Bool
     }
   deriving (Show)
 
@@ -89,17 +95,22 @@ instance ToYaml GitHubJob where
         , "runs-on" ~> fromString ghjRunsOn
         , "container" ~> ykeyValuesFilt [] (buildList $
             for_ ghjContainer $ \image -> item $ "image" ~> fromString image)
+        , "continue-on-error" ~> fromString "${{ matrix.continue-on-error }}"
         , "strategy" ~> ykeyValuesFilt []
             [ "matrix" ~> ykeyValuesFilt []
-                [ "include" ~> ylistFilt []
-                    [ mapToYaml entry
-                    | entry <- ghjMatrix
-                    ]
+                [ "continue-on-error" ~> toYaml [False]
+                , "include" ~> ylistFilt [] (map toYaml ghjMatrix)
                 ]
             , "fail-fast" ~> YBool [] False
             ]
         , "steps" ~> ylistFilt [] (map toYaml $ filter notEmptyStep ghjSteps)
         ]
+
+instance ToYaml GitHubMatrixEntry where
+    toYaml GitHubMatrixEntry {..} = ykeyValuesFilt [] $ buildList $ do
+        item $ "ghc" ~> fromString (prettyShow ghmeGhcVersion)
+        when ghmeContinueOnError $
+          item $ "continue-on-error" ~> toYaml True
 
 instance ToYaml GitHubStep where
     toYaml GitHubStep {..} = ykeyValuesFilt [] $
