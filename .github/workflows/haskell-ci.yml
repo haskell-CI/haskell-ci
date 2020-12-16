@@ -103,7 +103,7 @@ jobs:
         uses: actions/cache@v2
         with:
           key: ${{ runner.os }}-${{ matrix.ghc }}-tools
-          path: ~/.cabal/store-tools
+          path: ~/.haskell-ci-tools
       - name: install cabal-plan
         run: |
           mkdir -p $HOME/.cabal/bin
@@ -114,7 +114,7 @@ jobs:
           chmod a+x $HOME/.cabal/bin/cabal-plan
       - name: install doctest
         run: |
-          $CABAL --store-dir=$HOME/cabal/store-tools v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'
+          $CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'
           doctest --version
       - name: checkout
         uses: actions/checkout@v2
