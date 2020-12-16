@@ -348,7 +348,7 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
             { ghBranches = cfgOnlyBranches
             }
         , ghJobs = Map.singleton "linux" GitHubJob
-            { ghjName      = "Haskell-CI Linux"
+            { ghjName      = "Haskell-CI Linux - GHC ${{ matrix.ghc }}"
             , ghjRunsOn    = "ubuntu-18.04" -- TODO: use cfgUbuntu
             , ghjSteps     = steps
             , ghjContainer = Just "buildpack-deps:bionic" -- use cfgUbuntu?
