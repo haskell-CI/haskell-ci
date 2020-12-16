@@ -159,7 +159,7 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
 
         when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUses "cache (tools)" "actions/cache@v2"
             [ ("key", "${{ runner.os }}-${{ matrix.ghc }}-tools")
-            , ("path", "~/.cabal/store-tools")
+            , ("path", "~/.haskell-ci-tools")
             ]
 
         githubRun "install cabal-plan" $ do
@@ -172,10 +172,30 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
 
         when doctestEnabled $ githubRun "install doctest" $ do
             let range = (Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange)
-            sh_if range "$CABAL --store-dir=$HOME/cabal/store-tools v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'"
+            sh_if range "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'"
             sh_if range "doctest --version"
 
-        -- TODO: install HLint
+        let hlintVersionConstraint
+                | C.isAnyVersion (cfgHLintVersion cfgHLint) = ""
+                | otherwise = " --constraint='hlint " ++ prettyShow (cfgHLintVersion cfgHLint) ++ "'"
+        when (cfgHLintEnabled cfgHLint) $ githubRun "install hlint" $ do
+            let forHLint = sh_if (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint))
+            if cfgHLintDownload cfgHLint
+            then do
+                -- install --dry-run and use perl regex magic to find a hlint version
+                -- -v is important
+                forHLint $ "HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $ARG_COMPILER --dry-run hlint " ++ hlintVersionConstraint ++ " |  perl -ne 'if (/\\bhlint-(\\d+(\\.\\d+)*)\\b/) { print \"$1\"; last; }')); echo \"HLint version $HLINTVER\""
+                forHLint $ "if [ ! -e $HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint ]; then " ++ unwords
+                    [ "echo \"Downloading HLint version $HLINTVER\";"
+                    , "mkdir -p $HOME/.haskell-ci-tools;"
+                    , "curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\\n' --silent --location --output $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz \"https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz\";"
+                    , "tar -xzv -f $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz -C $HOME/.haskell-ci-tools;"
+                    , "fi"
+                    ]
+                forHLint "mkdir -p $CABALHOME/bin && ln -sf \"$HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint\" $CABALHOME/bin/hlint"
+                forHLint "hlint --version"
+
+            else forHLint $ "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
 
         githubUses "checkout" "actions/checkout@v2"
             [ ("path", "source")
@@ -304,7 +324,23 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
                             change_dir_if vr $ pkgNameDirVariable pkgName
                             sh_if vr $ "doctest " ++ doctestOptions ++ " " ++ args'
 
-        -- TODO: hlint
+        -- hlint
+        when (cfgHLintEnabled cfgHLint) $ githubRun "hlint" $ do
+            let "" <+> ys = ys
+                xs <+> "" = xs
+                xs <+> ys = xs ++ " " ++ ys
+
+                prependSpace "" = ""
+                prependSpace xs = " " ++ xs
+
+            let hlintOptions = prependSpace $ maybe "" ("-h ${TOP}/" ++) (cfgHLintYaml cfgHLint) <+> unwords (cfgHLintOptions cfgHLint)
+
+            for_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
+                for_ (hlintArgs pkgGpd) $ \args -> do
+                    let args' = unwords args
+                    unless (null args) $
+                        sh_if (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint) /\ RangePoints pkgJobs) $
+                        "(cd " ++ pkgNameDirVariable pkgName ++ " && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
 
         -- cabal check
         when cfgCheck $ githubRun "cabal check" $ do
@@ -374,6 +410,7 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
 
     githubRun :: String -> ShM () -> ListBuilder (Either ShError GitHubStep) ()
     githubRun name = githubRun' name mempty
+
 
     githubUses :: String -> String -> [(String, String)] -> ListBuilder (Either ShError GitHubStep) ()
     githubUses name action with = item $ return $
