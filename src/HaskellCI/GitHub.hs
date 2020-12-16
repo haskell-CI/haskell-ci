@@ -348,17 +348,18 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
             { ghBranches = cfgOnlyBranches
             }
         , ghJobs = Map.singleton "linux" GitHubJob
-            { ghjName      = "Haskell-CI Linux"
+            { ghjName      = "Haskell-CI Linux - GHC ${{ matrix.ghc }}"
             , ghjRunsOn    = "ubuntu-18.04" -- TODO: use cfgUbuntu
             , ghjSteps     = steps
             , ghjContainer = Just "buildpack-deps:bionic" -- use cfgUbuntu?
             , ghjMatrix    =
-                [ Map.fromList
-                    [ ("ghc", v')
-                    -- , ("isGhcjs", "0")
-                    ]
-                | GHC v <- reverse $ toList versions
-                , let v' = prettyShow v
+                [ GitHubMatrixEntry
+                    { ghmeGhcVersion = v
+                    , ghmeContinueOnError =
+                           previewGHC cfgHeadHackage compiler
+                        || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
+                    }
+                | compiler@(GHC v) <- reverse $ toList versions
                 ]
             }
         }
