@@ -355,7 +355,7 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
             , ghjMatrix    =
                 [ GitHubMatrixEntry
                     { ghmeGhcVersion = v
-                    , ghmeContinueOnError =
+                    , ghmeAllowFailure =
                            previewGHC cfgHeadHackage compiler
                         || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
                     }

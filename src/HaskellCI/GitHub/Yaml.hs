@@ -36,8 +36,8 @@ data GitHubJob = GitHubJob
   deriving (Show)
 
 data GitHubMatrixEntry = GitHubMatrixEntry
-    { ghmeGhcVersion      :: Version
-    , ghmeContinueOnError :: Bool
+    { ghmeGhcVersion   :: Version
+    , ghmeAllowFailure :: Bool
     }
   deriving (Show)
 
@@ -95,11 +95,10 @@ instance ToYaml GitHubJob where
         , "runs-on" ~> fromString ghjRunsOn
         , "container" ~> ykeyValuesFilt [] (buildList $
             for_ ghjContainer $ \image -> item $ "image" ~> fromString image)
-        , "continue-on-error" ~> fromString "${{ matrix.continue-on-error }}"
+        , "continue-on-error" ~> fromString "${{ matrix.allow-failure }}"
         , "strategy" ~> ykeyValuesFilt []
             [ "matrix" ~> ykeyValuesFilt []
-                [ "continue-on-error" ~> toYaml [False]
-                , "include" ~> ylistFilt [] (map toYaml ghjMatrix)
+                [ "include" ~> ylistFilt [] (map toYaml ghjMatrix)
                 ]
             , "fail-fast" ~> YBool [] False
             ]
@@ -107,10 +106,10 @@ instance ToYaml GitHubJob where
         ]
 
 instance ToYaml GitHubMatrixEntry where
-    toYaml GitHubMatrixEntry {..} = ykeyValuesFilt [] $ buildList $ do
-        item $ "ghc" ~> fromString (prettyShow ghmeGhcVersion)
-        when ghmeContinueOnError $
-          item $ "continue-on-error" ~> toYaml True
+    toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
+        [ "ghc" ~> fromString (prettyShow ghmeGhcVersion)
+        , "allow-failure" ~> toYaml ghmeAllowFailure
+        ]
 
 instance ToYaml GitHubStep where
     toYaml GitHubStep {..} = ykeyValuesFilt [] $
