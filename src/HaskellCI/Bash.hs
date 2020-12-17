@@ -46,7 +46,7 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
     blocks <- traverse (fmap shsToList) $ buildList $ do
         -- install doctest
         when doctestEnabled $ step "install doctest" $ do
-            let range = (Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange)
+            let range = Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange
             comment "install doctest"
             run_cmd_if range "$CABAL v2-install $ARG_COMPILER --ignore-project -j doctest --constraint='doctest ^>=0.17'"
             run_cmd_if range "doctest --version"
