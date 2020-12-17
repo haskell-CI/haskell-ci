@@ -5,8 +5,9 @@ module HaskellCI.Cli where
 
 import HaskellCI.Prelude
 
-import System.Exit (exitFailure)
-import System.IO   (hPutStrLn, stderr)
+import System.Exit           (exitFailure)
+import System.FilePath.Posix (takeFileName)
+import System.IO             (hPutStrLn, stderr)
 
 import qualified Options.Applicative as O
 
@@ -36,20 +37,22 @@ data Options = Options
     { optOutput         :: Maybe Output
     , optConfig         :: Maybe FilePath
     , optCwd            :: Maybe FilePath
+    , optInputType      :: Maybe InputType
     , optConfigMorphism :: Config -> Config
     }
 
 data Output = OutputStdout | OutputFile FilePath
 
 instance Semigroup Options where
-    Options b d c e <> Options b' d' c' e' =
-        Options (b <|> b') (d <|> d') (c <|> c') (e' . e)
+    Options b d c e f <> Options b' d' c' e' f' =
+        Options (b <|> b') (d <|> d') (c <|> c') (e <|> e') (f' . f)
 
 defaultOptions :: Options
 defaultOptions = Options
     { optOutput         = Nothing
     , optConfig         = Nothing
     , optCwd            = Nothing
+    , optInputType      = Nothing
     , optConfigMorphism = id
     }
 
@@ -57,6 +60,21 @@ optionsWithOutputFile :: FilePath -> Options
 optionsWithOutputFile fp = defaultOptions
     { optOutput = Just (OutputFile fp)
     }
+
+-------------------------------------------------------------------------------
+-- InputType
+-------------------------------------------------------------------------------
+
+data InputType
+    = InputTypePackage -- ^ @.cabal@
+    | InputTypeProject -- ^ @cabal.project
+
+optInputType' :: Options -> FilePath -> InputType
+optInputType' opts path =
+    fromMaybe def (optInputType opts)
+  where
+    def | "cabal.project" `isPrefixOf` takeFileName path = InputTypeProject
+        | otherwise                                      = InputTypePackage
 
 -------------------------------------------------------------------------------
 -- Parsers
@@ -67,6 +85,7 @@ optionsP = Options
     <$> O.optional outputP
     <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
     <*> O.optional (O.strOption (O.long "cwd" <> O.metavar "Dir" <> O.help "Directory to change to"))
+    <*> O.optional inputTypeP
     <*> runOptparseGrammar configGrammar
 
 outputP :: O.Parser Output
@@ -80,6 +99,11 @@ versionP = O.infoOption haskellCIVerStr $ mconcat
     , O.short 'V'
     , O.help "Print version information"
     ]
+
+inputTypeP :: O.Parser InputType
+inputTypeP = pkg <|> prj where
+    pkg = O.flag' InputTypePackage $ O.long "--package"
+    prj = O.flag' InputTypePackage $ O.long "--project"
 
 cliParserInfo :: O.ParserInfo (Command, Options)
 cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helper) $ mconcat

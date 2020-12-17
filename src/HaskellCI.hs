@@ -15,7 +15,14 @@ module HaskellCI (
     main,
     -- * for tests
     parseOptions,
-    travisFromConfigFile, Options (..), defaultOptions,
+    Options (..), defaultOptions,
+    Config (..),
+    InputType (..),
+    runDiagnosticsT,
+    -- ** Variants
+    bashFromConfigFile,
+    travisFromConfigFile,
+    githubFromConfigFile,
     ) where
 
 import HaskellCI.Prelude
@@ -25,7 +32,7 @@ import Data.List             (nubBy, sort, sortBy, (\\))
 import System.Directory      (createDirectoryIfMissing, doesFileExist, setCurrentDirectory)
 import System.Environment    (getArgs)
 import System.Exit           (ExitCode (..), exitFailure)
-import System.FilePath.Posix (takeDirectory, takeFileName)
+import System.FilePath.Posix (takeDirectory)
 import System.IO             (hClose, hFlush, hPutStrLn, stderr)
 import System.IO.Temp        (withSystemTempFile)
 import System.Process        (readProcessWithExitCode)
@@ -128,7 +135,7 @@ travisFromConfigFile
     -> FilePath
     -> m ByteString
 travisFromConfigFile args opts path = do
-    cabalFiles <- getCabalFiles path
+    cabalFiles <- getCabalFiles (optInputType' opts path) path
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config) cabalFiles
@@ -212,7 +219,7 @@ bashFromConfigFile
     -> FilePath
     -> m ByteString
 bashFromConfigFile args opts path = do
-    cabalFiles <- getCabalFiles path
+    cabalFiles <- getCabalFiles (optInputType' opts path) path
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config) cabalFiles
@@ -297,7 +304,7 @@ githubFromConfigFile
     -> FilePath
     -> m ByteString
 githubFromConfigFile args opts path = do
-    cabalFiles <- getCabalFiles path
+    cabalFiles <- getCabalFiles (optInputType' opts path) path
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config) cabalFiles
@@ -427,22 +434,17 @@ findRegendataArgv contents = do
 -- | Read project file and associated .cabal files.
 getCabalFiles
     :: (MonadDiagnostics m, MonadIO m)
-    => FilePath
+    => InputType
+    -> FilePath
     -> m (Project URI Void (FilePath, GenericPackageDescription))
-getCabalFiles path
-    | isNothing isCabalProject = do
-        e <- liftIO $ readPackagesOfProject (emptyProject & field @"prjPackages" .~ [path])
-        either (putStrLnErr . renderParseError) return e
-    | otherwise = do
-        contents <- liftIO $ BS.readFile path
-        prj0 <- either (putStrLnErr . renderParseError) return $ parseProject path contents
-        prj1 <- either (putStrLnErr . renderResolveError) return =<< liftIO (resolveProject path prj0)
-        either (putStrLnErr . renderParseError) return =<< liftIO (readPackagesOfProject prj1)
-  where
-    isCabalProject :: Maybe FilePath
-    isCabalProject
-        | "cabal.project" `isPrefixOf` takeFileName path = Just path
-        | otherwise = Nothing
+getCabalFiles InputTypeProject path = do
+    contents <- liftIO $ BS.readFile path
+    prj0 <- either (putStrLnErr . renderParseError) return $ parseProject path contents
+    prj1 <- either (putStrLnErr . renderResolveError) return =<< liftIO (resolveProject path prj0)
+    either (putStrLnErr . renderParseError) return =<< liftIO (readPackagesOfProject prj1)
+getCabalFiles InputTypePackage path = do
+    e <- liftIO $ readPackagesOfProject (emptyProject & field @"prjPackages" .~ [path])
+    either (putStrLnErr . renderParseError) return e
 
 -------------------------------------------------------------------------------
 -- Config

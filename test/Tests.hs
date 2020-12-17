@@ -4,20 +4,15 @@ module Main (main) where
 import Prelude ()
 import Prelude.Compat
 
-import HaskellCI             hiding (main)
-import HaskellCI.Diagnostics (runDiagnosticsT)
+import HaskellCI hiding (main)
 
 import Control.Arrow              (first)
-import Control.Exception          (ErrorCall (..), throwIO)
 import Data.Algorithm.Diff        (PolyDiff (..), getGroupedDiff)
-import Data.List                  (stripPrefix)
-import Data.Maybe                 (mapMaybe)
 import Distribution.Simple.Utils  (fromUTF8BS)
-import System.Directory           (doesFileExist, setCurrentDirectory)
+import System.Directory           (setCurrentDirectory)
 import System.FilePath            (addExtension)
 import Test.Tasty                 (TestName, TestTree, defaultMain, testGroup)
 import Test.Tasty.Golden.Advanced (goldenTest)
-import Text.Read                  (readMaybe)
 
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as BS8
@@ -27,25 +22,16 @@ main :: IO ()
 main = do
     setCurrentDirectory "fixtures/"
     defaultMain $ testGroup "fixtures"
-        [ fixtureGoldenTest "cabal.project.empty-line"
-        , fixtureGoldenTest "cabal.project.fail-versions"
-        , fixtureGoldenTest "cabal.project.messy"
-        , fixtureGoldenTest "cabal.project.travis-patch"
+        [ fixtureGoldenTest "empty-line"
+        , fixtureGoldenTest "fail-versions"
+        , fixtureGoldenTest "messy"
+        , fixtureGoldenTest "travis-patch"
         , testGroup "copy-fields"
-            [ fixtureGoldenTest "cabal.project.copy-fields.all"
-            , fixtureGoldenTest "cabal.project.copy-fields.some"
-            , fixtureGoldenTest "cabal.project.copy-fields.none"
+            [ fixtureGoldenTest "copy-fields-all"
+            , fixtureGoldenTest "copy-fields-some"
+            , fixtureGoldenTest "copy-fields-none"
             ]
         ]
-
-linesToArgv :: String -> Maybe [String]
-linesToArgv txt = case mapMaybe lineToArgv (lines txt) of
-    [argv] -> Just argv
-    _ -> Nothing
-  where
-    lineToArgv line
-        | Just rest <- "# REGENDATA " `stripPrefix` line = readMaybe rest
-        | otherwise = Nothing
 
 -- |
 -- @
@@ -53,73 +39,73 @@ linesToArgv txt = case mapMaybe lineToArgv (lines txt) of
 --    ... => ([String],Options) -> FilePath -> [String] -> Writer [String] m ()
 -- @
 fixtureGoldenTest :: FilePath -> TestTree
-fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
-    (argv, opts) <- makeTravisFlags
-    let genConfig = travisFromConfigFile argv opts fp
-    first (fmap (lines . fromUTF8BS)) <$> runDiagnosticsT genConfig
+fixtureGoldenTest fp = testGroup fp
+    [ fixtureGoldenTest' "travis" travisFromConfigFile
+    , fixtureGoldenTest' "github" githubFromConfigFile
+    , fixtureGoldenTest' "bash"   bashFromConfigFile
+    ]
   where
-    outputRef = addExtension fp "travis.yml"
-    errorRef = addExtension fp "stderr"
+    -- name acts as extension also
+    fixtureGoldenTest' name generate = cabalGoldenTest name outputRef $ do
+        (argv, opts') <- makeFlags
+        let opts = opts'
+              { optInputType      = Just InputTypeProject
+              , optConfigMorphism = (\cfg -> cfg { cfgInsertVersion = False}) . optConfigMorphism opts'
+              }
+        let genConfig = generate argv opts projectfp
+        first (fmap (lines . fromUTF8BS)) <$> runDiagnosticsT genConfig
+      where
+        outputRef = addExtension fp name
+        projectfp = fp ++ ".project"
 
-    referenceArgv :: Bool -> IO (Maybe [String])
-    referenceArgv refExists
-        | refExists = (linesToArgv . BS8.unpack) `fmap` BS.readFile outputRef
-        | otherwise = return $ Just [fp]
+        readArgv :: IO [String]
+        readArgv = do
+            contents <- readFile $ addExtension fp "args"
+            return $ filter (not . null)$ lines contents
 
-    makeTravisFlags :: IO ([String], Options)
-    makeTravisFlags = do
-        result <- doesFileExist outputRef >>= referenceArgv
-        case result of
-            Nothing -> throwIO (ErrorCall "No REGENDATA in result file.")
-            Just argv -> do
-                (_fp, opts) <- parseOptions argv
-                return (argv, opts)
-
-data Result
-    = Success [String] [String]
-    | Failure [String]
-  deriving Eq
+        makeFlags :: IO ([String], Options)
+        makeFlags = do
+            argv <- readArgv
+            let argv' = argv ++ [name, projectfp]
+            (_fp, opts) <- parseOptions argv'
+            return (argv', opts)
 
 cabalGoldenTest
     :: TestName
     -> FilePath
-    -> FilePath
     -> IO (Maybe [String], [String])
     -> TestTree
-cabalGoldenTest name outRef errRef act = goldenTest name readGolden act' cmp upd
+cabalGoldenTest name outRef act = goldenTest name readGolden (transform <$> act) cmp upd
   where
     readData :: FilePath -> IO [String]
     readData fp = lines . BS8.unpack <$> BS.readFile fp
 
-    act' = flip fmap act $ \r -> case r of
-        (Nothing, diags) -> Failure diags
-        (Just x, diags)  -> Success diags x
+    transform :: (Maybe [String], [String]) -> [String]
+    transform (Nothing, diags) =
+        [ "# SUCCESS"
+        ] ++
+        [ "# " ++ w
+        | w <- diags
+        ]
+    transform (Just contents, diags) =
+        [ "# SUCCESS"
+        ] ++
+        [ "# " ++ w
+        | w <- diags
+        ] ++
+        contents
 
-    readGolden = do
-        refExists <- doesFileExist outRef
-        if refExists
-           then Success <$> readData errRef <*> readData outRef
-           else Failure <$> readData errRef
+    readGolden = readData outRef
 
     packData :: [String] -> BS.ByteString
     packData = BS8.pack . unlines
 
-    upd (Failure (packData -> errs)) = BS.writeFile errRef errs
-    upd (Success (packData -> warnings) (packData -> contents)) = do
-        BS.writeFile outRef contents
-        BS.writeFile errRef warnings
+    upd (packData -> contents) = BS.writeFile outRef contents
 
     cmp x y | x == y = return Nothing
-    cmp (Failure err1) (Failure err2) = return . Just $ diff err1 err2
-    cmp (Success warn1 out1) (Success warn2 out2) = return . Just . mconcat $
-        [ diff warn1 warn2
-        , "\n\n"
-        , diff out1 out2
+    cmp out1 out2 = return . Just . mconcat $
+        [ diff out1 out2
         ]
-    cmp (Failure err) (Success warnings _) = return . Just . unlines $
-        [ "Expected failure:" ] ++ err ++ ["\n\nFound success:"] ++ warnings
-    cmp (Success warnings _) (Failure err) = return . Just . unlines $
-        [ "Expected success:" ] ++ warnings ++ ["\n\nFound failure:"] ++ err
 
     diff x y =
         ansiReset -- reset tasty's red color
