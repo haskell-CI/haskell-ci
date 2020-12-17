@@ -60,8 +60,8 @@ branches: master
 -- Sections to fold in the build output
 folds: constraint-sets
 
--- Run HLint (disabled for now)
-hlint: False
+-- Run HLint
+hlint: True
 hlint-yaml: .hlint.yaml
 hlint-download-binary: True
 -- hlint-version: ==3.1.*
