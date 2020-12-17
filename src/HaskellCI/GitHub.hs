@@ -333,7 +333,7 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
                 prependSpace "" = ""
                 prependSpace xs = " " ++ xs
 
-            let hlintOptions = prependSpace $ maybe "" ("-h ${TOP}/" ++) (cfgHLintYaml cfgHLint) <+> unwords (cfgHLintOptions cfgHLint)
+            let hlintOptions = prependSpace $ maybe "" ("-h ${GITHUB_WORKSPACE}/source/" ++) (cfgHLintYaml cfgHLint) <+> unwords (cfgHLintOptions cfgHLint)
 
             for_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
                 for_ (hlintArgs pkgGpd) $ \args -> do
