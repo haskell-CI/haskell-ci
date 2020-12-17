@@ -5,6 +5,7 @@ import Prelude ()
 import Prelude.Compat
 
 import HaskellCI             hiding (main)
+import HaskellCI.Cli (InputType (..))
 import HaskellCI.Diagnostics (runDiagnosticsT)
 
 import Control.Arrow              (first)
@@ -54,7 +55,8 @@ linesToArgv txt = case mapMaybe lineToArgv (lines txt) of
 -- @
 fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = cabalGoldenTest fp outputRef errorRef $ do
-    (argv, opts) <- makeTravisFlags
+    (argv, opts') <- makeTravisFlags
+    let opts = opts' { optInputType = Just InputTypeProject }
     let genConfig = travisFromConfigFile argv opts fp
     first (fmap (lines . fromUTF8BS)) <$> runDiagnosticsT genConfig
   where
