@@ -24,7 +24,7 @@ data HLintConfig = HLintConfig
     , cfgHLintVersion  :: !VersionRange
     , cfgHLintDownload :: !Bool
     }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Binary)
 
 defaultHLintVersion :: VersionRange
 defaultHLintVersion = withinVersion (mkVersion [3,2])
@@ -36,7 +36,7 @@ defaultHLintVersion = withinVersion (mkVersion [3,2])
 data HLintJob
     = HLintJobLatest    -- ^ run with latest GHC
     | HLintJob Version  -- ^ run with specified GHC version
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic, Binary)
 
 instance C.Parsec HLintJob where
     parsec = HLintJobLatest <$ C.string "latest"
