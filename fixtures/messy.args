@@ -1,0 +1,3 @@
+--ghc-head
+--apt=fftw3-dev
+--installed=-all +deepseq

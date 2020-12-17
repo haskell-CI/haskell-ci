@@ -15,7 +15,14 @@ module HaskellCI (
     main,
     -- * for tests
     parseOptions,
-    travisFromConfigFile, Options (..), defaultOptions,
+    Options (..), defaultOptions,
+    Config (..),
+    InputType (..),
+    runDiagnosticsT,
+    -- ** Variants
+    bashFromConfigFile,
+    travisFromConfigFile,
+    githubFromConfigFile,
     ) where
 
 import HaskellCI.Prelude

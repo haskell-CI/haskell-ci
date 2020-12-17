@@ -35,37 +35,21 @@ tested-with:
 
 extra-source-files: CHANGELOG.md
 
--- find fixtures -type f | sort
 extra-source-files:
-  fixtures/cabal.project.copy-fields.all
-  fixtures/cabal.project.copy-fields.all.stderr
-  fixtures/cabal.project.copy-fields.all.travis.yml
-  fixtures/cabal.project.copy-fields.none
-  fixtures/cabal.project.copy-fields.none.stderr
-  fixtures/cabal.project.copy-fields.none.travis.yml
-  fixtures/cabal.project.copy-fields.some
-  fixtures/cabal.project.copy-fields.some.stderr
-  fixtures/cabal.project.copy-fields.some.travis.yml
-  fixtures/cabal.project.empty-line
-  fixtures/cabal.project.empty-line.stderr
-  fixtures/cabal.project.empty-line.travis.yml
-  fixtures/cabal.project.fail-versions
-  fixtures/cabal.project.fail-versions.stderr
-  fixtures/cabal.project.haskell-ci
-  fixtures/cabal.project.messy
-  fixtures/cabal.project.messy.stderr
-  fixtures/cabal.project.messy.travis.yml
-  fixtures/cabal.project.travis-patch
-  fixtures/cabal.project.travis-patch.patch
-  fixtures/cabal.project.travis-patch.stderr
-  fixtures/cabal.project.travis-patch.travis.yml
+  fixtures/*.args
+  fixtures/*.bash
+  fixtures/*.github
+  fixtures/*.patch
+  fixtures/*.project
+  fixtures/*.travis
+
   fixtures/doc/tutorial/tutorial.cabal
-  fixtures/servant/servant.cabal
   fixtures/servant-client/servant-client.cabal
-  fixtures/servant-client-core/servant-client-core.cabal
-  fixtures/servant-docs/servant-docs.cabal
   fixtures/servant-foreign/servant-foreign.cabal
+  fixtures/servant-client-core/servant-client-core.cabal
   fixtures/servant-server/servant-server.cabal
+  fixtures/servant/servant.cabal
+  fixtures/servant-docs/servant-docs.cabal
 
 source-repository head
   type:     git
