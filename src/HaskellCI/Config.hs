@@ -255,7 +255,7 @@ parseConfigFile :: [C.Field C.Position] -> C.ParseResult Config
 parseConfigFile fields0 = do
     config <- C.parseFieldGrammar C.cabalSpecLatest fields configGrammar
     config' <- traverse parseSection $ concat sections
-    return (foldr (.) id config' config)
+    return (foldl' (&) config config')
   where
     (fields, sections) = C.partitionFields fields0
 

@@ -171,7 +171,7 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
             sh "chmod a+x $HOME/.cabal/bin/cabal-plan"
 
         when doctestEnabled $ githubRun "install doctest" $ do
-            let range = (Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange)
+            let range = Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange
             sh_if range "$CABAL --store-dir=$HOME/cabal/store-tools v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'"
             sh_if range "doctest --version"
 

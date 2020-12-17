@@ -190,41 +190,41 @@ sha256 = sha256Digest . check . SHA256.hash
 -- unsafe construct. You should check the length of bytestring beforehand.
 sha256Digest :: ByteString -> SHA256
 sha256Digest bs = SHA256
-    (   (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  0)) 56)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  1)) 48)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  2)) 40)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  3)) 32)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  4)) 24)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  5)) 16)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  6))  8)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  7))  0)
+    (   shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  0)) 56
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  1)) 48
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  2)) 40
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  3)) 32
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  4)) 24
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  5)) 16
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  6))  8
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  7))  0
     )
-    (   (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  8)) 56)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  9)) 48)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 10)) 40)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 11)) 32)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 12)) 24)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 13)) 16)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 14))  8)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 15))  0)
+    (   shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  8)) 56
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs  9)) 48
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 10)) 40
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 11)) 32
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 12)) 24
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 13)) 16
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 14))  8
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 15))  0
     )
-    (   (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 16)) 56)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 17)) 48)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 18)) 40)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 19)) 32)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 20)) 24)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 21)) 16)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 22))  8)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 23))  0)
+    (   shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 16)) 56
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 17)) 48
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 18)) 40
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 19)) 32
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 20)) 24
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 21)) 16
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 22))  8
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 23))  0
     )
-    (   (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 24)) 56)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 25)) 48)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 26)) 40)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 27)) 32)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 28)) 24)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 29)) 16)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 30))  8)
-    .|. (shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 31))  0)
+    (   shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 24)) 56
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 25)) 48
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 26)) 40
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 27)) 32
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 28)) 24
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 29)) 16
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 30))  8
+    .|. shiftL (fromIntegral (BS.Unsafe.unsafeIndex bs 31))  0
     )
 
 -- | Make SHA256 from base16-encoded string.
@@ -241,41 +241,41 @@ unsafeMkSHA256 = either error id . mkSHA256
 -- | Get 'ByteString' representation of 'SHA256'.
 getSHA256 :: SHA256 -> ByteString
 getSHA256 (SHA256 a b c d) = BS.pack
-    [ fromIntegral ((shiftR a 56) .&. 0xff)
-    , fromIntegral ((shiftR a 48) .&. 0xff)
-    , fromIntegral ((shiftR a 40) .&. 0xff)
-    , fromIntegral ((shiftR a 32) .&. 0xff)
-    , fromIntegral ((shiftR a 24) .&. 0xff)
-    , fromIntegral ((shiftR a 16) .&. 0xff)
-    , fromIntegral ((shiftR a  8) .&. 0xff)
-    , fromIntegral ((shiftR a  0) .&. 0xff)
+    [ fromIntegral (shiftR a 56 .&. 0xff)
+    , fromIntegral (shiftR a 48 .&. 0xff)
+    , fromIntegral (shiftR a 40 .&. 0xff)
+    , fromIntegral (shiftR a 32 .&. 0xff)
+    , fromIntegral (shiftR a 24 .&. 0xff)
+    , fromIntegral (shiftR a 16 .&. 0xff)
+    , fromIntegral (shiftR a  8 .&. 0xff)
+    , fromIntegral (shiftR a  0 .&. 0xff)
 
-    , fromIntegral ((shiftR b 56) .&. 0xff)
-    , fromIntegral ((shiftR b 48) .&. 0xff)
-    , fromIntegral ((shiftR b 40) .&. 0xff)
-    , fromIntegral ((shiftR b 32) .&. 0xff)
-    , fromIntegral ((shiftR b 24) .&. 0xff)
-    , fromIntegral ((shiftR b 16) .&. 0xff)
-    , fromIntegral ((shiftR b  8) .&. 0xff)
-    , fromIntegral ((shiftR b  0) .&. 0xff)
+    , fromIntegral (shiftR b 56 .&. 0xff)
+    , fromIntegral (shiftR b 48 .&. 0xff)
+    , fromIntegral (shiftR b 40 .&. 0xff)
+    , fromIntegral (shiftR b 32 .&. 0xff)
+    , fromIntegral (shiftR b 24 .&. 0xff)
+    , fromIntegral (shiftR b 16 .&. 0xff)
+    , fromIntegral (shiftR b  8 .&. 0xff)
+    , fromIntegral (shiftR b  0 .&. 0xff)
 
-    , fromIntegral ((shiftR c 56) .&. 0xff)
-    , fromIntegral ((shiftR c 48) .&. 0xff)
-    , fromIntegral ((shiftR c 40) .&. 0xff)
-    , fromIntegral ((shiftR c 32) .&. 0xff)
-    , fromIntegral ((shiftR c 24) .&. 0xff)
-    , fromIntegral ((shiftR c 16) .&. 0xff)
-    , fromIntegral ((shiftR c  8) .&. 0xff)
-    , fromIntegral ((shiftR c  0) .&. 0xff)
+    , fromIntegral (shiftR c 56 .&. 0xff)
+    , fromIntegral (shiftR c 48 .&. 0xff)
+    , fromIntegral (shiftR c 40 .&. 0xff)
+    , fromIntegral (shiftR c 32 .&. 0xff)
+    , fromIntegral (shiftR c 24 .&. 0xff)
+    , fromIntegral (shiftR c 16 .&. 0xff)
+    , fromIntegral (shiftR c  8 .&. 0xff)
+    , fromIntegral (shiftR c  0 .&. 0xff)
 
-    , fromIntegral ((shiftR d 56) .&. 0xff)
-    , fromIntegral ((shiftR d 48) .&. 0xff)
-    , fromIntegral ((shiftR d 40) .&. 0xff)
-    , fromIntegral ((shiftR d 32) .&. 0xff)
-    , fromIntegral ((shiftR d 24) .&. 0xff)
-    , fromIntegral ((shiftR d 16) .&. 0xff)
-    , fromIntegral ((shiftR d  8) .&. 0xff)
-    , fromIntegral ((shiftR d  0) .&. 0xff)
+    , fromIntegral (shiftR d 56 .&. 0xff)
+    , fromIntegral (shiftR d 48 .&. 0xff)
+    , fromIntegral (shiftR d 40 .&. 0xff)
+    , fromIntegral (shiftR d 32 .&. 0xff)
+    , fromIntegral (shiftR d 24 .&. 0xff)
+    , fromIntegral (shiftR d 16 .&. 0xff)
+    , fromIntegral (shiftR d  8 .&. 0xff)
+    , fromIntegral (shiftR d  0 .&. 0xff)
     ]
 
 instance C.Pretty SHA256 where

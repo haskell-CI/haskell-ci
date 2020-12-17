@@ -157,7 +157,7 @@ genTravisFromConfigs argv config prj vs = do
         Right travis -> do
             describeJobs "Travis-CI config" (cfgTestedWith config) jobVersions (prjPackages prj)
             return $ toUTF8BS $
-                (prettyYaml id $ reann (travisHeader (cfgInsertVersion config) argv ++) $ toYaml travis)
+                prettyYaml id (reann (travisHeader (cfgInsertVersion config) argv ++) $ toYaml travis)
                 ++ unlines
                 [ ""
                 , "# REGENDATA " ++ if cfgInsertVersion config then show (haskellCIVerStr, argv) else show argv
@@ -325,8 +325,7 @@ genGitHubFromConfigs argv config prj vs = do
         Left err     -> putStrLnErr $ displayException err
         Right github -> do
             describeJobs "GitHub config" (cfgTestedWith config) jobVersions (prjPackages prj)
-            return $ toUTF8BS $
-                (prettyYaml id $ reann (githubHeader (cfgInsertVersion config) argv ++) $ toYaml github)
+            return $ toUTF8BS $ prettyYaml id $ reann (githubHeader (cfgInsertVersion config) argv ++) $ toYaml github
 
 regenerateGitHub :: Options -> IO ()
 regenerateGitHub opts = do
