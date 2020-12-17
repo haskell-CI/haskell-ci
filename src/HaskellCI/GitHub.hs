@@ -8,12 +8,17 @@ module HaskellCI.GitHub (
 
 import HaskellCI.Prelude
 
+import qualified Crypto.Hash.SHA256              as SHA256
+import qualified Data.ByteString.Base16          as Base16
+import qualified Data.ByteString.Char8           as BS8
 import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as S
 import qualified Distribution.Fields.Pretty      as C
 import qualified Distribution.Package            as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Distribution.Version            as C
+import qualified Data.Binary as Binary
+import qualified Data.Binary.Put as Binary
 
 import Cabal.Project
 import HaskellCI.Auxiliary
@@ -157,8 +162,13 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
         githubRun "update cabal index" $ do
             sh "$CABAL v2-update -v"
 
+        let toolsConfigHash :: String
+            toolsConfigHash = take 8 $ BS8.unpack $ Base16.encode $ SHA256.hashlazy $ Binary.runPut $ do
+                Binary.put cfgDoctest
+                Binary.put cfgHLint
+
         when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUses "cache (tools)" "actions/cache@v2"
-            [ ("key", "${{ runner.os }}-${{ matrix.ghc }}-tools")
+            [ ("key", "${{ runner.os }}-${{ matrix.ghc }}-tools-" ++ toolsConfigHash)
             , ("path", "~/.haskell-ci-tools")
             ]
 

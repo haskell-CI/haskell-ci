@@ -20,7 +20,7 @@ data DoctestConfig = DoctestConfig
     , cfgDoctestFilterEnvPkgs :: ![C.PackageName]
     , cfgDoctestFilterSrcPkgs :: ![C.PackageName]
     }
-  deriving (Show, Generic)
+  deriving (Show, Generic, Binary)
 
 defaultDoctestVersion :: VersionRange
 defaultDoctestVersion = majorBoundVersion (mkVersion [0,17])
