@@ -30,6 +30,7 @@ data GitHubJob = GitHubJob
     { ghjName            :: String
     , ghjRunsOn          :: String
     , ghjNeeds           :: [String]
+    , ghjIf              :: Maybe String
     , ghjContainer       :: Maybe String
     , ghjContinueOnError :: Maybe String
     , ghjMatrix          :: [GitHubMatrixEntry]
@@ -97,6 +98,8 @@ instance ToYaml GitHubJob where
         item $ "name" ~> fromString ghjName
         item $ "runs-on" ~> fromString ghjRunsOn
         item $ "needs" ~> ylistFilt [] (map fromString ghjNeeds)
+        for_ ghjIf $ \if_ ->
+          item $ "if" ~> fromString if_
         item $ "container" ~> ykeyValuesFilt [] (buildList $
           for_ ghjContainer $ \image -> item $ "image" ~> fromString image)
         for_ ghjContinueOnError $ \continueOnError ->
