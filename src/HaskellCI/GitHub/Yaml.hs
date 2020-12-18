@@ -27,11 +27,14 @@ newtype GitHubOn = GitHubOn
   deriving (Show)
 
 data GitHubJob = GitHubJob
-    { ghjName      :: String
-    , ghjRunsOn    :: String
-    , ghjContainer :: Maybe String
-    , ghjMatrix    :: [GitHubMatrixEntry]
-    , ghjSteps     :: [GitHubStep]
+    { ghjName            :: String
+    , ghjRunsOn          :: String
+    , ghjNeeds           :: [String]
+    , ghjIf              :: Maybe String
+    , ghjContainer       :: Maybe String
+    , ghjContinueOnError :: Maybe String
+    , ghjMatrix          :: [GitHubMatrixEntry]
+    , ghjSteps           :: [GitHubStep]
     }
   deriving (Show)
 
@@ -57,6 +60,7 @@ data GitHubRun = GitHubRun
 -- | Steps with @uses@
 data GitHubUses = GitHubUses
     { ghsAction :: String
+    , ghsIf     :: Maybe String
     , ghsWith   :: M.Map String String
     }
   deriving (Show)
@@ -90,20 +94,23 @@ instance ToYaml GitHubOn where
             ]
 
 instance ToYaml GitHubJob where
-    toYaml GitHubJob {..} = ykeyValuesFilt []
-        [ "name" ~> fromString ghjName
-        , "runs-on" ~> fromString ghjRunsOn
-        , "container" ~> ykeyValuesFilt [] (buildList $
-            for_ ghjContainer $ \image -> item $ "image" ~> fromString image)
-        , "continue-on-error" ~> fromString "${{ matrix.allow-failure }}"
-        , "strategy" ~> ykeyValuesFilt []
-            [ "matrix" ~> ykeyValuesFilt []
-                [ "include" ~> ylistFilt [] (map toYaml ghjMatrix)
-                ]
-            , "fail-fast" ~> YBool [] False
-            ]
-        , "steps" ~> ylistFilt [] (map toYaml $ filter notEmptyStep ghjSteps)
-        ]
+    toYaml GitHubJob {..} = ykeyValuesFilt [] $ buildList $ do
+        item $ "name" ~> fromString ghjName
+        item $ "runs-on" ~> fromString ghjRunsOn
+        item $ "needs" ~> ylistFilt [] (map fromString ghjNeeds)
+        for_ ghjIf $ \if_ ->
+          item $ "if" ~> fromString if_
+        item $ "container" ~> ykeyValuesFilt [] (buildList $
+          for_ ghjContainer $ \image -> item $ "image" ~> fromString image)
+        for_ ghjContinueOnError $ \continueOnError ->
+          item $ "continue-on-error" ~> fromString continueOnError
+        item $ "strategy" ~> ykeyValuesFilt []
+          [ "matrix" ~> ykeyValuesFilt []
+              [ "include" ~> ylistFilt [] (map toYaml ghjMatrix)
+              ]
+          , "fail-fast" ~> YBool [] False
+          ]
+        item $ "steps" ~> ylistFilt [] (map toYaml $ filter notEmptyStep ghjSteps)
 
 instance ToYaml GitHubMatrixEntry where
     toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
@@ -120,10 +127,10 @@ instance ToYaml GitHubStep where
                 , "env" ~> mapToYaml ghsEnv
                 ]
 
-            Right GitHubUses {..} ->
-                [ "uses" ~> fromString ghsAction
-                , "with" ~> mapToYaml ghsWith
-                ]
+            Right GitHubUses {..} -> buildList $ do
+                item $ "uses" ~> fromString ghsAction
+                for_ ghsIf $ \if_ -> item $ "if" ~> fromString if_
+                item $ "with" ~> mapToYaml ghsWith
 
 notEmptyStep :: GitHubStep -> Bool
 notEmptyStep (GitHubStep _ (Left (GitHubRun [] _))) = False

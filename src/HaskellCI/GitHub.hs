@@ -394,23 +394,31 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
         { ghOn = GitHubOn
             { ghBranches = cfgOnlyBranches
             }
-        , ghJobs = Map.singleton "linux" GitHubJob
-            { ghjName      = "Haskell-CI Linux - GHC ${{ matrix.ghc }}"
-            , ghjRunsOn    = "ubuntu-18.04" -- TODO: use cfgUbuntu
-            , ghjSteps     = steps
-            , ghjContainer = Just "buildpack-deps:bionic" -- use cfgUbuntu?
-            , ghjMatrix    =
-                [ GitHubMatrixEntry
-                    { ghmeGhcVersion = v
-                    , ghmeAllowFailure =
-                           previewGHC cfgHeadHackage compiler
-                        || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
-                    }
-                | compiler@(GHC v) <- reverse $ toList versions
-                ]
-            }
+        , ghJobs = Map.fromList $ buildList $ do
+            item (mainJobName, GitHubJob
+                { ghjName            = "Haskell-CI Linux - GHC ${{ matrix.ghc }}"
+                , ghjRunsOn          = "ubuntu-18.04" -- TODO: use cfgUbuntu
+                , ghjNeeds           = []
+                , ghjSteps           = steps
+                , ghjIf              = Nothing -- TODO: Use cfgIrcIfInOriginRepo
+                , ghjContainer       = Just "buildpack-deps:bionic" -- use cfgUbuntu?
+                , ghjContinueOnError = Just "${{ matrix.allow-failure }}"
+                , ghjMatrix          =
+                    [ GitHubMatrixEntry
+                        { ghmeGhcVersion = v
+                        , ghmeAllowFailure =
+                               previewGHC cfgHeadHackage compiler
+                            || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
+                        }
+                    | compiler@(GHC v) <- reverse $ toList versions
+                    ]
+                })
+            unless (null cfgIrcChannels) $
+                ircJob cfgIrcChannels
         }
   where
+    mainJobName = "linux"
+
     Auxiliary {..} = auxiliary config prj jobs
 
     -- step primitives
@@ -425,7 +433,7 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
 
     githubUses :: String -> String -> [(String, String)] -> ListBuilder (Either ShError GitHubStep) ()
     githubUses name action with = item $ return $
-        GitHubStep name $ Right $ GitHubUses action (Map.fromList with)
+        GitHubStep name $ Right $ GitHubUses action Nothing (Map.fromList with)
 
     -- shell primitives
     echo_to' :: FilePath -> String -> String
@@ -480,6 +488,47 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
     -- Needed to work around haskell/cabal#6214
     withHaddock :: String
     withHaddock = "--with-haddock $HADDOCK"
+
+    ircJob :: [String] -> ListBuilder (String, GitHubJob) ()
+    ircJob serverChannelNames = item ("irc", GitHubJob
+        { ghjName            = "Haskell-CI (IRC notification)"
+        , ghjRunsOn          = "ubuntu-18.04"
+        , ghjNeeds           = [mainJobName]
+        , ghjIf              = Nothing
+        , ghjContainer       = Nothing
+        , ghjContinueOnError = Nothing
+        , ghjMatrix          = []
+        , ghjSteps           = [ ircStep serverChannelName success
+                               | serverChannelName <- serverChannelNames
+                               , success <- [True, False]
+                               ]
+        })
+
+    ircStep :: String -> Bool -> GitHubStep
+    ircStep serverChannelName success =
+        let (serverName, channelName) = break (== '#') serverChannelName
+
+            result | success   = "success"
+                   | otherwise = "failure"
+
+            resultPastTense | success   = "succeeded"
+                            | otherwise = "failed"
+
+            eqCheck | success   = "=="
+                    | otherwise = "!=" in
+
+        GitHubStep ("IRC " ++ result ++ " notification (" ++ serverChannelName ++ ")") $ Right $
+        GitHubUses "Gottox/irc-message-action@v1.1"
+                   (Just $ "needs." ++ mainJobName ++ ".result " ++ eqCheck ++ " 'success'") $
+        Map.fromList
+            [ ("server",   serverName)
+            , ("channel",  channelName)
+            , ("nickname", "github-actions")
+            , ("message",  "\x0313" ++ projectName ++ "\x03/\x0306${{ github.ref }}\x03 "
+                                    ++ "\x0314${{ github.sha }}\x03 "
+                                    ++ "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} "
+                                    ++ "The build " ++ resultPastTense ++ ".")
+            ]
 
 cat :: FilePath -> String -> ShM ()
 cat path contents = sh $ concat
