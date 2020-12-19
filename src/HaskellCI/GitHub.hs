@@ -497,10 +497,10 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
         , ghjContainer       = Nothing
         , ghjContinueOnError = Nothing
         , ghjMatrix          = []
-        , ghjSteps           = concatMap (\serverChannelName -> [ ircStep serverChannelName True
-                                                                , ircStep serverChannelName False
-                                                                ])
-                                         serverChannelNames
+        , ghjSteps           = [ ircStep serverChannelName success
+                               | serverChannelName <- serverChannelNames
+                               , success <- [True, False]
+                               ]
         })
 
     ircStep :: String -> Bool -> GitHubStep
