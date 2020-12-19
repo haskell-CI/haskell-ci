@@ -86,7 +86,7 @@ jobs:
           apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common
           apt-add-repository -y 'ppa:hvr/ghc'
           apt-get update
-          apt-get install -y ghc-$GHC_VERSION cabal-install-3.2
+          apt-get install -y ghc-$GHC_VERSION cabal-install-3.2 fftw3-dev
         env:
           GHC_VERSION: ${{ matrix.ghc }}
       - name: Set PATH and environment variables
