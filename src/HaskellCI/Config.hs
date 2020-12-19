@@ -67,6 +67,7 @@ data Config = Config
     , cfgCheck               :: !Bool
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
+    , cfgIrcIfInOriginRepo   :: Bool
     , cfgEmailNotifications  :: Bool
     , cfgProjectName         :: Maybe String
     , cfgFolds               :: S.Set Fold
@@ -134,6 +135,7 @@ emptyConfig = Config
     , cfgCheck           = True
     , cfgOnlyBranches    = []
     , cfgIrcChannels     = []
+    , cfgIrcIfInOriginRepo  = False
     , cfgEmailNotifications = True
     , cfgProjectName     = Nothing
     , cfgFolds           = S.empty
@@ -207,6 +209,8 @@ configGrammar = Config
         ^^^ metahelp "BRANCH" "Enable builds only for specific branches"
     <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        (field @"cfgIrcChannels")
         ^^^ metahelp "IRC" "Enable IRC notifications to given channel (e.g. 'irc.freenode.org#haskell-lens')"
+    <*> C.booleanFieldDef     "irc-if-in-origin-repo"                                         (field @"cfgIrcIfInOriginRepo") False
+        ^^^ help "Only send IRC notifications if run from the original remote (GitHub Actions only)"
     <*> C.booleanFieldDef "email-notifications"                                               (field @"cfgEmailNotifications") True
         ^^^ help "Disable email notifications"
     <*> C.optionalFieldAla    "project-name"              C.Token'                            (field @"cfgProjectName")

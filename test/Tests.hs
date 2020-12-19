@@ -23,6 +23,7 @@ main = do
     setCurrentDirectory "fixtures/"
     defaultMain $ testGroup "fixtures"
         [ fixtureGoldenTest "empty-line"
+        , fixtureGoldenTest "irc-channels"
         , fixtureGoldenTest "fail-versions"
         , fixtureGoldenTest "messy"
         , fixtureGoldenTest "travis-patch"
