@@ -94,7 +94,8 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
             sh "apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common"
             sh "apt-add-repository -y 'ppa:hvr/ghc'"
             sh "apt-get update"
-            sh "apt-get install -y ghc-$GHC_VERSION cabal-install-3.2" -- TODO: cabal version
+            sh $ unwords $ "apt-get install -y ghc-$GHC_VERSION cabal-install-3.2" -- TODO: cabal version
+                         : S.toList cfgApt
 
         githubRun' "Set PATH and environment variables" envEnv $ do
             echo_to "$GITHUB_PATH" "$HOME/.cabal/bin"
