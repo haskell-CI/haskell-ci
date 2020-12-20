@@ -34,7 +34,6 @@ tested-with:
   GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.3 || ==8.10.1
 
 extra-source-files: CHANGELOG.md
-
 extra-source-files:
   fixtures/*.args
   fixtures/*.bash
@@ -42,14 +41,12 @@ extra-source-files:
   fixtures/*.patch
   fixtures/*.project
   fixtures/*.travis
-
   fixtures/servant-client/servant-client.cabal
   fixtures/servant-foreign/servant-foreign.cabal
   fixtures/servant-client-core/servant-client-core.cabal
   fixtures/servant-server/servant-server.cabal
   fixtures/servant/servant.cabal
   fixtures/servant-docs/servant-docs.cabal
-
   fixtures/splitmix/splitmix.cabal
 
 source-repository head
@@ -87,6 +84,7 @@ library haskell-ci-internal
     HaskellCI.Config.PackageScope
     HaskellCI.Config.Ubuntu
     HaskellCI.Diagnostics
+    HaskellCI.GitConfig
     HaskellCI.GitHub
     HaskellCI.GitHub.Yaml
     HaskellCI.Jobs
@@ -146,20 +144,24 @@ library haskell-ci-internal
 
   -- other dependencies
   build-depends:
-    , aeson                  ^>=1.4.2.0 || ^>=1.5.0.0
-    , base-compat            ^>=0.11
-    , cabal-install-parsers  ^>=0.4
-    , base16-bytestring ^>=1.0.1.0
-    , cryptohash-sha256      ^>=0.11.101.0
-    , exceptions             ^>=0.10.0
-    , generic-lens-lite      ^>=0.1
-    , HsYAML                 ^>=0.2.0.0
-    , lattices               ^>=2
-    , network-uri            ^>=2.6.1.0
-    , optparse-applicative   ^>=0.16
-    , temporary              ^>=1.3
-    , unordered-containers   ^>=0.2.10.0
-    , zinza                  ^>=0.2
+    , aeson                          ^>=1.4.2.0 || ^>=1.5.0.0
+    , attoparsec                     ^>=0.13.2.4
+    , base-compat                    ^>=0.11
+    , base16-bytestring              ^>=1.0.1.0
+    , cabal-install-parsers          ^>=0.4
+    , cryptohash-sha256              ^>=0.11.101.0
+    , exceptions                     ^>=0.10.0
+    , generic-lens-lite              ^>=0.1
+    , HsYAML                         ^>=0.2.0.0
+    , indexed-traversable            ^>=0.1
+    , indexed-traversable-instances  ^>=0.1
+    , ini                            ^>=0.4.1
+    , lattices                       ^>=2
+    , network-uri                    ^>=2.6.1.0
+    , optparse-applicative           ^>=0.16
+    , temporary                      ^>=1.3
+    , unordered-containers           ^>=0.2.10.0
+    , zinza                          ^>=0.2
 
   -- ShellCheck. Would need newer transformers for older GHC
   if (flag(shellcheck) && impl(ghc >=7.10 && <8.11))
