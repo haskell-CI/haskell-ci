@@ -4,4 +4,3 @@ packages: servant/
   servant-docs/
   servant-foreign/
   servant-server/
-  doc/tutorial/

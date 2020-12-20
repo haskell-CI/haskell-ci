@@ -21,7 +21,7 @@ copyright:           2014-2016 Zalora South East Asia Pte Ltd, Servant Contribut
 category:            Servant, Web
 build-type:          Custom
 cabal-version:       >=1.10
-tested-with:         GHC >= 7.8
+tested-with:         GHC >= 7.8 && <9
 extra-source-files:
   include/*.h
   CHANGELOG.md

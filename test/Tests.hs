@@ -22,7 +22,8 @@ main :: IO ()
 main = do
     setCurrentDirectory "fixtures/"
     defaultMain $ testGroup "fixtures"
-        [ fixtureGoldenTest "empty-line"
+        [ fixtureGoldenTest "all-versions"
+        , fixtureGoldenTest "empty-line"
         , fixtureGoldenTest "irc-channels"
         , fixtureGoldenTest "fail-versions"
         , fixtureGoldenTest "messy"
@@ -83,7 +84,7 @@ cabalGoldenTest name outRef act = goldenTest name readGolden (transform <$> act)
 
     transform :: (Maybe [String], [String]) -> [String]
     transform (Nothing, diags) =
-        [ "# SUCCESS"
+        [ "# FAILURE"
         ] ++
         [ "# " ++ w
         | w <- diags
