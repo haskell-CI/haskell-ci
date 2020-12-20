@@ -43,13 +43,14 @@ extra-source-files:
   fixtures/*.project
   fixtures/*.travis
 
-  fixtures/doc/tutorial/tutorial.cabal
   fixtures/servant-client/servant-client.cabal
   fixtures/servant-foreign/servant-foreign.cabal
   fixtures/servant-client-core/servant-client-core.cabal
   fixtures/servant-server/servant-server.cabal
   fixtures/servant/servant.cabal
   fixtures/servant-docs/servant-docs.cabal
+
+  fixtures/splitmix/splitmix.cabal
 
 source-repository head
   type:     git

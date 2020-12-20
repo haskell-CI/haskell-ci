@@ -17,7 +17,7 @@ copyright:           2015-2016 Servant Contributors
 category:            Servant, Web
 build-type:          Simple
 cabal-version:       >=1.10
-tested-with:         GHC >= 7.10
+tested-with:         GHC >= 7.10 && <9
 extra-source-files:
   include/*.h
   CHANGELOG.md
