@@ -9,16 +9,18 @@ module HaskellCI.GitHub (
 import HaskellCI.Prelude
 
 import qualified Crypto.Hash.SHA256              as SHA256
+import qualified Data.Attoparsec.Text            as Atto
+import qualified Data.Binary                     as Binary
+import qualified Data.Binary.Put                 as Binary
 import qualified Data.ByteString.Base16          as Base16
 import qualified Data.ByteString.Char8           as BS8
 import qualified Data.Map.Strict                 as Map
 import qualified Data.Set                        as S
+import qualified Data.Text                       as T
 import qualified Distribution.Fields.Pretty      as C
 import qualified Distribution.Package            as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Distribution.Version            as C
-import qualified Data.Binary as Binary
-import qualified Data.Binary.Put as Binary
 
 import Cabal.Project
 import HaskellCI.Auxiliary
@@ -30,10 +32,10 @@ import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 -- import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
+import HaskellCI.GitConfig
+import HaskellCI.GitHub.Yaml
 import HaskellCI.Jobs
 import HaskellCI.List
--- import HaskellCI.MonadErr
-import HaskellCI.GitHub.Yaml
 import HaskellCI.Package
 import HaskellCI.Sh
 import HaskellCI.ShVersionRange
@@ -80,10 +82,11 @@ GitHub Actions–specific notes:
 makeGitHub
     :: [String]
     -> Config
+    -> GitConfig
     -> Project URI Void Package
     -> JobVersions
     -> Either ShError GitHub
-makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
+makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     let envEnv = Map.fromList
             [ ("GHC_VERSION", "${{ matrix.ghc }}")
             ]
@@ -414,7 +417,7 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
                     ]
                 })
             unless (null cfgIrcChannels) $
-                ircJob cfgIrcChannels
+                ircJob mainJobName projectName config gitconfig
         }
   where
     mainJobName = "linux"
@@ -489,20 +492,34 @@ makeGitHub _argv config@Config {..} prj jobs@JobVersions {..} = do
     withHaddock :: String
     withHaddock = "--with-haddock $HADDOCK"
 
-    ircJob :: [String] -> ListBuilder (String, GitHubJob) ()
-    ircJob serverChannelNames = item ("irc", GitHubJob
-        { ghjName            = "Haskell-CI (IRC notification)"
-        , ghjRunsOn          = "ubuntu-18.04"
-        , ghjNeeds           = [mainJobName]
-        , ghjIf              = Nothing
-        , ghjContainer       = Nothing
-        , ghjContinueOnError = Nothing
-        , ghjMatrix          = []
-        , ghjSteps           = [ ircStep serverChannelName success
-                               | serverChannelName <- serverChannelNames
-                               , success <- [True, False]
-                               ]
-        })
+ircJob :: String -> String -> Config -> GitConfig -> ListBuilder (String, GitHubJob) ()
+ircJob mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
+    { ghjName            = "Haskell-CI (IRC notification)"
+    , ghjRunsOn          = "ubuntu-18.04"
+    , ghjNeeds           = [mainJobName]
+    , ghjIf              = jobCondition
+    , ghjContainer       = Nothing
+    , ghjContinueOnError = Nothing
+    , ghjMatrix          = []
+    , ghjSteps           = [ ircStep serverChannelName success
+                           | serverChannelName <- serverChannelNames
+                           , success <- [True, False]
+                           ]
+    })
+  where
+    serverChannelNames = cfgIrcChannels cfg
+
+    jobCondition :: Maybe String
+    jobCondition
+        | cfgIrcIfInOriginRepo cfg
+        , Just url <- Map.lookup "origin" (gitCfgRemotes gitconfig)
+        , Just repo <- parseGitHubRepo url
+
+        = Just
+        $ "${{ github.repository == '" ++ T.unpack repo ++ "' }}"
+
+        | otherwise
+        = Nothing
 
     ircStep :: String -> Bool -> GitHubStep
     ircStep serverChannelName success =
@@ -536,3 +553,17 @@ cat path contents = sh $ concat
     , contents
     , "EOF"
     ]
+
+parseGitHubRepo :: Text -> Maybe Text
+parseGitHubRepo t =
+    either (const Nothing) Just $ Atto.parseOnly (parser <* Atto.endOfInput) t
+  where
+    parser :: Atto.Parser Text
+    parser = sshP
+
+    sshP :: Atto.Parser Text
+    sshP = do
+        _ <- Atto.string "git@github.com:"
+        repo <- Atto.takeWhile (/= '.')
+        _ <- Atto.string ".git"
+        return repo

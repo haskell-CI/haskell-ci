@@ -16,7 +16,7 @@ module HaskellCI (
     -- * for tests
     parseOptions,
     Options (..), defaultOptions,
-    Config (..),
+    Config (..), GitConfig (..),
     InputType (..),
     runDiagnosticsT,
     -- ** Variants
@@ -59,6 +59,7 @@ import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.Dump
 import HaskellCI.Diagnostics
+import HaskellCI.GitConfig
 import HaskellCI.GitHub
 import HaskellCI.Jobs
 import HaskellCI.Package
@@ -135,6 +136,7 @@ travisFromConfigFile
     -> FilePath
     -> m ByteString
 travisFromConfigFile args opts path = do
+    gitconfig <- liftIO readGitConfig
     cabalFiles <- getCabalFiles (optInputType' opts path) path
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
@@ -147,17 +149,18 @@ travisFromConfigFile args opts path = do
     let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
              | otherwise         = prj
 
-    ls <- genTravisFromConfigs args config prj' ghcs
+    ls <- genTravisFromConfigs args config gitconfig prj' ghcs
     patchTravis config ls
 
 genTravisFromConfigs
     :: (Monad m, MonadDiagnostics m)
     => [String]
     -> Config
+    -> GitConfig
     -> Project URI Void Package
     -> Set CompilerVersion
     -> m ByteString
-genTravisFromConfigs argv config prj vs = do
+genTravisFromConfigs argv config _gitconfig prj vs = do
     let jobVersions = makeJobVersions config vs
     case makeTravis argv config prj jobVersions of
         Left err     -> putStrLnErr $ displayException err
@@ -219,6 +222,7 @@ bashFromConfigFile
     -> FilePath
     -> m ByteString
 bashFromConfigFile args opts path = do
+    gitconfig <- liftIO readGitConfig
     cabalFiles <- getCabalFiles (optInputType' opts path) path
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
@@ -231,16 +235,17 @@ bashFromConfigFile args opts path = do
     let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
              | otherwise         = prj
 
-    genBashFromConfigs args config prj' ghcs
+    genBashFromConfigs args config gitconfig prj' ghcs
 
 genBashFromConfigs
     :: (Monad m, MonadIO m, MonadDiagnostics m)
     => [String]
     -> Config
+    -> GitConfig
     -> Project URI Void Package
     -> Set CompilerVersion
     -> m ByteString
-genBashFromConfigs argv config prj vs = do
+genBashFromConfigs argv config _gitconfig prj vs = do
     let jobVersions = makeJobVersions config vs
     case makeBash argv config prj jobVersions of
         Left err    -> putStrLnErr $ displayException err
@@ -304,6 +309,7 @@ githubFromConfigFile
     -> FilePath
     -> m ByteString
 githubFromConfigFile args opts path = do
+    gitconfig <- liftIO readGitConfig
     cabalFiles <- getCabalFiles (optInputType' opts path) path
     config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
@@ -316,19 +322,20 @@ githubFromConfigFile args opts path = do
     let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
              | otherwise         = prj
 
-    ls <- genGitHubFromConfigs args config prj' ghcs
+    ls <- genGitHubFromConfigs args config gitconfig prj' ghcs
     patchGitHub config ls
 
 genGitHubFromConfigs
     :: (Monad m, MonadIO m, MonadDiagnostics m)
     => [String]
     -> Config
+    -> GitConfig
     -> Project URI Void Package
     -> Set CompilerVersion
     -> m ByteString
-genGitHubFromConfigs argv config prj vs = do
+genGitHubFromConfigs argv config gitconfig prj vs = do
     let jobVersions = makeJobVersions config vs
-    case makeGitHub argv config prj jobVersions of
+    case makeGitHub argv config gitconfig prj jobVersions of
         Left err     -> putStrLnErr $ displayException err
         Right github -> do
             describeJobs "GitHub config" (cfgTestedWith config) jobVersions (prjPackages prj)

@@ -12,7 +12,7 @@ import Data.Ini
 import qualified Data.Attoparsec.Text as Atto
 import qualified Data.Map.Strict      as Map
 
-data GitConfig = GitConfig
+newtype GitConfig = GitConfig
     { gitCfgRemotes :: Map.Map Text Text
     }
   deriving Show
@@ -24,11 +24,14 @@ emptyGitConfig = GitConfig
 
 -- | Read 'GitConfig'. On error, return 'emptyGitConfg'.
 readGitConfig :: IO GitConfig
-readGitConfig = do
+readGitConfig = handle fallback $ do
     e <- readIniFile ".git/config"
     return $ case e of
         Left _    -> emptyGitConfig
         Right ini -> elaborateGitConfig ini
+  where
+    fallback :: IOException -> IO GitConfig
+    fallback _ = return emptyGitConfig
 
 elaborateGitConfig :: Ini -> GitConfig
 elaborateGitConfig ini = ifoldr go emptyGitConfig (iniSections ini) where

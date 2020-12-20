@@ -19,6 +19,31 @@ on:
     branches:
       - master
 jobs:
+  irc:
+    name: Haskell-CI (IRC notification)
+    runs-on: ubuntu-18.04
+    needs:
+      - linux
+    if: ${{ github.repository == 'haskell-CI/haskell-ci' }}
+    strategy:
+      fail-fast: false
+    steps:
+      - name: IRC success notification (irc.freenode.org#haskell-lens)
+        uses: Gottox/irc-message-action@v1.1
+        if: needs.linux.result == 'success'
+        with:
+          channel: "#haskell-lens"
+          message: "\x0313haskell-ci\x03/\x0306${{ github.ref }}\x03 \x0314${{ github.sha }}\x03 https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} The build succeeded."
+          nickname: github-actions
+          server: irc.freenode.org
+      - name: IRC failure notification (irc.freenode.org#haskell-lens)
+        uses: Gottox/irc-message-action@v1.1
+        if: needs.linux.result != 'success'
+        with:
+          channel: "#haskell-lens"
+          message: "\x0313haskell-ci\x03/\x0306${{ github.ref }}\x03 \x0314${{ github.sha }}\x03 https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} The build failed."
+          nickname: github-actions
+          server: irc.freenode.org
   linux:
     name: Haskell-CI Linux - GHC ${{ matrix.ghc }}
     runs-on: ubuntu-18.04

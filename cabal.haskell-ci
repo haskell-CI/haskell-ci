@@ -54,8 +54,9 @@ error-missing-methods: all
 branches: master
 
 -- Enable IRC notifications to the given channel
--- name: fancy-name
--- irc-channels: irc.freenode.org#my-channel
+project-name: haskell-ci
+irc-channels: irc.freenode.org#haskell-lens
+irc-if-in-origin-repo: True
 
 -- Sections to fold in the build output
 folds: constraint-sets

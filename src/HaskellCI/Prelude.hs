@@ -10,7 +10,7 @@ import Prelude.Compat hiding (head, tail)
 
 import Algebra.Lattice         as X (BoundedJoinSemiLattice (..), BoundedLattice, BoundedMeetSemiLattice (..), Lattice (..))
 import Control.Applicative     as X (liftA2, (<|>))
-import Control.Exception       as X (Exception (..))
+import Control.Exception       as X (Exception (..), IOException, handle)
 import Control.Monad           as X (ap, unless, void, when)
 import Control.Monad.Catch     as X (MonadCatch, MonadMask, MonadThrow)
 import Control.Monad.IO.Class  as X (MonadIO (..))
