@@ -23,6 +23,7 @@ accept : build
 	(cd cabal-install-parsers && cabal v2-run -w $(HC) cabal-parsers-golden -- --accept)
 
 doctest :
+	perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
 	doctest --fast -XBangPatterns -XScopedTypeVariables -XDerivingStrategies -XGeneralizedNewtypeDeriving -XDeriveAnyClass -XNoImplicitPrelude -XDeriveFunctor -XDeriveFoldable -XDeriveTraversable -XDeriveGeneric src
 
 regenerate :
