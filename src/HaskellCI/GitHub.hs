@@ -8,6 +8,8 @@ module HaskellCI.GitHub (
 
 import HaskellCI.Prelude
 
+import Control.Applicative (optional)
+
 import qualified Crypto.Hash.SHA256              as SHA256
 import qualified Data.Attoparsec.Text            as Atto
 import qualified Data.Binary                     as Binary
@@ -41,6 +43,9 @@ import HaskellCI.Sh
 import HaskellCI.ShVersionRange
 import HaskellCI.Tools
 import HaskellCI.VersionInfo
+
+-- $setup
+-- >>> :set -XOverloadedStrings
 
 -------------------------------------------------------------------------------
 -- GitHub header
@@ -556,16 +561,43 @@ cat path contents = sh $ concat
     , "EOF"
     ]
 
+-- | GitHub is very lenient and undocumented. We accept something.
+-- Please, write a patch, if you need an extra scheme to be accepted.
+--
+-- >>> parseGitHubRepo "git@github.com:haskell-CI/haskell-ci.git"
+-- Just "haskell-CI/haskell-ci"
+--
+-- >>> parseGitHubRepo "git@github.com:haskell-CI/haskell-ci"
+-- Just "haskell-CI/haskell-ci"
+--
+-- >>> parseGitHubRepo "https://github.com/haskell-CI/haskell-ci.git"
+-- Just "haskell-CI/haskell-ci"
+--
+-- >>> parseGitHubRepo "https://github.com/haskell-CI/haskell-ci"
+-- Just "haskell-CI/haskell-ci"
+--
+-- >>> parseGitHubRepo "git://github.com/haskell-CI/haskell-ci"
+-- Just "haskell-CI/haskell-ci"
+--
 parseGitHubRepo :: Text -> Maybe Text
 parseGitHubRepo t =
     either (const Nothing) Just $ Atto.parseOnly (parser <* Atto.endOfInput) t
   where
     parser :: Atto.Parser Text
-    parser = sshP
+    parser = sshP <|> httpsP
 
     sshP :: Atto.Parser Text
     sshP = do
+        _ <- optional (Atto.string "git://")
         _ <- Atto.string "git@github.com:"
         repo <- Atto.takeWhile (/= '.')
-        _ <- Atto.string ".git"
+        _ <- optional (Atto.string ".git")
+        return repo
+
+    httpsP :: Atto.Parser Text
+    httpsP = do
+        _ <- Atto.string "https" <|> Atto.string "git"
+        _ <- Atto.string "://github.com/"
+        repo <- Atto.takeWhile (/= '.')
+        _ <- optional (Atto.string ".git")
         return repo
