@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-18.04
     needs:
       - linux
+    if: ${{ always() }}
     strategy:
       fail-fast: false
     steps:

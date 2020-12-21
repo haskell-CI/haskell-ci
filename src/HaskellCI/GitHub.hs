@@ -403,7 +403,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , ghjRunsOn          = "ubuntu-18.04" -- TODO: use cfgUbuntu
                 , ghjNeeds           = []
                 , ghjSteps           = steps
-                , ghjIf              = Nothing -- TODO: Use cfgIrcIfInOriginRepo
+                , ghjIf              = Nothing
                 , ghjContainer       = Just "buildpack-deps:bionic" -- use cfgUbuntu?
                 , ghjContinueOnError = Just "${{ matrix.allow-failure }}"
                 , ghjMatrix          =
@@ -516,10 +516,12 @@ ircJob mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
         , Just repo <- parseGitHubRepo url
 
         = Just
-        $ "${{ github.repository == '" ++ T.unpack repo ++ "' }}"
+        $ "${{ always() && (github.repository == '" ++ T.unpack repo ++ "') }}"
 
         | otherwise
-        = Nothing
+        = Just "${{ always() }}"
+        -- Use always() above to ensure that the IRC job will still run even if
+        -- the build job itself fails (see #437).
 
     ircStep :: String -> Bool -> GitHubStep
     ircStep serverChannelName success =
