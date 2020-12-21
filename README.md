@@ -15,8 +15,8 @@ At time of writing [Travis-CI](https://travis-ci.org/) has [support for building
  - GHC 8.2.1, GHC 8.2.2
  - GHC 8.4.1, GHC 8.4.2, GHC 8.4.3, GHC 8.4.4
  - GHC 8.6.1, GHC 8.6.2, GHC 8.6.3, GHC 8.6.4, GHC 8.6.5
- - GHC 8.8.1, GHC 8.8.2, GHC 8.8.3
- - GHC 8.10.1 *(pre-release snapshot)*
+ - GHC 8.8.1, GHC 8.8.2, GHC 8.8.3, GHC-8.8.4
+ - GHC 8.10.1, GHC-8.10.2, GHC-8.10.3
  - GHC HEAD.
 
 Each GHC version is provided in a separate `ghc-<version>` `.deb` package installing into `/opt/ghc/<version>` (thus allowing to be installed at the same time if needed) published in a [PPA](https://launchpad.net/~hvr/+archive/ghc). The easiest way to "activate" a particular GHC version is to prepend its `bin`-folder to the `$PATH` environment variable (see example in next section).

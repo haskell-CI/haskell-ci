@@ -53,9 +53,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - ghc: 8.10.1
+          - ghc: 8.10.3
             allow-failure: false
-          - ghc: 8.8.3
+          - ghc: 8.8.4
             allow-failure: false
           - ghc: 8.6.5
             allow-failure: false
@@ -143,10 +143,10 @@ jobs:
           doctest --version
       - name: install hlint
         run: |
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81002)) -ne 0 ] ; then HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $ARG_COMPILER --dry-run hlint  --constraint='hlint ==3.2.*' |  perl -ne 'if (/\bhlint-(\d+(\.\d+)*)\b/) { print "$1"; last; }')); echo "HLint version $HLINTVER" ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81002)) -ne 0 ] ; then if [ ! -e $HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint ]; then echo "Downloading HLint version $HLINTVER"; mkdir -p $HOME/.haskell-ci-tools; curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\n' --silent --location --output $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz "https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz"; tar -xzv -f $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz -C $HOME/.haskell-ci-tools; fi ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81002)) -ne 0 ] ; then mkdir -p $CABAL_DIR/bin && ln -sf "$HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint" $CABAL_DIR/bin/hlint ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81002)) -ne 0 ] ; then hlint --version ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81004)) -ne 0 ] ; then HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $ARG_COMPILER --dry-run hlint  --constraint='hlint ==3.2.*' |  perl -ne 'if (/\bhlint-(\d+(\.\d+)*)\b/) { print "$1"; last; }')); echo "HLint version $HLINTVER" ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81004)) -ne 0 ] ; then if [ ! -e $HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint ]; then echo "Downloading HLint version $HLINTVER"; mkdir -p $HOME/.haskell-ci-tools; curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\n' --silent --location --output $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz "https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz"; tar -xzv -f $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz -C $HOME/.haskell-ci-tools; fi ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81004)) -ne 0 ] ; then mkdir -p $CABAL_DIR/bin && ln -sf "$HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint" $CABAL_DIR/bin/hlint ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81004)) -ne 0 ] ; then hlint --version ; fi
       - name: checkout
         uses: actions/checkout@v2
         with:
@@ -221,9 +221,9 @@ jobs:
           doctest --fast src
       - name: hlint
         run: |
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81002)) -ne 0 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src) ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81002)) -ne 0 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml cli) ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81002)) -ne 0 ] ; then (cd ${PKGDIR_cabal_install_parsers} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml src) ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81004)) -ne 0 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src) ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81004)) -ne 0 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml cli) ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81004)) -ne 0 ] ; then (cd ${PKGDIR_cabal_install_parsers} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml src) ; fi
       - name: cabal check
         run: |
           cd ${PKGDIR_haskell_ci} || false
