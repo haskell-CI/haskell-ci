@@ -92,6 +92,7 @@ library haskell-ci-internal
     HaskellCI.Config.CopyFields
     HaskellCI.Config.Docspec
     HaskellCI.Config.Doctest
+    HaskellCI.Config.Diff
     HaskellCI.Config.Dump
     HaskellCI.Config.Empty
     HaskellCI.Config.Folds
