@@ -77,7 +77,7 @@ import qualified HaskellCI.Bash.Template as Bash
 main :: IO ()
 main = do
     argv0 <- getArgs
-    (cmd, opts) <- O.execParser cliParserInfo
+    (cmd, opts) <- O.customExecParser (O.prefs O.subparserInline) cliParserInfo
     case cmd of
         CommandListGHC -> do
             putStrLn $ "Supported GHC versions:"

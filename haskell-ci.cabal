@@ -158,7 +158,7 @@ library haskell-ci-internal
     , ini                            ^>=0.4.1
     , lattices                       ^>=2
     , network-uri                    ^>=2.6.1.0
-    , optparse-applicative           ^>=0.16
+    , optparse-applicative           ^>=0.16.1.0
     , temporary                      ^>=1.3
     , unordered-containers           ^>=0.2.10.0
     , zinza                          ^>=0.2
