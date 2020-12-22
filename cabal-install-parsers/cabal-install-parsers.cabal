@@ -34,7 +34,10 @@ source-repository head
 
 library
   default-language: Haskell2010
-  ghc-options:      -Wall -Wcompat -Wnoncanonical-monad-instances
+  ghc-options:
+    -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
+    -Wcompat -Wnoncanonical-monad-instances
+
   hs-source-dirs:   src
   exposed-modules:
     Cabal.Config
@@ -87,8 +90,8 @@ test-suite cabal-parsers-index
   -- inherited constraints
   build-depends:
     , base
-    , bytestring
     , base16-bytestring
+    , bytestring
     , Cabal
     , cabal-install-parsers
     , containers
