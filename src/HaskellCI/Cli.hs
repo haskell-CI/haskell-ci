@@ -143,7 +143,7 @@ parseOptions argv = case res of
         (help, _) -> hPutStrLn stderr help >> exitFailure
     O.CompletionInvoked _ -> exitFailure -- unexpected
   where
-    res = O.execParserPure (O.prefs mempty) cliParserInfo argv
+    res = O.execParserPure (O.prefs O.subparserInline) cliParserInfo argv
 
     fromCmd :: Command -> IO FilePath
     fromCmd (CommandTravis fp) = return fp
