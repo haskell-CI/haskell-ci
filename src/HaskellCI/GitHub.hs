@@ -145,7 +145,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh "mkdir -p $CABAL_DIR"
             cat "$CABAL_CONFIG" $ unlines
                 [ "remote-build-reporting: anonymous"
-                , "write-ghc-environment-files: always"
+                , "write-ghc-environment-files: never"
                 , "remote-repo-cache: $CABAL_DIR/packages"
                 , "logs-dir:          $CABAL_DIR/logs"
                 , "world-file:        $CABAL_DIR/world"
@@ -308,7 +308,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         -- build
         githubRun "build" $ do
-            sh "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all"
+            sh "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --write-ghc-environment-files=always"
 
         -- tests
         githubRun "tests" $ do

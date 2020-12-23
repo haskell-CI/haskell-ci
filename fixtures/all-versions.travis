@@ -180,7 +180,7 @@ before_install:
   - |
     echo "verbose: normal +nowrap +markoutput"          >> $CABALHOME/config
     echo "remote-build-reporting: anonymous"            >> $CABALHOME/config
-    echo "write-ghc-environment-files: always"          >> $CABALHOME/config
+    echo "write-ghc-environment-files: never"           >> $CABALHOME/config
     echo "remote-repo-cache: $CABALHOME/packages"       >> $CABALHOME/config
     echo "logs-dir:          $CABALHOME/logs"           >> $CABALHOME/config
     echo "world-file:        $CABALHOME/world"          >> $CABALHOME/config
@@ -247,7 +247,7 @@ script:
   - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all
   # Building with tests and benchmarks...
   # build & run tests, build benchmarks
-  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} all
+  - ${CABAL} v2-build $WITHCOMPILER ${TEST} ${BENCH} all --write-ghc-environment-files=always
   # Testing...
   - if [ $((! GHCJSARITH)) -ne 0 ] ; then ${CABAL} v2-test $WITHCOMPILER ${TEST} ${BENCH} all --test-show-details=direct ; fi
   # cabal check...
