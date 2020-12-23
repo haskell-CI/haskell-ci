@@ -153,7 +153,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
         cat "$CABALHOME/config"
             [ "verbose: normal +nowrap +markoutput" -- https://github.com/haskell/cabal/issues/5956
             , "remote-build-reporting: anonymous"
-            , "write-ghc-environment-files: always"
+            , "write-ghc-environment-files: never"
             , "remote-repo-cache: $CABALHOME/packages"
             , "logs-dir:          $CABALHOME/logs"
             , "world-file:        $CABALHOME/world"
@@ -314,7 +314,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
         -- build everything
         foldedSh FoldBuildEverything "Building with tests and benchmarks..." cfgFolds $ do
             comment "build & run tests, build benchmarks"
-            sh $ cabal "v2-build $WITHCOMPILER ${TEST} ${BENCH} all"
+            sh $ cabal "v2-build $WITHCOMPILER ${TEST} ${BENCH} all --write-ghc-environment-files=always"
 
         -- cabal v2-test fails if there are no test-suites.
         foldedSh FoldTest "Testing..." cfgFolds $ do
@@ -333,6 +333,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
         -- doctest
         when doctestEnabled $ foldedSh FoldDoctest "Doctest..." cfgFolds $ do
             let doctestOptions = unwords $ cfgDoctestOptions cfgDoctest
+            sh $ "$CABAL v2-build $WITHCOMPILER ${TEST} ${BENCH} all --dry-run"
             unless (null $ cfgDoctestFilterEnvPkgs cfgDoctest) $ do
                 -- cabal-install mangles unit ids on the OSX,
                 -- removing the vowels to make filepaths shorter
