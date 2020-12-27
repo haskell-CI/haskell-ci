@@ -188,6 +188,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh "xz -d < cabal-plan.xz > $HOME/.cabal/bin/cabal-plan"
             sh "rm -f cabal-plan.xz"
             sh "chmod a+x $HOME/.cabal/bin/cabal-plan"
+            sh "cabal-plan --version"
 
         when doctestEnabled $ githubRun "install doctest" $ do
             let range = Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange
@@ -214,7 +215,9 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 forHLint "mkdir -p $CABAL_DIR/bin && ln -sf \"$HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint\" $CABAL_DIR/bin/hlint"
                 forHLint "hlint --version"
 
-            else forHLint $ "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
+            else do
+                forHLint $ "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
+                forHLint "hlint --version"
 
         githubUses "checkout" "actions/checkout@v2"
             [ ("path", "source")
