@@ -77,6 +77,7 @@ library haskell-ci-internal
     HaskellCI.Config
     HaskellCI.Config.ConstraintSet
     HaskellCI.Config.CopyFields
+    HaskellCI.Config.Docspec
     HaskellCI.Config.Doctest
     HaskellCI.Config.Dump
     HaskellCI.Config.Folds
