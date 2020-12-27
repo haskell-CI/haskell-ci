@@ -28,6 +28,7 @@ import qualified Text.PrettyPrint                as PP
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Doctest
+import HaskellCI.Config.Docspec
 import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
@@ -84,6 +85,7 @@ data Config = Config
     , cfgInsertVersion       :: !Bool
     , cfgErrorMissingMethods :: !PackageScope
     , cfgDoctest             :: !DoctestConfig
+    , cfgDocspec             :: !DocspecConfig
     , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
     , cfgRawProject          :: [C.PrettyField ()]
@@ -101,21 +103,9 @@ emptyConfig = Config
     , cfgUbuntu          = Xenial
     , cfgTestedWith      = TestedWithUniform
     , cfgCopyFields      = CopyFieldsSome
-    , cfgDoctest         = DoctestConfig
-        { cfgDoctestEnabled       = noVersion
-        , cfgDoctestOptions       = []
-        , cfgDoctestVersion       = defaultDoctestVersion
-        , cfgDoctestFilterEnvPkgs = []
-        , cfgDoctestFilterSrcPkgs = []
-        }
-    , cfgHLint = HLintConfig
-        { cfgHLintEnabled  = False
-        , cfgHLintJob      = HLintJobLatest
-        , cfgHLintYaml     = Nothing
-        , cfgHLintVersion  = defaultHLintVersion
-        , cfgHLintOptions  = []
-        , cfgHLintDownload = True
-        }
+    , cfgDoctest         = defaultDoctestConfig
+    , cfgDocspec         = defaultDocspecConfig
+    , cfgHLint           = defaultHLintConfig
     , cfgLocalGhcOptions = []
     , cfgConstraintSets  = []
     , cfgSubmodules      = False
@@ -160,7 +150,10 @@ emptyConfig = Config
 -------------------------------------------------------------------------------
 
 configGrammar
-    :: (OptionsGrammar g, Applicative (g Config), Applicative (g DoctestConfig), Applicative (g HLintConfig))
+    :: ( OptionsGrammar g, Applicative (g Config)
+       , Applicative (g DoctestConfig)
+       , Applicative (g DocspecConfig)
+       , Applicative (g HLintConfig))
     => g Config Config
 configGrammar = Config
     <$> C.optionalFieldDefAla "cabal-install-version"     HeadVersion                         (field @"cfgCabalInstallVersion") defaultCabalInstallVersion
@@ -242,6 +235,7 @@ configGrammar = Config
     <*> C.optionalFieldDef "error-missing-methods"                                            (field @"cfgErrorMissingMethods") PackageScopeLocal
         ^^^ metahelp "PKGSCOPE" "Insert -Werror=missing-methods for package scope (none, local, all)"
     <*> C.blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar
+    <*> C.blurFieldGrammar (field @"cfgDocspec") docspecConfigGrammar
     <*> C.blurFieldGrammar (field @"cfgHLint")   hlintConfigGrammar
     <*> pure [] -- constraint sets
     <*> pure [] -- raw project fields

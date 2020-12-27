@@ -22,8 +22,21 @@ data DoctestConfig = DoctestConfig
     }
   deriving (Show, Generic, Binary)
 
+-------------------------------------------------------------------------------
+-- Default
+-------------------------------------------------------------------------------
+
 defaultDoctestVersion :: VersionRange
 defaultDoctestVersion = majorBoundVersion (mkVersion [0,17])
+
+defaultDoctestConfig :: DoctestConfig
+defaultDoctestConfig = DoctestConfig
+    { cfgDoctestEnabled       = noVersion
+    , cfgDoctestOptions       = []
+    , cfgDoctestVersion       = defaultDoctestVersion
+    , cfgDoctestFilterEnvPkgs = []
+    , cfgDoctestFilterSrcPkgs = []
+    }
 
 -------------------------------------------------------------------------------
 -- Grammar

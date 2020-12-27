@@ -73,6 +73,10 @@ doctest-options: --fast
 -- doctest-version: ==0.13.*
 doctest-filter-packages: base-compat-batteries
 
+-- Run cabal-docspec
+docspec: True
+docspec-options: --verbose --timeout 2
+
 -- macOS job
 osx: 8.4.4 8.6.5
 
