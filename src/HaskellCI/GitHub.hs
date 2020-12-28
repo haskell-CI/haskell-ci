@@ -552,7 +552,7 @@ ircJob mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
             , ("channel",  channelName)
             , ("nickname", "github-actions")
             , ("message",  "\x0313" ++ projectName ++ "\x03/\x0306${{ github.ref }}\x03 "
-                                    ++ "\x0314${{ github.sha }}\x03 "
+                                    ++ "\x0314${{ github.sha.substr(0, 10) }}\x03 "
                                     ++ "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} "
                                     ++ "The build " ++ resultPastTense ++ ".")
             ]

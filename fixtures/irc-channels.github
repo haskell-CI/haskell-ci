@@ -31,7 +31,7 @@ jobs:
         if: needs.linux.result == 'success'
         with:
           channel: "#mychannel"
-          message: "\x0313servant\x03/\x0306${{ github.ref }}\x03 \x0314${{ github.sha }}\x03 https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} The build succeeded."
+          message: "\x0313servant\x03/\x0306${{ github.ref }}\x03 \x0314${{ github.sha.substr(0, 10) }}\x03 https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} The build succeeded."
           nickname: github-actions
           server: chat.freenode.net
       - name: IRC failure notification (chat.freenode.net#mychannel)
@@ -39,7 +39,7 @@ jobs:
         if: needs.linux.result != 'success'
         with:
           channel: "#mychannel"
-          message: "\x0313servant\x03/\x0306${{ github.ref }}\x03 \x0314${{ github.sha }}\x03 https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} The build failed."
+          message: "\x0313servant\x03/\x0306${{ github.ref }}\x03 \x0314${{ github.sha.substr(0, 10) }}\x03 https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} The build failed."
           nickname: github-actions
           server: chat.freenode.net
   linux:
