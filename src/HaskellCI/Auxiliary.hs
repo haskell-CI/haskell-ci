@@ -27,6 +27,7 @@ import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Doctest
+import HaskellCI.Config.Docspec
 import HaskellCI.Jobs
 import HaskellCI.List
 import HaskellCI.Package
@@ -37,6 +38,7 @@ data Auxiliary = Auxiliary
     , uris                    :: [URI]
     , projectName             :: String
     , doctestEnabled          :: Bool
+    , docspecEnabled          :: Bool
     , hasTests                :: CompilerRange
     , hasLibrary              :: Bool
     , extraCabalProjectFields :: [C.PrettyField ()]
@@ -51,6 +53,7 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
     projectName = fromMaybe (pkgName $ Prelude.head pkgs) cfgProjectName
 
     doctestEnabled = any (maybeGHC False (`C.withinRange` cfgDoctestEnabled cfgDoctest)) versions
+    docspecEnabled = any (maybeGHC False (`C.withinRange` cfgDocspecEnabled cfgDocspec)) versions
 
     testShowDetails
         | cfgTestOutputDirect = " --test-show-details=direct"

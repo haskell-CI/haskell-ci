@@ -29,10 +29,10 @@ import HaskellCI.Auxiliary
 import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.ConstraintSet
+import HaskellCI.Config.Docspec
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
--- import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
 import HaskellCI.GitConfig
 import HaskellCI.GitHub.Yaml
@@ -190,6 +190,17 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh "chmod a+x $HOME/.cabal/bin/cabal-plan"
             sh "cabal-plan --version"
 
+        when docspecEnabled $ githubRun "install cabal-docspec" $ do
+            let hash = cfgDocspecHash cfgDocspec
+                url  = cfgDocspecUrl cfgDocspec
+            sh "mkdir -p $HOME/.cabal/bin"
+            sh $ "curl -sL " ++ url ++ " > cabal-docspec.xz"
+            sh $ "echo '" ++ hash ++ "  cabal-docspec.xz' | sha256sum -c -"
+            sh "xz -d < cabal-docspec.xz > $HOME/.cabal/bin/cabal-docspec"
+            sh "rm -f cabal-docspec.xz"
+            sh "chmod a+x $HOME/.cabal/bin/cabal-docspec"
+            sh "cabal-docspec --version"
+
         when doctestEnabled $ githubRun "install doctest" $ do
             let range = Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange
             sh_if range "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'"
@@ -345,6 +356,14 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                         unless (null args) $ do
                             change_dir_if vr $ pkgNameDirVariable pkgName
                             sh_if vr $ "doctest " ++ doctestOptions ++ " " ++ args'
+
+        -- docspec
+        when docspecEnabled $ githubRun "docspec" $ do
+            let docspecOptions = cfgDocspecOptions cfgDocspec
+            let range = Range (cfgDocspecEnabled cfgDocspec)
+            -- we need to rebuild, if tests screwed something.
+            sh_if range "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all"
+            sh_if range $ unwords $ "cabal-docspec $ARG_COMPILER" : docspecOptions
 
         -- hlint
         when (cfgHLintEnabled cfgHLint) $ githubRun "hlint" $ do

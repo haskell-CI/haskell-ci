@@ -26,8 +26,22 @@ data HLintConfig = HLintConfig
     }
   deriving (Show, Generic, Binary)
 
+-------------------------------------------------------------------------------
+-- Default
+-------------------------------------------------------------------------------
+
 defaultHLintVersion :: VersionRange
 defaultHLintVersion = withinVersion (mkVersion [3,2])
+
+defaultHLintConfig :: HLintConfig
+defaultHLintConfig = HLintConfig
+    { cfgHLintEnabled  = False
+    , cfgHLintJob      = HLintJobLatest
+    , cfgHLintYaml     = Nothing
+    , cfgHLintVersion  = defaultHLintVersion
+    , cfgHLintOptions  = []
+    , cfgHLintDownload = True
+    }
 
 -------------------------------------------------------------------------------
 -- HLintJob
