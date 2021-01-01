@@ -433,6 +433,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , ghjIf              = Nothing
                 , ghjContainer       = Just "buildpack-deps:bionic" -- use cfgUbuntu?
                 , ghjContinueOnError = Just "${{ matrix.allow-failure }}"
+                , ghjServices        = mconcat
+                    [ Map.singleton "postgres" postgresService | cfgPostgres ]
                 , ghjMatrix          =
                     [ GitHubMatrixEntry
                         { ghmeGhcVersion = v
@@ -519,6 +521,15 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     withHaddock :: String
     withHaddock = "--with-haddock $HADDOCK"
 
+postgresService :: GitHubService
+postgresService = GitHubService
+    { ghServImage   = "postgres:10"
+    , ghServOptions = Just "--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5"
+    , ghServEnv     = Map.fromList
+          [ ("POSTGRES_PASSWORD", "postgres")
+          ]
+    }
+
 ircJob :: String -> String -> Config -> GitConfig -> ListBuilder (String, GitHubJob) ()
 ircJob mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
     { ghjName            = "Haskell-CI (IRC notification)"
@@ -528,6 +539,7 @@ ircJob mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
     , ghjContainer       = Nothing
     , ghjContinueOnError = Nothing
     , ghjMatrix          = []
+    , ghjServices        = mempty
     , ghjSteps           = [ ircStep serverChannelName success
                            | serverChannelName <- serverChannelNames
                            , success <- [True, False]
