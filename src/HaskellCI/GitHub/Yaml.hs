@@ -8,8 +8,8 @@ import HaskellCI.Prelude
 import qualified Data.Map.Strict as M
 
 import HaskellCI.List
-import HaskellCI.YamlSyntax
 import HaskellCI.Sh
+import HaskellCI.YamlSyntax
 
 -------------------------------------------------------------------------------
 -- Data
@@ -32,6 +32,7 @@ data GitHubJob = GitHubJob
     , ghjNeeds           :: [String]
     , ghjIf              :: Maybe String
     , ghjContainer       :: Maybe String
+    , ghjServices        :: M.Map String GitHubService
     , ghjContinueOnError :: Maybe String
     , ghjMatrix          :: [GitHubMatrixEntry]
     , ghjSteps           :: [GitHubStep]
@@ -62,6 +63,13 @@ data GitHubUses = GitHubUses
     { ghsAction :: String
     , ghsIf     :: Maybe String
     , ghsWith   :: M.Map String String
+    }
+  deriving (Show)
+
+data GitHubService = GitHubService
+    { ghServImage   :: String
+    , ghServEnv     :: M.Map String String
+    , ghServOptions :: Maybe String
     }
   deriving (Show)
 
@@ -99,17 +107,18 @@ instance ToYaml GitHubJob where
         item $ "runs-on" ~> fromString ghjRunsOn
         item $ "needs" ~> ylistFilt [] (map fromString ghjNeeds)
         for_ ghjIf $ \if_ ->
-          item $ "if" ~> fromString if_
+            item $ "if" ~> fromString if_
         item $ "container" ~> ykeyValuesFilt [] (buildList $
-          for_ ghjContainer $ \image -> item $ "image" ~> fromString image)
+            for_ ghjContainer $ \image -> item $ "image" ~> fromString image)
+        item $ "services" ~> toYaml ghjServices
         for_ ghjContinueOnError $ \continueOnError ->
-          item $ "continue-on-error" ~> fromString continueOnError
+            item $ "continue-on-error" ~> fromString continueOnError
         item $ "strategy" ~> ykeyValuesFilt []
-          [ "matrix" ~> ykeyValuesFilt []
-              [ "include" ~> ylistFilt [] (map toYaml ghjMatrix)
-              ]
-          , "fail-fast" ~> YBool [] False
-          ]
+            [ "matrix" ~> ykeyValuesFilt []
+                [ "include" ~> ylistFilt [] (map toYaml ghjMatrix)
+                ]
+            , "fail-fast" ~> YBool [] False
+            ]
         item $ "steps" ~> ylistFilt [] (map toYaml $ filter notEmptyStep ghjSteps)
 
 instance ToYaml GitHubMatrixEntry where
@@ -135,6 +144,12 @@ instance ToYaml GitHubStep where
 notEmptyStep :: GitHubStep -> Bool
 notEmptyStep (GitHubStep _ (Left (GitHubRun [] _))) = False
 notEmptyStep _                                      = True
+
+instance ToYaml GitHubService where
+    toYaml GitHubService {..} = ykeyValuesFilt [] $ buildList $ do
+        item $ "image" ~> fromString ghServImage
+        item $ "env"   ~> toYaml (YString [] <$> ghServEnv)
+        for_ ghServOptions $ \opt -> item $ "options" ~> fromString opt
 
 -------------------------------------------------------------------------------
 -- Helpers

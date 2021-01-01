@@ -17,12 +17,13 @@ module HaskellCI.YamlSyntax (
 import HaskellCI.Prelude
 import Prelude ()
 
-import Data.Bits          (shiftR, (.&.))
-import Data.Char          (isControl, isPrint, ord)
-import Data.Monoid        (Endo (..))
+import Data.Bits   (shiftR, (.&.))
+import Data.Char   (isControl, isPrint, ord)
+import Data.Monoid (Endo (..))
 
 import qualified Data.Aeson              as Aeson
 import qualified Data.List.NonEmpty      as NE
+import qualified Data.Map.Strict         as M
 import qualified Data.Text               as T
 import qualified Data.Text.Encoding      as TE
 import qualified Data.Text.Lazy          as TL
@@ -77,6 +78,12 @@ instance ToYaml a => ToYaml [a] where
 
 instance ToYaml Aeson.Value where
     toYaml = YValue []
+
+instance (k ~ String, ToYaml v) => ToYaml (M.Map k v) where
+    toYaml m = ykeyValuesFilt []
+        [ k ~> toYaml v
+        | (k, v) <- M.toList m
+        ]
 
 -------------------------------------------------------------------------------
 -- Converting to string
