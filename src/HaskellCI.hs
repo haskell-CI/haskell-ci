@@ -138,7 +138,7 @@ travisFromConfigFile
 travisFromConfigFile args opts path = do
     gitconfig <- liftIO readGitConfig
     cabalFiles <- getCabalFiles (optInputType' opts path) path
-    config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
+    config' <- findConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config) cabalFiles
     (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
@@ -224,7 +224,7 @@ bashFromConfigFile
 bashFromConfigFile args opts path = do
     gitconfig <- liftIO readGitConfig
     cabalFiles <- getCabalFiles (optInputType' opts path) path
-    config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
+    config' <- findConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config) cabalFiles
     (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
@@ -311,7 +311,7 @@ githubFromConfigFile
 githubFromConfigFile args opts path = do
     gitconfig <- liftIO readGitConfig
     cabalFiles <- getCabalFiles (optInputType' opts path) path
-    config' <- maybe (return emptyConfig) readConfigFile (optConfig opts)
+    config' <- findConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config) cabalFiles
     (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
@@ -366,6 +366,20 @@ regenerateGitHub opts = do
 
     noGitHubScript :: IO ()
     noGitHubScript = putStrLn $ "No " ++ fp ++ ", skipping GitHub config regeneration"
+
+-------------------------------------------------------------------------------
+-- Config file
+-------------------------------------------------------------------------------
+
+findConfigFile :: MonadIO m => ConfigOpt -> m Config
+findConfigFile ConfigOptNo    = return emptyConfig
+findConfigFile (ConfigOpt fp) = readConfigFile fp
+findConfigFile ConfigOptAuto  = do
+    let defaultPath = "cabal.haskell-ci"
+    exists <- liftIO (doesFileExist defaultPath)
+    if exists
+    then readConfigFile defaultPath
+    else return emptyConfig
 
 -------------------------------------------------------------------------------
 -- Patches

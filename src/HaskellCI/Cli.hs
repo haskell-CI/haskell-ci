@@ -35,22 +35,20 @@ data Command
 
 data Options = Options
     { optOutput         :: Maybe Output
-    , optConfig         :: Maybe FilePath
+    , optConfig         :: ConfigOpt
     , optCwd            :: Maybe FilePath
     , optInputType      :: Maybe InputType
     , optConfigMorphism :: Config -> Config
     }
 
-data Output = OutputStdout | OutputFile FilePath
-
 instance Semigroup Options where
     Options b d c e f <> Options b' d' c' e' f' =
-        Options (b <|> b') (d <|> d') (c <|> c') (e <|> e') (f' . f)
+        Options (b <|> b') (d <> d') (c <|> c') (e <|> e') (f' . f)
 
 defaultOptions :: Options
 defaultOptions = Options
     { optOutput         = Nothing
-    , optConfig         = Nothing
+    , optConfig         = ConfigOptAuto
     , optCwd            = Nothing
     , optInputType      = Nothing
     , optConfigMorphism = id
@@ -60,6 +58,18 @@ optionsWithOutputFile :: FilePath -> Options
 optionsWithOutputFile fp = defaultOptions
     { optOutput = Just (OutputFile fp)
     }
+
+data Output = OutputStdout | OutputFile FilePath
+
+data ConfigOpt
+    = ConfigOptAuto
+    | ConfigOpt FilePath
+    | ConfigOptNo
+  deriving (Eq, Show)
+
+instance Semigroup ConfigOpt where
+    a <> ConfigOptAuto = a
+    _ <> b             = b
 
 -------------------------------------------------------------------------------
 -- InputType
@@ -83,10 +93,16 @@ optInputType' opts path =
 optionsP :: O.Parser Options
 optionsP = Options
     <$> O.optional outputP
-    <*> O.optional (O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file"))
+    <*> configOptP
     <*> O.optional (O.strOption (O.long "cwd" <> O.metavar "Dir" <> O.help "Directory to change to"))
     <*> O.optional inputTypeP
     <*> runOptparseGrammar configGrammar
+
+configOptP :: O.Parser ConfigOpt
+configOptP = file <|> noconfig <|> pure ConfigOptAuto
+  where
+    file = ConfigOpt <$> O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file")
+    noconfig = O.flag' ConfigOptNo (O.long "no-config" <> O.help "Don't read configuration file")
 
 outputP :: O.Parser Output
 outputP =
