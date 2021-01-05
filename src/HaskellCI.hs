@@ -136,18 +136,7 @@ travisFromConfigFile
     -> FilePath
     -> m ByteString
 travisFromConfigFile args opts path = do
-    gitconfig <- liftIO readGitConfig
-    cabalFiles <- getCabalFiles (optInputType' opts path) path
-    config' <- findConfigFile (optConfig opts)
-    let config = optConfigMorphism opts config'
-    pkgs <- T.mapM (configFromCabalFile config) cabalFiles
-    (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
-        Right x     -> return x
-        Left []     -> putStrLnErr "panic: checkVersions failed without errors"
-        Left (e:es) -> putStrLnErrs (e :| es)
-
-    let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
-             | otherwise         = prj
+    (gitconfig, config, ghcs, prj') <- taskFromConfigFile args opts path
 
     ls <- genTravisFromConfigs args config gitconfig prj' ghcs
     patchTravis config ls
@@ -222,18 +211,7 @@ bashFromConfigFile
     -> FilePath
     -> m ByteString
 bashFromConfigFile args opts path = do
-    gitconfig <- liftIO readGitConfig
-    cabalFiles <- getCabalFiles (optInputType' opts path) path
-    config' <- findConfigFile (optConfig opts)
-    let config = optConfigMorphism opts config'
-    pkgs <- T.mapM (configFromCabalFile config) cabalFiles
-    (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
-        Right x     -> return x
-        Left []     -> putStrLnErr "panic: checkVersions failed without errors"
-        Left (e:es) -> putStrLnErrs (e :| es)
-
-    let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
-             | otherwise         = prj
+    (gitconfig, config, ghcs, prj') <- taskFromConfigFile args opts path
 
     genBashFromConfigs args config gitconfig prj' ghcs
 
@@ -309,18 +287,7 @@ githubFromConfigFile
     -> FilePath
     -> m ByteString
 githubFromConfigFile args opts path = do
-    gitconfig <- liftIO readGitConfig
-    cabalFiles <- getCabalFiles (optInputType' opts path) path
-    config' <- findConfigFile (optConfig opts)
-    let config = optConfigMorphism opts config'
-    pkgs <- T.mapM (configFromCabalFile config) cabalFiles
-    (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
-        Right x     -> return x
-        Left []     -> putStrLnErr "panic: checkVersions failed without errors"
-        Left (e:es) -> putStrLnErrs (e :| es)
-
-    let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
-             | otherwise         = prj
+    (gitconfig, config, ghcs, prj') <- taskFromConfigFile args opts path
 
     ls <- genGitHubFromConfigs args config gitconfig prj' ghcs
     patchGitHub config ls
@@ -380,6 +347,31 @@ findConfigFile ConfigOptAuto  = do
     if exists
     then readConfigFile defaultPath
     else return emptyConfig
+
+taskFromConfigFile
+    :: forall m. (MonadIO m, MonadDiagnostics m, MonadMask m)
+    => [String]
+    -> Options
+    -> FilePath
+    -> m (GitConfig, Config, S.Set CompilerVersion, Project URI Void Package)
+taskFromConfigFile _args opts path = do
+    gitconfig <- liftIO readGitConfig
+    cabalFiles <- getCabalFiles (optInputType' opts path) path
+    config' <- findConfigFile (optConfig opts)
+    let config = optConfigMorphism opts config'
+    pkgs <- T.mapM (configFromCabalFile config) cabalFiles
+    (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
+        CheckVersionsSucceeded ghcs prj  -> return (ghcs, prj)
+        CheckVersionsFailed [] _         -> putStrLnErr "panic: checkVersions failed without errors"
+        CheckVersionsFailed (e:es) infos -> do
+          mapM_ putStrLnInfo infos
+          putStrLnErrs (e :| es)
+
+    let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
+             | otherwise         = prj
+
+    return (gitconfig, config, ghcs, prj')
+
 
 -------------------------------------------------------------------------------
 -- Patches

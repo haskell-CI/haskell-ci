@@ -1,5 +1,6 @@
 module HaskellCI.TestedWith (
     TestedWithJobs (..),
+    CheckVersionsResult(..),
     checkVersions,
     ) where
 
@@ -33,6 +34,18 @@ instance C.Pretty TestedWithJobs where
     pretty TestedWithUniform = PP.text "uniform"
     pretty TestedWithAny     = PP.text "any"
 
+-- | Result of `checkVersions`.
+data CheckVersionsResult a b
+  = CheckVersionsSucceeded
+    { compilerVersions :: S.Set CompilerVersion
+    , cvProject        :: Project a b Package
+    }
+  | CheckVersionsFailed
+    { cvErrors :: [String]
+    , cvInfos  :: [String]
+        -- ^ Additional hints to the user.  @null@ if @null . cvErrors@.
+    }
+
 -------------------------------------------------------------------------------
 -- Selection
 -------------------------------------------------------------------------------
@@ -40,19 +53,20 @@ instance C.Pretty TestedWithJobs where
 checkVersions
     :: TestedWithJobs
     -> Project a b Package
-    -> Either [String] (S.Set CompilerVersion, Project a b Package)
+    -> CheckVersionsResult a b
 checkVersions TestedWithUniform = checkVersionsUniform
 checkVersions TestedWithAny     = checkVersionsAny
 
 checkVersionsUniform
     :: Project a b Package
-    -> Either [String] (S.Set CompilerVersion, Project a b Package)
-checkVersionsUniform prj | null (prjPackages prj) = Left ["Error reading cabal file(s)!"]
+    -> CheckVersionsResult a b
+checkVersionsUniform prj | null (prjPackages prj) =
+    CheckVersionsFailed ["Error reading cabal file(s)!"] []
 checkVersionsUniform prj = do
     let (errors, names) = F.foldl' collectConfig mempty prj
     if not (null errors)
-    then Left errors
-    else Right (allVersions, prj { prjPackages = names, prjOptPackages = [] })
+    then CheckVersionsFailed errors ["Consider option --jobs-selection any"]
+    else CheckVersionsSucceeded allVersions prj{ prjPackages = names, prjOptPackages = [] }
   where
     allVersions :: S.Set CompilerVersion
     allVersions = F.foldMap pkgJobs prj
@@ -76,10 +90,11 @@ checkVersionsUniform prj = do
 
 checkVersionsAny
     :: Project a b Package
-    -> Either [String] (S.Set CompilerVersion, Project a b Package)
-checkVersionsAny prj | null (prjPackages prj) = Left ["Error reading cabal file(s)!"]
+    -> CheckVersionsResult a b
+checkVersionsAny prj | null (prjPackages prj) =
+    CheckVersionsFailed ["Error reading cabal file(s)!"] []
 checkVersionsAny prj =
-    Right (allVersions, prj)
+    CheckVersionsSucceeded allVersions prj
   where
     allVersions :: S.Set CompilerVersion
     allVersions = F.foldMap pkgJobs prj
