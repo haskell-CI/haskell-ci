@@ -115,7 +115,8 @@ instance ToYaml GitHubJob where
             item $ "continue-on-error" ~> fromString continueOnError
         item $ "strategy" ~> ykeyValuesFilt []
             [ "matrix" ~> ykeyValuesFilt []
-                [ "include" ~> ylistFilt [] (map toYaml ghjMatrix)
+                [ "ghc" ~> ylistFilt [] (map (fromString . prettyShow . ghmeGhcVersion) ghjMatrix)
+                , "include" ~> ylistFilt [] (map toYaml ghjMatrix)
                 ]
             , "fail-fast" ~> YBool [] False
             ]
