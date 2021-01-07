@@ -57,6 +57,7 @@ initialConfig = Config
     , cfgPostgres            = False
     , cfgGoogleChrome        = False
     , cfgEnv                 = mempty
+    , cfgMatrixExtra         = mempty
     , cfgAllowFailures       = noVersion
     , cfgLastInSeries        = False
     , cfgLinuxJobs           = anyVersion

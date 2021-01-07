@@ -115,6 +115,13 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             [ "Using submodules on the GitHub Actions backend requires"
             , "Ubuntu 20.04 (Focal Fossa) or later."
             ]
+    when (length matrix > maxMatrixJobs) $
+        throwErr $ ValidationError $ unwords
+            [ "The matrix has"
+            , show (length matrix)
+            , "jobs, exceeding the limit of"
+            , show maxMatrixJobs ++ "."
+            ]
 
     steps <- sequence $ buildList $ do
         githubRun "apt-get install" $ do
@@ -536,23 +543,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , ghjServices        = mconcat
                     [ Map.singleton "postgres" postgresService | cfgPostgres ]
                 , ghjTimeout         = max 10 cfgTimeoutMinutes
-                , ghjMatrix          = concat $
-                    -- we can have multiple setup methods for the same
-                    -- compiler version, if jobs overlap.
-                    [ [ GitHubMatrixEntry
-                        { ghmeCompiler     = translateCompilerVersion cfgVersionMapping $ compiler
-                        , ghmeAllowFailure =
-                               isGHCHead compiler
-                            || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
-                        , ghmeSetupMethod = sp
-                        }
-                        | sp <- [GHCUP, GHCUPvanilla, GHCUPprerelease, HVRPPA]
-                        , compilerWithinGhcRange compiler $ index cfgSetupMethods sp
-                      ]
-                      | compiler <- reverse $ toList linuxVersions
-                      , compiler /= GHCHead -- TODO: Make this work
-                                          -- https://github.com/haskell-CI/haskell-ci/issues/458
-                      ]
+                , ghjMatrix          = matrix
                 })
 
             unless (null cfgIrcChannels) $
@@ -570,6 +561,34 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     -- job to be setup with ghcup
     isGHCUP :: CompilerVersion -> Bool
     isGHCUP v = compilerWithinRange v (RangeGHC /\ Range (index cfgSetupMethods GHCUP))
+
+    -- extra matrix fields
+    matrixExtra :: [[(String, String)]]
+    matrixExtra =
+      traverse (\(k, vs) -> fmap (\v -> (k, v)) (toList vs))
+      $ Map.toList cfgMatrixExtra
+
+    mkMatrixEntries :: [(String, String)] -> [GitHubMatrixEntry]
+    mkMatrixEntries extra =
+      [ GitHubMatrixEntry
+        { ghmeCompiler     = translateCompilerVersion cfgVersionMapping $ compiler
+        , ghmeAllowFailure =
+               isGHCHead compiler
+            || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
+        , ghmeSetupMethod = sp
+        , ghmeMatrixExtra = extra
+        }
+      | compiler <- reverse $ toList linuxVersions
+      , compiler /= GHCHead -- TODO: Make this work
+                            -- https://github.com/haskell-CI/haskell-ci/issues/458
+      , sp <- [GHCUP, GHCUPvanilla, GHCUPprerelease, HVRPPA]
+      , compilerWithinGhcRange compiler $ index cfgSetupMethods sp
+      ]
+
+    matrix :: [GitHubMatrixEntry]
+    matrix = case matrixExtra of
+      [] -> mkMatrixEntries []
+      xs -> xs >>= mkMatrixEntries
 
     -- step primitives
     githubRun' :: String -> Map.Map String String ->  ShM () -> ListBuilder (Either HsCiError GitHubStep) ()
@@ -788,3 +807,9 @@ ghcRunsOnVer = "ubuntu-24.04"
 translateCompilerVersion :: Map Version Version -> CompilerVersion -> CompilerVersion
 translateCompilerVersion m (GHC v) = GHC (Map.findWithDefault v v m)
 translateCompilerVersion _ x       = x
+
+-- | GitHub has a limit of 256 jobs.
+-- See https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow#using-a-matrix-strategy
+--
+maxMatrixJobs :: Int
+maxMatrixJobs = 256

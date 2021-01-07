@@ -47,6 +47,7 @@ data GitHubJob = GitHubJob
 data GitHubMatrixEntry = GitHubMatrixEntry
     { ghmeCompiler     :: CompilerVersion
     , ghmeAllowFailure :: Bool
+    , ghmeMatrixExtra  :: [(String, String)]
     , ghmeSetupMethod  :: SetupMethod
     }
   deriving (Show)
@@ -129,13 +130,13 @@ instance ToYaml GitHubJob where
         item $ "steps" ~> ylistFilt [] (map toYaml $ filter notEmptyStep ghjSteps)
 
 instance ToYaml GitHubMatrixEntry where
-    toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
+    toYaml GitHubMatrixEntry {..} = ykeyValuesFilt [] $
         [ "compiler"        ~> fromString compiler
         , "compilerKind"    ~> fromString (compilerKind ghmeCompiler)
         , "compilerVersion" ~> fromString (compilerVersion ghmeCompiler)
         , "setup-method"    ~> toYaml ghmeSetupMethod
         , "allow-failure"   ~> toYaml ghmeAllowFailure
-        ]
+        ] ++ fmap (\(k, v) -> k ~> fromString v) ghmeMatrixExtra
       where
         compiler
             | GHCUP <- ghmeSetupMethod

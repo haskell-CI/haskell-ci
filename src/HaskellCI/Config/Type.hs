@@ -62,6 +62,7 @@ data Config = Config
     , cfgPostgres            :: !Bool
     , cfgGoogleChrome        :: !Bool
     , cfgEnv                 :: M.Map Version String
+    , cfgMatrixExtra         :: M.Map String (S.Set String)
     , cfgAllowFailures       :: !VersionRange
     , cfgLastInSeries        :: !Bool
     , cfgLinuxJobs           :: !VersionRange
