@@ -26,8 +26,8 @@ defaultDocspecConfig :: DocspecConfig
 defaultDocspecConfig = DocspecConfig
     { cfgDocspecEnabled = noVersion
     , cfgDocspecOptions = []
-    , cfgDocspecUrl     = "https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20201230.1/cabal-docspec-0.0.0.20201230.1.xz"
-    , cfgDocspecHash    = "18caf4f361fadd978782f08e78f42d21d4f177567419055ffccae19b8214852d"
+    , cfgDocspecUrl     = "https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20210108/cabal-docspec-0.0.0.20210108.xz"
+    , cfgDocspecHash    = "9123f8d5d09beaf3124331c4db1de3e2934b682cd4deebdcdbd3e71b73016b7c"
     }
 
 -------------------------------------------------------------------------------
