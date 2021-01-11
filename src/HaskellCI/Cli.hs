@@ -78,6 +78,7 @@ instance Semigroup ConfigOpt where
 data InputType
     = InputTypePackage -- ^ @.cabal@
     | InputTypeProject -- ^ @cabal.project
+  deriving Show
 
 optInputType' :: Options -> FilePath -> InputType
 optInputType' opts path =
@@ -119,7 +120,7 @@ versionP = O.infoOption haskellCIVerStr $ mconcat
 inputTypeP :: O.Parser InputType
 inputTypeP = pkg <|> prj where
     pkg = O.flag' InputTypePackage $ O.long "package"
-    prj = O.flag' InputTypePackage $ O.long "project"
+    prj = O.flag' InputTypeProject $ O.long "project"
 
 cliParserInfo :: O.ParserInfo (Command, Options)
 cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helper) $ mconcat
