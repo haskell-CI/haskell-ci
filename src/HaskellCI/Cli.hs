@@ -118,8 +118,8 @@ versionP = O.infoOption haskellCIVerStr $ mconcat
 
 inputTypeP :: O.Parser InputType
 inputTypeP = pkg <|> prj where
-    pkg = O.flag' InputTypePackage $ O.long "--package"
-    prj = O.flag' InputTypePackage $ O.long "--project"
+    pkg = O.flag' InputTypePackage $ O.long "package"
+    prj = O.flag' InputTypePackage $ O.long "project"
 
 cliParserInfo :: O.ParserInfo (Command, Options)
 cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helper) $ mconcat
