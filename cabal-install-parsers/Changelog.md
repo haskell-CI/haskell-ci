@@ -1,3 +1,7 @@
+## 0.4.1
+
+- Use `Cabal-3.4`
+
 ## 0.4
 
 - Rewrite `Cabal.Index` module
