@@ -12,14 +12,14 @@ import Data.Functor.Identity (Identity (..))
 import Data.Proxy            (Proxy (..))
 import Network.URI           (URI, parseURI, uriToString)
 
-import qualified Data.Set                        as S
-import qualified Distribution.Compat.CharParsing as C
-import qualified Distribution.Compat.Newtype     as C
-import qualified Distribution.Parsec             as C
-import qualified Distribution.Parsec.Newtypes    as C
-import qualified Distribution.Pretty             as C
-import qualified Distribution.Version            as C
-import qualified Text.PrettyPrint                as PP
+import qualified Data.Set                           as S
+import qualified Distribution.Compat.CharParsing    as C
+import qualified Distribution.Compat.Newtype        as C
+import qualified Distribution.FieldGrammar.Newtypes as C
+import qualified Distribution.Parsec                as C
+import qualified Distribution.Pretty                as C
+import qualified Distribution.Version               as C
+import qualified Text.PrettyPrint                   as PP
 
 -------------------------------------------------------------------------------
 -- PackageLocation

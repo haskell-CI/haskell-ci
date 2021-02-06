@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications  #-}
@@ -10,7 +11,6 @@ import Distribution.Version (withinVersion)
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.FieldGrammar       as C
 import qualified Distribution.Parsec             as C
-import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Pretty             as C
 import qualified Text.PrettyPrint                as PP
 
@@ -65,7 +65,7 @@ instance C.Pretty HLintJob where
 -------------------------------------------------------------------------------
 
 hlintConfigGrammar
-    :: (OptionsGrammar g, Applicative (g HLintConfig))
+    :: (OptionsGrammar c g, Applicative (g HLintConfig), c (Identity HLintJob))
     => g HLintConfig HLintConfig
 hlintConfigGrammar = HLintConfig
     <$> C.booleanFieldDef  "hlint"                                             (field @"cfgHLintEnabled") False

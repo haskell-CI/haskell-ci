@@ -11,8 +11,8 @@ import Text.PrettyPrint           (Doc, render)
 import qualified Data.ByteString as BS
 import qualified Data.Map.Strict as Map
 
-import Distribution.Fields (PrettyField(..))
-import Distribution.Types.SourceRepo (RepoKind, RepoType, SourceRepo)
+import Distribution.Fields           (PrettyField (..))
+import Distribution.Types.SourceRepo (KnownRepoType, RepoKind, RepoType, SourceRepo)
 
 import Cabal.Optimization
 import Cabal.Parse
@@ -56,6 +56,7 @@ instance ToExpr Optimization
 instance ToExpr SourceRepo
 instance ToExpr RepoKind
 instance ToExpr RepoType
+instance ToExpr KnownRepoType
 instance ToExpr (f FilePath) => ToExpr (SourceRepositoryPackage f)
 
 instance ToExpr Doc where

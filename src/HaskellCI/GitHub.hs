@@ -267,7 +267,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     ]
 
             -- extra cabal.project fields
-            cat "cabal.project" $ C.showFields' (const []) 2 extraCabalProjectFields
+            cat "cabal.project" $ C.showFields' (const []) (const id) 2 extraCabalProjectFields
 
             -- also write cabal.project.local file with
             -- @

@@ -33,14 +33,13 @@ import System.Directory         (getAppUserDataDirectory)
 import System.Environment       (lookupEnv)
 import System.FilePath          ((</>))
 
-import qualified Data.ByteString               as BS
-import qualified Data.Map.Strict               as M
-import qualified Distribution.CabalSpecVersion as C
-import qualified Distribution.FieldGrammar     as C
-import qualified Distribution.Fields           as C
-import qualified Distribution.Parsec           as C
-import qualified Distribution.Parsec.Newtypes  as C
-import qualified Distribution.Simple.Utils     as C
+import qualified Data.ByteString                    as BS
+import qualified Data.Map.Strict                    as M
+import qualified Distribution.CabalSpecVersion      as C
+import qualified Distribution.FieldGrammar          as C
+import qualified Distribution.Fields                as C
+import qualified Distribution.Parsec                as C
+import qualified Distribution.Simple.Utils          as C
 
 import Cabal.Internal.Newtypes
 import Cabal.Parse

@@ -6,7 +6,6 @@ module HaskellCI.Config.Docspec where
 import HaskellCI.Prelude
 
 import qualified Distribution.FieldGrammar    as C
-import qualified Distribution.Parsec.Newtypes as C
 
 import HaskellCI.OptionsGrammar
 
@@ -35,7 +34,7 @@ defaultDocspecConfig = DocspecConfig
 -------------------------------------------------------------------------------
 
 docspecConfigGrammar
-    :: (OptionsGrammar g, Applicative (g DocspecConfig))
+    :: (OptionsGrammar c g, Applicative (g DocspecConfig))
     => g DocspecConfig DocspecConfig
 docspecConfigGrammar = DocspecConfig
     <$> rangeField            "docspec"                                              (field @"cfgDocspecEnabled") noVersion

@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds      #-}
 {-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE OverloadedStrings    #-}
@@ -20,15 +21,17 @@ module Cabal.SourceRepo (
     sourceRepositoryPackageGrammar,
     ) where
 
-import Control.DeepSeq    (NFData (..))
-import Data.List.NonEmpty (NonEmpty (..))
-import Data.Proxy         (Proxy (..))
-import GHC.Generics       (Generic)
+import Control.DeepSeq       (NFData (..))
+import Data.Functor.Identity (Identity)
+import Data.List.NonEmpty    (NonEmpty (..))
+import Data.Proxy            (Proxy (..))
+import GHC.Generics          (Generic)
 
-import Distribution.Compat.Lens      (Lens, Lens')
-import Distribution.FieldGrammar     (FieldGrammar, ParsecFieldGrammar', PrettyFieldGrammar', monoidalFieldAla, optionalFieldAla, uniqueField, uniqueFieldAla)
-import Distribution.Parsec.Newtypes  (FilePathNT (..), NoCommaFSep (..), Token (..), alaList')
-import Distribution.Types.SourceRepo (RepoType (..))
+import Distribution.Compat.Lens           (Lens, Lens')
+import Distribution.FieldGrammar
+       (FieldGrammar, ParsecFieldGrammar', PrettyFieldGrammar', monoidalFieldAla, optionalFieldAla, uniqueField, uniqueFieldAla)
+import Distribution.FieldGrammar.Newtypes (FilePathNT (..), List, NoCommaFSep (..), Token (..), alaList')
+import Distribution.Types.SourceRepo      (RepoType (..))
 
 -- | @source-repository-package@ definition
 --
@@ -100,7 +103,10 @@ srpSubdirLens f s = fmap (\x -> s { srpSubdir = x }) (f (srpSubdir s))
 -------------------------------------------------------------------------------
 
 sourceRepositoryPackageGrammar
-    :: (FieldGrammar g, Applicative (g SourceRepoList))
+    :: ( FieldGrammar c g, Applicative (g SourceRepoList)
+       , c (List NoCommaFSep FilePathNT String)
+       , c (Identity RepoType)
+       )
     => g SourceRepoList SourceRepoList
 sourceRepositoryPackageGrammar = SourceRepositoryPackage
     <$> uniqueField      "type"                                       srpTypeLens

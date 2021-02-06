@@ -1,9 +1,11 @@
-{-# LANGUAGE GADTs             #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 module HaskellCI.OptparseGrammar (
     OptparseGrammar,
     runOptparseGrammar,
-    ) where
+) where
 
 import HaskellCI.Prelude
 
@@ -38,7 +40,7 @@ instance Applicative (OptparseGrammar s) where
     pure _ = OG []
     OG f <*> OG x = OG (f ++ x)
 
-instance C.FieldGrammar OptparseGrammar where
+instance C.FieldGrammar ParsecPretty OptparseGrammar where
     blurFieldGrammar l (OG ps) = OG
         [ SP $ \v h -> fmap (l C.#%~) (p v h)
         | SP p <- ps
@@ -83,7 +85,7 @@ instance C.FieldGrammar OptparseGrammar where
     freeTextFieldDefST fn l = OG
         [ SP $ \m h -> setOG l $ O.strOption $ optionMods fn m h ]
 
-instance OptionsGrammar OptparseGrammar where
+instance OptionsGrammar ParsecPretty OptparseGrammar where
     help h (OG ps) = OG
         [ SP $ \m _h -> p m (Just h)
         | SP p <- ps

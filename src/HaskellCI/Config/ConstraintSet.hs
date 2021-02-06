@@ -6,9 +6,9 @@ module HaskellCI.Config.ConstraintSet where
 import HaskellCI.Prelude
 
 import qualified Distribution.FieldGrammar    as C
-import qualified Distribution.Parsec.Newtypes as C
 
 import HaskellCI.Newtypes
+import HaskellCI.OptionsGrammar
 
 data ConstraintSet = ConstraintSet
     { csName        :: String
@@ -29,7 +29,8 @@ emptyConstraintSet n = ConstraintSet n anyVersion [] False False False False
 -------------------------------------------------------------------------------
 
 constraintSetGrammar
-    :: (C.FieldGrammar g, Applicative (g ConstraintSet))
+    :: ( OptionsGrammar c g, Applicative (g ConstraintSet)
+       )
     => String -> g ConstraintSet ConstraintSet
 constraintSetGrammar name = ConstraintSet name
     <$> C.optionalFieldDef "ghc"                                           (field @"csGhcVersions") anyVersion
