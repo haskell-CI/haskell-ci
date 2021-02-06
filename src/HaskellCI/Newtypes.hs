@@ -4,15 +4,15 @@ module HaskellCI.Newtypes where
 
 import HaskellCI.Prelude
 
-import qualified Data.Set                        as S
-import qualified Distribution.Compat.CharParsing as C
-import qualified Distribution.Compat.Newtype     as C
-import qualified Distribution.Parsec             as C
-import qualified Distribution.Parsec.Newtypes    as C
-import qualified Distribution.Pretty             as C
-import qualified Distribution.Types.Version      as C
-import qualified Distribution.Types.VersionRange as C
-import qualified Text.PrettyPrint                as PP
+import qualified Data.Set                           as S
+import qualified Distribution.Compat.CharParsing    as C
+import qualified Distribution.Compat.Newtype        as C
+import qualified Distribution.FieldGrammar.Newtypes as C
+import qualified Distribution.Parsec                as C
+import qualified Distribution.Pretty                as C
+import qualified Distribution.Types.Version         as C
+import qualified Distribution.Types.VersionRange    as C
+import qualified Text.PrettyPrint                   as PP
 
 -------------------------------------------------------------------------------
 -- PackageLocation

@@ -52,7 +52,6 @@ import qualified Distribution.FieldGrammar       as C
 import qualified Distribution.Fields             as C
 import qualified Distribution.PackageDescription as C
 import qualified Distribution.Parsec             as C
-import qualified Distribution.Parsec.Newtypes    as C
 
 import Cabal.Internal.Glob
 import Cabal.Internal.Newtypes

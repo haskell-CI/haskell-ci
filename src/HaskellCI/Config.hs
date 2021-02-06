@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -18,7 +19,6 @@ import qualified Distribution.Compat.Newtype     as C
 import qualified Distribution.FieldGrammar       as C
 import qualified Distribution.Fields             as C
 import qualified Distribution.Parsec             as C
-import qualified Distribution.Parsec.Newtypes    as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.PackageName  as C
 import qualified Distribution.Types.Version      as C
@@ -27,8 +27,8 @@ import qualified Text.PrettyPrint                as PP
 
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.CopyFields
-import HaskellCI.Config.Doctest
 import HaskellCI.Config.Docspec
+import HaskellCI.Config.Doctest
 import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
@@ -150,7 +150,15 @@ emptyConfig = Config
 -------------------------------------------------------------------------------
 
 configGrammar
-    :: ( OptionsGrammar g, Applicative (g Config)
+    :: ( OptionsGrammar c g, Applicative (g Config)
+       , c (Identity HLintJob)
+       , c (Identity PackageScope)
+       , c (Identity TestedWithJobs)
+       , c (Identity Ubuntu)
+       , c (Identity Jobs)
+       , c (Identity CopyFields)
+       , c Env, c Folds, c CopyFields, c HeadVersion
+       , c (C.List C.FSep (Identity Installed) Installed)
        , Applicative (g DoctestConfig)
        , Applicative (g DocspecConfig)
        , Applicative (g HLintConfig))

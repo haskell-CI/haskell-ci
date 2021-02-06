@@ -602,7 +602,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 sh "echo 'package *' >> cabal.project"
                 sh "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
 
-        cat "cabal.project" $ lines $ C.showFields' (const []) 2 extraCabalProjectFields
+        cat "cabal.project" $ lines $ C.showFields' (const []) (const id) 2 extraCabalProjectFields
 
         -- also write cabal.project.local file with
         -- @

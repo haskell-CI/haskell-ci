@@ -1,3 +1,4 @@
+{-# LANGUAGE FunctionalDependencies  #-}
 module HaskellCI.Config.Dump where
 
 import HaskellCI.Prelude
@@ -18,7 +19,7 @@ instance Applicative (DumpGrammar s) where
     pure _ = DG []
     DG f <*> DG x = DG (f ++ x)
 
-instance C.FieldGrammar DumpGrammar where
+instance C.FieldGrammar C.Pretty DumpGrammar where
     blurFieldGrammar _ = coerce
 
     uniqueFieldAla _ _ _ = DG []
@@ -65,7 +66,7 @@ instance C.FieldGrammar DumpGrammar where
     removedIn _ _        = id
     hiddenField          = id
 
-instance OptionsGrammar DumpGrammar where
+instance OptionsGrammar C.Pretty DumpGrammar where
     metahelp _ = help
 
     help h (DG xs) = DG $

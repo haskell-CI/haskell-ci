@@ -8,7 +8,6 @@ import HaskellCI.Prelude
 import Distribution.Version (majorBoundVersion)
 
 import qualified Distribution.FieldGrammar      as C
-import qualified Distribution.Parsec.Newtypes   as C
 import qualified Distribution.Types.PackageName as C
 
 import HaskellCI.OptionsGrammar
@@ -43,7 +42,7 @@ defaultDoctestConfig = DoctestConfig
 -------------------------------------------------------------------------------
 
 doctestConfigGrammar
-    :: (OptionsGrammar g, Applicative (g DoctestConfig))
+    :: (OptionsGrammar c g, Applicative (g DoctestConfig))
     => g DoctestConfig DoctestConfig
 doctestConfigGrammar = DoctestConfig
     <$> rangeField         "doctest"                                              (field @"cfgDoctestEnabled") noVersion
