@@ -133,6 +133,9 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             if_then_else (Range cfgBenchmarks)
                 (tell_env' "ARG_BENCH" "--enable-benchmarks")
                 (tell_env' "ARG_BENCH" "--disable-benchmarks")
+            if_then_else (Range cfgHeadHackage \/ RangePoints (S.singleton GHCHead))
+                (tell_env' "HEADHACKAGE" "true")
+                (tell_env' "HEADHACKAGE" "false")
 
             tell_env "ARG_COMPILER" ("--ghc --with-compiler=" ++ hc)
 
@@ -159,9 +162,25 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , "repository hackage.haskell.org"
                 , "  url: http://hackage.haskell.org/"
                 ]
-            sh "cat $CABAL_CONFIG"
 
-            -- TODO: head.hackage
+            -- Add head.hackage repository to ~/.cabal/config
+            -- (locally you want to add it to cabal.project)
+            unless (S.null headGhcVers) $ sh $ concat $
+                [ "if $HEADHACKAGE; then\n"
+                , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1/g')\" >> $CABAL_CONFIG\n"
+                , catCmd "$CABAL_CONFIG" $ unlines
+                    [ "repository head.hackage.ghc.haskell.org"
+                    , "   url: https://ghc.gitlab.haskell.org/head.hackage/"
+                    , "   secure: True"
+                    , "   root-keys: 7541f32a4ccca4f97aea3b22f5e593ba2c0267546016b992dfadcd2fe944e55d"
+                    , "              26021a13b401500c8eb2761ca95c61f2d625bfef951b939a8124ed12ecf07329"
+                    , "              f76d08be13e9a61a377a85e2fb63f4c5435d40f8feb3e12eb05905edb8cdea89"
+                    , "   key-threshold: 3"
+                    ]
+                , "\nfi"
+                ]
+
+            sh "cat $CABAL_CONFIG"
 
         githubRun "versions" $ do
             sh "$HC --version || true"
@@ -453,6 +472,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
     Auxiliary {..} = auxiliary config prj jobs
 
+    -- GHC versions which need head.hackage
+    headGhcVers :: Set CompilerVersion
+    headGhcVers = S.filter (previewGHC cfgHeadHackage) versions
+
     -- step primitives
     githubRun' :: String -> Map.Map String String ->  ShM () -> ListBuilder (Either ShError GitHubStep) ()
     githubRun' name env shm = item $ do
@@ -588,12 +611,15 @@ ircJob mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
                                     ++ "The build " ++ resultPastTense ++ ".")
             ]
 
-cat :: FilePath -> String -> ShM ()
-cat path contents = sh $ concat
+catCmd :: FilePath -> String -> String
+catCmd path contents = concat
     [ "cat >> " ++ path ++ " <<EOF\n"
     , contents
     , "EOF"
     ]
+
+cat :: FilePath -> String -> ShM ()
+cat path contents = sh $ catCmd path contents
 
 -- | GitHub is very lenient and undocumented. We accept something.
 -- Please, write a patch, if you need an extra scheme to be accepted.
