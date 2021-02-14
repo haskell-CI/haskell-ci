@@ -57,9 +57,15 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
         -- autoreconf ...
         -- hmm, source is read-only...
 
+        step "initial cabal.project for sdist" $ do
+            change_dir "$BUILDDIR"
+            run_cmd "touch cabal.project"
+            for_ pkgs $ \pkg ->
+                echo_if_to (RangePoints $ pkgJobs pkg) "cabal.project" $ "packages: $SRCDIR/" ++ pkgDir pkg
+            run_cmd "cat cabal.project"
+
         -- sdist
         step "sdist" $ do
-            change_dir "$SRCDIR"
             run_cmd "mkdir -p \"$BUILDDIR/sdist\""
             -- TODO: check if cabal-install-3.4 can be run on read only system
             run_cmd "$CABAL sdist all --output-dir \"$BUILDDIR/sdist\""

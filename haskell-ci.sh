@@ -19,7 +19,7 @@ fi
 
 CFG_CABAL_STORE_CACHE=""
 CFG_CABAL_REPO_CACHE=""
-CFG_JOBS="8.10.3 8.8.4 8.6.5 8.4.4 8.2.2"
+CFG_JOBS="8.10.2 8.8.4 8.6.5 8.4.4 8.2.2"
 CFG_CABAL_UPDATE=false
 
 SCRIPT_NAME=$(basename "$0")
@@ -450,9 +450,16 @@ put_info "install doctest"
 run_cmd $CABAL v2-install $ARG_COMPILER --ignore-project -j doctest --constraint='doctest ^>=0.17'
 run_cmd doctest --version
 
+# initial cabal.project for sdist
+put_info "initial cabal.project for sdist"
+change_dir "$BUILDDIR"
+run_cmd touch cabal.project
+echo_to cabal.project "packages: $SRCDIR/."
+echo_to cabal.project "packages: $SRCDIR/cabal-install-parsers"
+run_cmd cat cabal.project
+
 # sdist
 put_info "sdist"
-change_dir "$SRCDIR"
 run_cmd mkdir -p "$BUILDDIR/sdist"
 run_cmd $CABAL sdist all --output-dir "$BUILDDIR/sdist"
 

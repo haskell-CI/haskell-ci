@@ -446,9 +446,18 @@ fi
 install_cabalplan
 run_cmd cabal-plan --version
 
+# initial cabal.project for sdist
+put_info "initial cabal.project for sdist"
+change_dir "$BUILDDIR"
+run_cmd touch cabal.project
+echo_to cabal.project "packages: $SRCDIR/servant"
+echo_to cabal.project "packages: $SRCDIR/servant-client"
+echo_to cabal.project "packages: $SRCDIR/servant-docs"
+echo_to cabal.project "packages: $SRCDIR/servant-server"
+run_cmd cat cabal.project
+
 # sdist
 put_info "sdist"
-change_dir "$SRCDIR"
 run_cmd mkdir -p "$BUILDDIR/sdist"
 run_cmd $CABAL sdist all --output-dir "$BUILDDIR/sdist"
 
