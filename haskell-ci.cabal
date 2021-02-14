@@ -41,12 +41,12 @@ extra-source-files:
   fixtures/*.patch
   fixtures/*.project
   fixtures/*.travis
-  fixtures/servant-client/servant-client.cabal
-  fixtures/servant-foreign/servant-foreign.cabal
-  fixtures/servant-client-core/servant-client-core.cabal
-  fixtures/servant-server/servant-server.cabal
   fixtures/servant/servant.cabal
+  fixtures/servant-client/servant-client.cabal
+  fixtures/servant-client-core/servant-client-core.cabal
   fixtures/servant-docs/servant-docs.cabal
+  fixtures/servant-foreign/servant-foreign.cabal
+  fixtures/servant-server/servant-server.cabal
   fixtures/splitmix/splitmix.cabal
 
 source-repository head
@@ -90,6 +90,7 @@ library haskell-ci-internal
     HaskellCI.GitConfig
     HaskellCI.GitHub
     HaskellCI.GitHub.Yaml
+    HaskellCI.HeadHackage
     HaskellCI.Jobs
     HaskellCI.List
     HaskellCI.MonadErr

@@ -29,6 +29,7 @@ import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
+import HaskellCI.HeadHackage
 import HaskellCI.Jobs
 import HaskellCI.List
 import HaskellCI.MonadErr
@@ -174,15 +175,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
             [ "if $HEADHACKAGE; then"
             , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1/g')\" >> $CABALHOME/config"
             ] ++
-            lines (catCmd Double "$CABALHOME/config"
-            [ "repository head.hackage.ghc.haskell.org"
-            , "   url: https://ghc.gitlab.haskell.org/head.hackage/"
-            , "   secure: True"
-            , "   root-keys: 7541f32a4ccca4f97aea3b22f5e593ba2c0267546016b992dfadcd2fe944e55d"
-            , "              26021a13b401500c8eb2761ca95c61f2d625bfef951b939a8124ed12ecf07329"
-            , "              f76d08be13e9a61a377a85e2fb63f4c5435d40f8feb3e12eb05905edb8cdea89"
-            , "   key-threshold: 3"
-            ]) ++
+            lines (catCmd Double "$CABALHOME/config" headHackageRepoStanza) ++
             [ "fi"
             ]
 
