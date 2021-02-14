@@ -16,7 +16,8 @@ import HaskellCI.YamlSyntax
 -------------------------------------------------------------------------------
 
 data GitHub = GitHub
-    { ghOn   :: GitHubOn
+    { ghName :: String
+    , ghOn   :: GitHubOn
     , ghJobs :: M.Map String GitHubJob
     }
   deriving (Show)
@@ -79,7 +80,7 @@ data GitHubService = GitHubService
 
 instance ToYaml GitHub where
     toYaml GitHub {..} = ykeyValuesFilt []
-        [ "name" ~> fromString "Haskell-CI"
+        [ "name" ~> fromString ghName
         , "on"   ~> toYaml ghOn
         , "jobs" ~> ykeyValuesFilt []
             [ ([], j, toYaml job)

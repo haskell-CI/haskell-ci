@@ -90,6 +90,7 @@ data Config = Config
     , cfgConstraintSets      :: [ConstraintSet]
     , cfgRawProject          :: [C.PrettyField ()]
     , cfgRawTravis           :: !String
+    , cfgGitHubActionName    :: !(Maybe String)
     }
   deriving (Generic)
 
@@ -142,6 +143,7 @@ emptyConfig = Config
     , cfgInsertVersion   = True
     , cfgRawProject      = []
     , cfgRawTravis       = ""
+    , cfgGitHubActionName = Nothing
     , cfgErrorMissingMethods = PackageScopeLocal
     }
 
@@ -249,6 +251,8 @@ configGrammar = Config
     <*> pure [] -- raw project fields
     <*> C.freeTextFieldDef "raw-travis"                                                       (field @"cfgRawTravis")
         ^^^ help "Raw travis commands which will be run at the very end of the script"
+    <*> C.freeTextField "github-action-name"                                                  (field @"cfgGitHubActionName")
+        ^^^ help "The name of GitHub Action"
 
 -------------------------------------------------------------------------------
 -- Reading
