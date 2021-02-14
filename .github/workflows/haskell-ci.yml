@@ -45,7 +45,7 @@ jobs:
           nickname: github-actions
           server: irc.freenode.org
   linux:
-    name: Haskell-CI Linux - GHC ${{ matrix.ghc }}
+    name: Haskell-CI - Linux - GHC ${{ matrix.ghc }}
     runs-on: ubuntu-18.04
     container:
       image: buildpack-deps:bionic

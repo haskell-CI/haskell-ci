@@ -426,12 +426,13 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
     -- assembling everything
     return GitHub
-        { ghOn = GitHubOn
+        { ghName = actionName
+        , ghOn = GitHubOn
             { ghBranches = cfgOnlyBranches
             }
         , ghJobs = Map.fromList $ buildList $ do
             item (mainJobName, GitHubJob
-                { ghjName            = "Haskell-CI Linux - GHC ${{ matrix.ghc }}"
+                { ghjName            = actionName ++ " - Linux - GHC ${{ matrix.ghc }}"
                 , ghjRunsOn          = "ubuntu-18.04" -- TODO: use cfgUbuntu
                 , ghjNeeds           = []
                 , ghjSteps           = steps
@@ -451,9 +452,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     ]
                 })
             unless (null cfgIrcChannels) $
-                ircJob mainJobName projectName config gitconfig
+                ircJob actionName mainJobName projectName config gitconfig
         }
   where
+    actionName  = fromMaybe "Haskell-CI" cfgGitHubActionName
     mainJobName = "linux"
 
     Auxiliary {..} = auxiliary config prj jobs
@@ -535,9 +537,9 @@ postgresService = GitHubService
           ]
     }
 
-ircJob :: String -> String -> Config -> GitConfig -> ListBuilder (String, GitHubJob) ()
-ircJob mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
-    { ghjName            = "Haskell-CI (IRC notification)"
+ircJob :: String -> String -> String -> Config -> GitConfig -> ListBuilder (String, GitHubJob) ()
+ircJob actionName mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
+    { ghjName            = actionName ++ " (IRC notification)"
     , ghjRunsOn          = "ubuntu-18.04"
     , ghjNeeds           = [mainJobName]
     , ghjIf              = jobCondition
