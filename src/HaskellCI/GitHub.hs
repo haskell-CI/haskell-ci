@@ -234,9 +234,14 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             [ ("path", "source")
             ]
 
+        githubRun "initial cabal.project for sdist" $do
+            sh "touch cabal.project"
+            for_ pkgs $ \pkg ->
+                echo_if_to (RangePoints $ pkgJobs pkg) "cabal.project" $ "packages: $GITHUB_WORKSPACE/source/" ++ pkgDir pkg
+            sh "cat cabal.project"
+
         githubRun "sdist" $ do
             sh "mkdir -p sdist"
-            sh "cd source || false"
             sh "$CABAL sdist all --output-dir $GITHUB_WORKSPACE/sdist"
 
         githubRun "unpack" $ do
