@@ -22,6 +22,8 @@ import Data.Char   (isControl, isPrint, ord)
 import Data.Monoid (Endo (..))
 
 import qualified Data.Aeson              as Aeson
+import qualified Data.Aeson.Encoding     as AE
+import qualified Data.HashMap.Strict     as HM
 import qualified Data.List.NonEmpty      as NE
 import qualified Data.Map.Strict         as M
 import qualified Data.Text               as T
@@ -205,7 +207,7 @@ prettyYaml comment' = flatten . go where
         pure (0, Line (comment ann) (showString $ if b then "true" else "false"))
 
     go (YValue ann v) =
-        pure (0, Line (comment ann) (showString $ TL.unpack $ TLE.decodeUtf8 $ Aeson.encode v))
+        pure (0, Line (comment ann) (showString $ encodeValue v))
 
     go (YList ann [])     = pure (0, Line (comment ann) (showString "[]"))
     go (YList ann (x:xs)) = y :| (ys ++ yss)
@@ -324,6 +326,18 @@ prettyYaml comment' = flatten . go where
             showComment c  = g (showString "# " . showString c)
             g x = Endo (showString lvl' . x . showChar '\n')
             lvl' = replicate (lvl * 2) ' '
+
+encodeValue :: Aeson.Value -> String
+encodeValue = TL.unpack . TLE.decodeUtf8 . AE.encodingToLazyByteString . enc where
+    enc :: Aeson.Value -> Aeson.Encoding
+    enc Aeson.Null       = AE.null_
+    enc (Aeson.Bool b)   = AE.bool b
+    enc (Aeson.Number n) = AE.scientific n
+    enc (Aeson.String s) = AE.text s
+    enc (Aeson.Array v)  = AE.list enc (toList v)
+    enc (Aeson.Object m) = AE.dict AE.text enc M.foldrWithKey (toMap m)
+
+    toMap = M.fromList . HM.toList
 
 -- a 'Line' is comments before in and actual text after!
 data Line = Line [String] ShowS
