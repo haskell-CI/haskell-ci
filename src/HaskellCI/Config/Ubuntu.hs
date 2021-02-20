@@ -6,7 +6,7 @@ import qualified Distribution.Parsec as C
 import qualified Distribution.Pretty as C
 import qualified Text.PrettyPrint    as PP
 
-data Ubuntu = Xenial | Bionic
+data Ubuntu = Xenial | Bionic | Focal
   deriving (Eq, Ord, Show)
 
 instance C.Parsec Ubuntu where
@@ -15,6 +15,7 @@ instance C.Parsec Ubuntu where
         case t of
             "xenial" -> return Xenial
             "bionic" -> return Bionic
+            "focal"  -> return Focal
             _        -> fail $ "Unknown ubuntu release " ++ t
 
 instance C.Pretty Ubuntu where
@@ -23,3 +24,4 @@ instance C.Pretty Ubuntu where
 showUbuntu :: Ubuntu -> String
 showUbuntu Xenial = "xenial"
 showUbuntu Bionic = "bionic"
+showUbuntu Focal  = "focal"

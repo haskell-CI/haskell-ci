@@ -1,6 +1,7 @@
 cabal-version:      2.2
 name:               cabal-install-parsers
 version:            0.4.1
+x-revision:         1
 synopsis:           Utilities to work with cabal-install files
 description:
   @cabal-install-parsers@ provides parsers for @cabal-install@ files:
@@ -21,7 +22,7 @@ maintainer:         hvr@gnu.org, oleg.grenrus@iki.fi
 category:           Development
 build-type:         Simple
 tested-with:
-  GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.2
+  GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.4 || ==9.0.1
 
 extra-source-files:
   Changelog.md
@@ -54,7 +55,7 @@ library
 
   -- GHC-boot libraries
   build-depends:
-    , base          >=4.10     && <4.15
+    , base          >=4.10     && <4.16
     , binary        ^>=0.8.5
     , bytestring    ^>=0.10.8.1
     , Cabal         ^>=3.4.0.0

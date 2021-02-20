@@ -53,7 +53,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - ghc: 8.10.2
+          - ghc: 9.0.1
+            allow-failure: false
+          - ghc: 8.10.4
             allow-failure: false
           - ghc: 8.8.4
             allow-failure: false
@@ -89,7 +91,7 @@ jobs:
           echo "HCNUMVER=$HCNUMVER" >> $GITHUB_ENV
           echo "ARG_TESTS=--enable-tests" >> $GITHUB_ENV
           echo "ARG_BENCH=--enable-benchmarks" >> $GITHUB_ENV
-          if [ $((HCNUMVER > 81002)) -ne 0 ] ; then echo "HEADHACKAGE=true" >> $GITHUB_ENV ; else echo "HEADHACKAGE=false" >> $GITHUB_ENV ; fi
+          if [ $((HCNUMVER > 90001)) -ne 0 ] ; then echo "HEADHACKAGE=true" >> $GITHUB_ENV ; else echo "HEADHACKAGE=false" >> $GITHUB_ENV ; fi
           echo "ARG_COMPILER=--ghc --with-compiler=/opt/ghc/$GHC_VERSION/bin/ghc" >> $GITHUB_ENV
           echo "GHCJSARITH=0" >> $GITHUB_ENV
         env:
@@ -140,7 +142,7 @@ jobs:
       - name: cache (tools)
         uses: actions/cache@v2
         with:
-          key: ${{ runner.os }}-${{ matrix.ghc }}-tools-cc22e9a3
+          key: ${{ runner.os }}-${{ matrix.ghc }}-tools-f790e3b8
           path: ~/.haskell-ci-tools
       - name: install cabal-plan
         run: |
@@ -162,14 +164,14 @@ jobs:
           cabal-docspec --version
       - name: install doctest
         run: |
-          $CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'
-          doctest --version
+          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then $CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17' ; fi
+          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --version ; fi
       - name: install hlint
         run: |
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81003)) -ne 0 ] ; then HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $ARG_COMPILER --dry-run hlint  --constraint='hlint >=3.2 && <3.3' |  perl -ne 'if (/\bhlint-(\d+(\.\d+)*)\b/) { print "$1"; last; }')); echo "HLint version $HLINTVER" ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81003)) -ne 0 ] ; then if [ ! -e $HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint ]; then echo "Downloading HLint version $HLINTVER"; mkdir -p $HOME/.haskell-ci-tools; curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\n' --silent --location --output $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz "https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz"; tar -xzv -f $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz -C $HOME/.haskell-ci-tools; fi ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81003)) -ne 0 ] ; then mkdir -p $CABAL_DIR/bin && ln -sf "$HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint" $CABAL_DIR/bin/hlint ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81003)) -ne 0 ] ; then hlint --version ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 90000)) -ne 0 ] ; then HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $ARG_COMPILER --dry-run hlint  --constraint='hlint >=3.2 && <3.3' |  perl -ne 'if (/\bhlint-(\d+(\.\d+)*)\b/) { print "$1"; last; }')); echo "HLint version $HLINTVER" ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 90000)) -ne 0 ] ; then if [ ! -e $HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint ]; then echo "Downloading HLint version $HLINTVER"; mkdir -p $HOME/.haskell-ci-tools; curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\n' --silent --location --output $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz "https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz"; tar -xzv -f $HOME/.haskell-ci-tools/hlint-$HLINTVER.tar.gz -C $HOME/.haskell-ci-tools; fi ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 90000)) -ne 0 ] ; then mkdir -p $CABAL_DIR/bin && ln -sf "$HOME/.haskell-ci-tools/hlint-$HLINTVER/hlint" $CABAL_DIR/bin/hlint ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 90000)) -ne 0 ] ; then hlint --version ; fi
       - name: checkout
         uses: actions/checkout@v2
         with:
@@ -203,13 +205,25 @@ jobs:
             ghc-options: -Werror=missing-methods
           EOF
           cat >> cabal.project <<EOF
+          allow-newer: tree-diff:base
+          allow-newer: lukko:base
+          allow-newer: cryptohash-sha256:base
+          allow-newer: binary-instances:base
+          allow-newer: zinza:base
+          allow-newer: lattices:base
+          allow-newer: generic-lens-lite:base
+          allow-newer: HsYAML:base
+          allow-newer: cassava-0.5.2.0:base
+          allow-newer: vector-th-unbox-0.2.1.7:base
+          allow-newer: vector-th-unbox-0.2.1.7:template-haskell
+
           package haskell-ci
             ghc-options: -Werror
 
           package cabal-install-parsers
             ghc-options: -Werror
 
-          keep-going: False
+          keep-going:  False
 
           package bytestring
             tests: False
@@ -243,19 +257,19 @@ jobs:
       - name: doctest
         run: |
           perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
-          cd ${PKGDIR_haskell_ci} || false
-          doctest --fast -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src
-          cd ${PKGDIR_cabal_install_parsers} || false
-          doctest --fast src
+          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_haskell_ci} || false ; fi
+          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src ; fi
+          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_cabal_install_parsers} || false ; fi
+          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast src ; fi
       - name: docspec
         run: |
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all
           cabal-docspec $ARG_COMPILER --verbose --timeout 2
       - name: hlint
         run: |
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81003)) -ne 0 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src) ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81003)) -ne 0 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml cli) ; fi
-          if [ $((HCNUMVER >= 81000 && HCNUMVER < 81003)) -ne 0 ] ; then (cd ${PKGDIR_cabal_install_parsers} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml src) ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 90000)) -ne 0 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src) ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 90000)) -ne 0 ] ; then (cd ${PKGDIR_haskell_ci} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml cli) ; fi
+          if [ $((HCNUMVER >= 81000 && HCNUMVER < 90000)) -ne 0 ] ; then (cd ${PKGDIR_cabal_install_parsers} && hlint -h ${GITHUB_WORKSPACE}/source/.hlint.yaml src) ; fi
       - name: cabal check
         run: |
           cd ${PKGDIR_haskell_ci} || false

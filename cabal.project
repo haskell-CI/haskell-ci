@@ -1,6 +1,3 @@
--- Cabal project configuration
--- Consult http://cabal.readthedocs.io/en/latest/nix-local-build.html for more information
-
 packages: .
 packages: cabal-install-parsers
 
@@ -9,3 +6,16 @@ tests: True
 package haskell-ci
   ghc-options: -Wall
   ghc-options: -Werror
+
+allow-newer: tree-diff:base
+allow-newer: lukko:base
+allow-newer: cryptohash-sha256:base
+allow-newer: binary-instances:base
+allow-newer: zinza:base
+allow-newer: lattices:base
+allow-newer: generic-lens-lite:base
+allow-newer: HsYAML:base
+
+allow-newer: cassava-0.5.2.0:base
+allow-newer: vector-th-unbox-0.2.1.7:base
+allow-newer: vector-th-unbox-0.2.1.7:template-haskell
