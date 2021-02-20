@@ -139,7 +139,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 (tell_env' "HEADHACKAGE" "true")
                 (tell_env' "HEADHACKAGE" "false")
 
-            tell_env "ARG_COMPILER" ("--ghc --with-compiler=" ++ hc)
+            tell_env "ARG_COMPILER" "--ghc --with-compiler=$HC"
 
             tell_env "GHCJSARITH" "0"
 
