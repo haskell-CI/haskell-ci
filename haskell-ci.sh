@@ -482,12 +482,7 @@ package *
   ghc-options: -Werror=missing-methods
 EOF
 cat >> cabal.project <<EOF
-allow-newer: tree-diff:base
-allow-newer: lukko:base
 allow-newer: cryptohash-sha256:base
-allow-newer: binary-instances:base
-allow-newer: zinza:base
-allow-newer: lattices:base
 allow-newer: generic-lens-lite:base
 allow-newer: HsYAML:base
 allow-newer: cassava-0.5.2.0:base
