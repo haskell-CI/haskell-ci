@@ -103,7 +103,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh "apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common"
             sh "apt-add-repository -y 'ppa:hvr/ghc'"
             sh "apt-get update"
-            sh $ unwords $ "apt-get install -y ghc-$GHC_VERSION cabal-install-3.2" -- TODO: cabal version
+            sh $ unwords $ "apt-get install -y ghc-$GHC_VERSION"
+                         : ("cabal-install-" ++ cabalVer)
                          : S.toList cfgApt
 
         githubRun' "Set PATH and environment variables" envEnv $ do
@@ -123,7 +124,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             tell_env "HADDOCK" (ghcdir ++ "/bin/haddock")
 
             -- TODO: configurable cabal version
-            tell_env "CABAL" "/opt/cabal/3.2/bin/cabal -vnormal+nowrap"
+            tell_env "CABAL" $ "/opt/cabal/" ++ cabalVer ++ "/bin/cabal -vnormal+nowrap"
 
             sh "HCNUMVER=$(${HC} --numeric-version|perl -ne '/^(\\d+)\\.(\\d+)\\.(\\d+)(\\.(\\d+))?$/; print(10000 * $1 + 100 * $2 + ($3 == 0 ? $5 != 1 : $3))')"
             tell_env "HCNUMVER" "$HCNUMVER"
@@ -469,6 +470,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
   where
     actionName  = fromMaybe "Haskell-CI" cfgGitHubActionName
     mainJobName = "linux"
+
+    cabalVer = dispCabalVersion cfgCabalInstallVersion
 
     Auxiliary {..} = auxiliary config prj jobs
 
