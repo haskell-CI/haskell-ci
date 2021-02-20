@@ -1,9 +1,9 @@
 -- Most settings can be given as command line arguments
 -- Config file is convenient if you maintain large amount of packages
 
--- Supported: xenial and bionic;
--- though bionic doesn't seem to be officially supported by Travis
-distribution: xenial
+-- Supported: xenial, bionic, focal.
+-- Bionic is a default.
+distribution: focal
 
 jobs: 2:2
 
@@ -63,12 +63,13 @@ folds: constraint-sets
 
 -- Run HLint
 hlint: True
+hlint-job: 8.10.4
 hlint-yaml: .hlint.yaml
 hlint-download-binary: True
 -- hlint-version: ==3.1.*
 
 -- Run doctest (on GHC-8.0+ which support .ghc.environment)
-doctest: True
+doctest: <9
 doctest-options: --fast
 -- doctest-version: ==0.13.*
 doctest-filter-packages: base-compat-batteries

@@ -19,7 +19,7 @@ fi
 
 CFG_CABAL_STORE_CACHE=""
 CFG_CABAL_REPO_CACHE=""
-CFG_JOBS="8.10.2 8.8.4 8.6.5 8.4.4 8.2.2"
+CFG_JOBS="9.0.1 8.10.4 8.8.4 8.6.5 8.4.4 8.2.2"
 CFG_CABAL_UPDATE=false
 
 SCRIPT_NAME=$(basename "$0")
@@ -447,8 +447,8 @@ run_cmd cabal-plan --version
 # install doctest
 put_info "install doctest"
 # install doctest
-run_cmd $CABAL v2-install $ARG_COMPILER --ignore-project -j doctest --constraint='doctest ^>=0.17'
-run_cmd doctest --version
+run_cmd_if $((HCNUMVER < 90000)) $CABAL v2-install $ARG_COMPILER --ignore-project -j doctest --constraint='doctest ^>=0.17'
+run_cmd_if $((HCNUMVER < 90000)) doctest --version
 
 # initial cabal.project for sdist
 put_info "initial cabal.project for sdist"
@@ -482,13 +482,25 @@ package *
   ghc-options: -Werror=missing-methods
 EOF
 cat >> cabal.project <<EOF
+allow-newer: tree-diff:base
+allow-newer: lukko:base
+allow-newer: cryptohash-sha256:base
+allow-newer: binary-instances:base
+allow-newer: zinza:base
+allow-newer: lattices:base
+allow-newer: generic-lens-lite:base
+allow-newer: HsYAML:base
+allow-newer: cassava-0.5.2.0:base
+allow-newer: vector-th-unbox-0.2.1.7:base
+allow-newer: vector-th-unbox-0.2.1.7:template-haskell
+
 package haskell-ci
   ghc-options: -Werror
 
 package cabal-install-parsers
   ghc-options: -Werror
 
-keep-going: False
+keep-going:  False
 
 package bytestring
   tests: False
@@ -522,10 +534,10 @@ run_cmd $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-detai
 # doctest
 put_info "doctest"
 run_cmd perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
-change_dir "${PKGDIR_haskell_ci}"
-run_cmd doctest --fast -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src
-change_dir "${PKGDIR_cabal_install_parsers}"
-run_cmd doctest --fast src
+change_dir_if $((HCNUMVER < 90000)) ${PKGDIR_haskell_ci}
+run_cmd_if $((HCNUMVER < 90000)) doctest --fast -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables src
+change_dir_if $((HCNUMVER < 90000)) ${PKGDIR_cabal_install_parsers}
+run_cmd_if $((HCNUMVER < 90000)) doctest --fast src
 
 # cabal check
 put_info "cabal check"
