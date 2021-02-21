@@ -173,7 +173,6 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
         -- (locally you want to add it to cabal.project)
         unless (S.null headGhcVers) $ sh $ unlines $
             [ "if $HEADHACKAGE; then"
-            , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1/g')\" >> $CABALHOME/config"
             ] ++
             lines (catCmd Double "$CABALHOME/config" headHackageRepoStanza) ++
             [ "fi"
@@ -596,6 +595,15 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 sh "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
 
         cat "cabal.project" $ lines $ C.showFields' (const []) (const id) 2 extraCabalProjectFields
+
+        -- If using head.hackage, allow building with newer versions of GHC boot libraries.
+        -- Note that we put this in a cabal.project file, not ~/.cabal/config, in order to avoid
+        -- https://github.com/haskell/cabal/issues/7291.
+        unless (S.null headGhcVers) $ sh $ unlines $
+            [ "if $HEADHACKAGE; then"
+            , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1,/g')\" >> $CABALHOME/config"
+            , "fi"
+            ]
 
         -- also write cabal.project.local file with
         -- @
