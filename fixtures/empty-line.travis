@@ -159,7 +159,6 @@ before_install:
     echo "  url: http://hackage.haskell.org/"           >> $CABALHOME/config
   - |
     if $HEADHACKAGE; then
-    echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1/g')" >> $CABALHOME/config
     echo "repository head.hackage.ghc.haskell.org"                                        >> $CABALHOME/config
     echo "   url: https://ghc.gitlab.haskell.org/head.hackage/"                           >> $CABALHOME/config
     echo "   secure: True"                                                                >> $CABALHOME/config
@@ -197,6 +196,10 @@ install:
     echo "constraints: foundatiion >= 0.14"        >> cabal.project
     echo "allow-newer: servant-js:servant"         >> cabal.project
     echo "allow-newer: servant-js:servant-foreign" >> cabal.project
+  - |
+    if $HEADHACKAGE; then
+    echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> $CABALHOME/config
+    fi
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant|servant-client|servant-docs|servant-server)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -242,6 +245,10 @@ script:
     echo "constraints: foundatiion >= 0.14"        >> cabal.project
     echo "allow-newer: servant-js:servant"         >> cabal.project
     echo "allow-newer: servant-js:servant-foreign" >> cabal.project
+  - |
+    if $HEADHACKAGE; then
+    echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> $CABALHOME/config
+    fi
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant|servant-client|servant-docs|servant-server)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true

@@ -136,7 +136,6 @@ jobs:
             url: http://hackage.haskell.org/
           EOF
           if $HEADHACKAGE; then
-          echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1/g')" >> $CABAL_CONFIG
           cat >> $CABAL_CONFIG <<EOF
           repository head.hackage.ghc.haskell.org
              url: https://ghc.gitlab.haskell.org/head.hackage/
@@ -211,6 +210,9 @@ jobs:
           if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo "    ghc-options: -Werror=missing-methods" >> cabal.project ; fi
           cat >> cabal.project <<EOF
           EOF
+          if $HEADHACKAGE; then
+          echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> cabal.project
+          fi
           cat >> cabal.project.local <<EOF
           constraints: deepseq installed
           EOF

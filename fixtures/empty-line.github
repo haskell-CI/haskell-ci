@@ -136,7 +136,6 @@ jobs:
             url: http://hackage.haskell.org/
           EOF
           if $HEADHACKAGE; then
-          echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1/g')" >> $CABAL_CONFIG
           cat >> $CABAL_CONFIG <<EOF
           repository head.hackage.ghc.haskell.org
              url: https://ghc.gitlab.haskell.org/head.hackage/
@@ -214,6 +213,9 @@ jobs:
           allow-newer: servant-js:servant
           allow-newer: servant-js:servant-foreign
           EOF
+          if $HEADHACKAGE; then
+          echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> cabal.project
+          fi
           $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(servant|servant-client|servant-docs|servant-server)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local

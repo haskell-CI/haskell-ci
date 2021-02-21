@@ -159,7 +159,6 @@ before_install:
     echo "  url: http://hackage.haskell.org/"           >> $CABALHOME/config
   - |
     if $HEADHACKAGE; then
-    echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1/g')" >> $CABALHOME/config
     echo "repository head.hackage.ghc.haskell.org"                                        >> $CABALHOME/config
     echo "   url: https://ghc.gitlab.haskell.org/head.hackage/"                           >> $CABALHOME/config
     echo "   secure: True"                                                                >> $CABALHOME/config
@@ -194,6 +193,10 @@ install:
   - if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo 'package servant-server' >> cabal.project ; fi
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - |
+  - |
+    if $HEADHACKAGE; then
+    echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> $CABALHOME/config
+    fi
   - "for pkg in deepseq; do echo \"constraints: $pkg installed\" >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -236,6 +239,10 @@ script:
   - if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo 'package servant-server' >> cabal.project ; fi
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - |
+  - |
+    if $HEADHACKAGE; then
+    echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> $CABALHOME/config
+    fi
   - "for pkg in deepseq; do echo \"constraints: $pkg installed\" >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true

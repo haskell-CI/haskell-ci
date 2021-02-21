@@ -169,7 +169,6 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             -- (locally you want to add it to cabal.project)
             unless (S.null headGhcVers) $ sh $ concat $
                 [ "if $HEADHACKAGE; then\n"
-                , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1/g')\" >> $CABAL_CONFIG\n"
                 , catCmd "$CABAL_CONFIG" $ unlines headHackageRepoStanza
                 , "\nfi"
                 ]
@@ -286,6 +285,15 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
             -- extra cabal.project fields
             cat "cabal.project" $ C.showFields' (const []) (const id) 2 extraCabalProjectFields
+
+            -- If using head.hackage, allow building with newer versions of GHC boot libraries.
+            -- Note that we put this in a cabal.project file, not ~/.cabal/config, in order to avoid
+            -- https://github.com/haskell/cabal/issues/7291.
+            unless (S.null headGhcVers) $ sh $ concat $
+                [ "if $HEADHACKAGE; then\n"
+                , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1,/g')\" >> cabal.project\n"
+                , "fi"
+                ]
 
             -- also write cabal.project.local file with
             -- @
