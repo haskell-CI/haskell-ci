@@ -385,11 +385,9 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         -- docspec
         when docspecEnabled $ githubRun "docspec" $ do
-            let docspecOptions = cfgDocspecOptions cfgDocspec
-            let range = Range (cfgDocspecEnabled cfgDocspec)
             -- we need to rebuild, if tests screwed something.
-            sh_if range "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all"
-            sh_if range $ unwords $ "cabal-docspec $ARG_COMPILER" : docspecOptions
+            sh_if docspecRange "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all"
+            sh_if docspecRange cabalDocspec
 
         -- hlint
         when (cfgHLintEnabled cfgHLint) $ githubRun "hlint" $ do
@@ -440,6 +438,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             let allFlags        = unwords (testFlag : benchFlag : constraintFlags)
 
             sh_cs $ "$CABAL v2-build $ARG_COMPILER " ++ allFlags ++ " all"
+            when (docspecEnabled && csDocspec cs) $
+                sh_cs' docspecRange cabalDocspec
             when (csRunTests cs) $
                 sh_cs' hasTests $ "$CABAL v2-test $ARG_COMPILER " ++ allFlags ++ " all"
             when (hasLibrary && csHaddock cs) $
@@ -554,6 +554,14 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     -- Needed to work around haskell/cabal#6214
     withHaddock :: String
     withHaddock = "--with-haddock $HADDOCK"
+
+    cabalDocspec :: String
+    cabalDocspec =
+      let docspecOptions = cfgDocspecOptions cfgDocspec in
+      unwords $ "cabal-docspec $ARG_COMPILER" : docspecOptions
+
+    docspecRange :: CompilerRange
+    docspecRange = Range (cfgDocspecEnabled cfgDocspec)
 
 postgresService :: GitHubService
 postgresService = GitHubService

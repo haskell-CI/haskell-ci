@@ -101,6 +101,7 @@ constraint-set deepseq-1.4
 
   -- tests: False
   -- run-tests: False
+  -- docspec: False
   -- benchmarks: False
   haddock: True
 
