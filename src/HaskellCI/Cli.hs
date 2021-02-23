@@ -95,19 +95,19 @@ optionsP :: O.Parser Options
 optionsP = Options
     <$> O.optional outputP
     <*> configOptP
-    <*> O.optional (O.strOption (O.long "cwd" <> O.metavar "Dir" <> O.help "Directory to change to"))
+    <*> O.optional (O.strOption (O.long "cwd" <> O.metavar "Dir" <> O.action "directory" <> O.help "Directory to change to"))
     <*> O.optional inputTypeP
     <*> runOptparseGrammar configGrammar
 
 configOptP :: O.Parser ConfigOpt
 configOptP = file <|> noconfig <|> pure ConfigOptAuto
   where
-    file = ConfigOpt <$> O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.help "Configuration file")
+    file = ConfigOpt <$> O.strOption (O.long "config" <> O.metavar "CONFIGFILE" <> O.action "file" <> O.help "Configuration file")
     noconfig = O.flag' ConfigOptNo (O.long "no-config" <> O.help "Don't read configuration file")
 
 outputP :: O.Parser Output
 outputP =
-    OutputFile <$> O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.help "Output file") <|>
+    OutputFile <$> O.strOption (O.long "output" <> O.short 'o' <> O.metavar "FILE" <> O.action "file" <> O.help "Output file") <|>
     O.flag' OutputStdout (O.long "stdout" <> O.help "Use stdout output")
 
 versionP :: O.Parser (a -> a)
@@ -139,13 +139,13 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
         ]) <|> travisP
 
     travisP = CommandTravis
-        <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
+        <$> O.strArgument (O.metavar "CABAL.FILE" <> O.action "file" <> O.help "Either <pkg.cabal> or cabal.project")
 
     bashP = CommandBash
-        <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
+        <$> O.strArgument (O.metavar "CABAL.FILE" <> O.action "file" <> O.help "Either <pkg.cabal> or cabal.project")
 
     githubP = CommandGitHub
-        <$> O.strArgument (O.metavar "CABAL.FILE" <> O.help "Either <pkg.cabal> or cabal.project")
+        <$> O.strArgument (O.metavar "CABAL.FILE" <> O.action "file" <> O.help "Either <pkg.cabal> or cabal.project")
 
 -------------------------------------------------------------------------------
 -- Parsing helpers

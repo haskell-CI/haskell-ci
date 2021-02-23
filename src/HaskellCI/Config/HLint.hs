@@ -73,7 +73,7 @@ hlintConfigGrammar = HLintConfig
     <*> C.optionalFieldDef "hlint-job"                                         (field @"cfgHLintJob") HLintJobLatest
         ^^^ metahelp "JOB" "Specify HLint job"
     <*> C.optionalFieldAla "hlint-yaml"    C.FilePathNT                        (field @"cfgHLintYaml")
-        ^^^ metahelp "PATH" "Use specific .hlint.yaml"
+        ^^^ metaActionHelp "PATH" "file" "Use specific .hlint.yaml"
     <*> C.monoidalFieldAla "hlint-options" (C.alaList' C.NoCommaFSep C.Token') (field @"cfgHLintOptions")
         ^^^ metahelp "OPTS" "Additional HLint options"
     <*> C.optionalFieldDef "hlint-version"                                     (field @"cfgHLintVersion") defaultHLintVersion
