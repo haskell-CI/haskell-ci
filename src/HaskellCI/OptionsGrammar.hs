@@ -8,6 +8,7 @@ module HaskellCI.OptionsGrammar (
     OptionsGrammar (..),
     (C.^^^),
     ParsecPretty,
+    Help, MetaVar, BashCompletionAction
 )  where
 
 import HaskellCI.Prelude
@@ -22,6 +23,19 @@ import qualified Distribution.Types.VersionRange as C
 
 import HaskellCI.Newtypes
 
+-- | Help text for option.
+type Help    = String
+
+-- | Meta variable for option argument.
+type MetaVar = String
+
+-- | Bash completion action for option argument.
+--   Example: @"file"@ or @"directory"@.
+--
+-- See <https://github.com/pcapriotti/optparse-applicative#actions-and-completers>
+-- and <https://www.gnu.org/software/bash/manual/html_node/Programmable-Completion-Builtins.html>.
+type BashCompletionAction = String
+
 class
     ( C.FieldGrammar c p
     , c Range, c (Identity C.VersionRange)
@@ -35,10 +49,13 @@ class
     )
     => OptionsGrammar c p | p -> c
   where
-    metahelp :: String -> String -> p s a -> p s a
+    metaActionHelp :: MetaVar -> BashCompletionAction -> Help -> p s a -> p s a
+    metaActionHelp _ _ _ = id
+
+    metahelp :: MetaVar -> Help -> p s a -> p s a
     metahelp _ _ = id
 
-    help :: String -> p s a -> p s a
+    help :: Help -> p s a -> p s a
     help _ = id
 
     -- we treat range fields specially in options
