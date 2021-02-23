@@ -52,7 +52,7 @@ infixl 1 <&>
 -- Read config
 -------------------------------------------------------------------------------
 
--- | High level convinience function to find and read @~\/.cabal\/config@ file
+-- | High level convenience function to find and read @~\/.cabal\/config@ file
 --
 -- May throw 'IOException' when file doesn't exist, and 'ParseError'
 -- on parse error.
