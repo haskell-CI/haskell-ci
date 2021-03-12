@@ -21,6 +21,7 @@ import qualified Data.Set                        as S
 import qualified Data.Text                       as T
 import qualified Distribution.Fields.Pretty      as C
 import qualified Distribution.Package            as C
+import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Distribution.Version            as C
 
@@ -94,34 +95,64 @@ makeGitHub
     -> Either ShError GitHub
 makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     let envEnv = Map.fromList
-            [ ("GHC_VERSION", "${{ matrix.ghc }}")
+            [ ("CC", "${{ matrix.compiler }}")
             ]
 
     steps <- sequence $ buildList $ do
+        -- This have to be first, since the packages we install depend on
+        -- whether we need GHCJS or not.
+        when anyGHCJS $ githubRun' "Set GHCJS environment variables" envEnv $ sh $ intercalate "\n"
+            [ "if echo $CC | grep -q ghcjs; then"
+            , tell_env' "GHCJS" "true"
+            , tell_env' "GHCJSARITH" "1"
+            , "else"
+            , tell_env' "GHCJS" "false"
+            , tell_env' "GHCJSARITH" "0"
+            , "fi"
+            ]
+
         githubRun' "apt" envEnv $ do
             sh "apt-get update"
             sh "apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common"
             sh "apt-add-repository -y 'ppa:hvr/ghc'"
+            when anyGHCJS $ do
+                sh_if RangeGHCJS "apt-add-repository -y 'ppa:hvr/ghcjs'"
+                sh_if RangeGHCJS "curl -sSL \"https://deb.nodesource.com/gpgkey/nodesource.gpg.key\" | apt-key add -"
+                sh_if RangeGHCJS "apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x bionic main'" -- TODO: Use cfgUbuntu
             sh "apt-get update"
-            sh $ unwords $ "apt-get install -y ghc-$GHC_VERSION"
-                         : ("cabal-install-" ++ cabalVer)
-                         : S.toList cfgApt
+            let basePackages  = ["$CC", "cabal-install-" ++ cabalVer] ++ S.toList cfgApt
+                ghcjsPackages = ["ghc-8.4.4", "nodejs"]
+                baseInstall   = "apt-get install -y " ++ unwords basePackages
+                ghcjsInstall  = "apt-get install -y " ++ unwords (basePackages ++ ghcjsPackages)
+            if anyGHCJS
+                then if_then_else RangeGHCJS ghcjsInstall baseInstall
+                else sh baseInstall
 
         githubRun' "Set PATH and environment variables" envEnv $ do
             echo_to "$GITHUB_PATH" "$HOME/.cabal/bin"
+
+            -- Hack: happy needs ghc. Let's install version matching GHCJS.
+            -- At the moment, there is only GHCJS-8.4, so we install GHC-8.4.4
+            when anyGHCJS $
+                echo_if_to RangeGHCJS "$GITHUB_PATH" "/opt/ghc/8.4.4/bin"
 
             tell_env "LANG" "C.UTF-8"
 
             tell_env "CABAL_DIR"    "$HOME/.cabal"
             tell_env "CABAL_CONFIG" "$HOME/.cabal/config"
 
-            let ghcdir = "/opt/ghc/$GHC_VERSION"
-            let hc     = ghcdir ++ "/bin/ghc"
+            let hcdir = "$(echo \"/opt/$CC\" | sed 's/-/\\//')"
+            sh ("HCDIR=" ++ hcdir)
 
+            if_then_else RangeGHCJS
+                "HCNAME=ghcjs"
+                "HCNAME=ghc"
+
+            let hc = "$HCDIR/bin/$HCNAME"
             sh ("HC=" ++ hc)
             tell_env "HC" "$HC"
             tell_env "HCPKG" (hc ++ "-pkg")
-            tell_env "HADDOCK" (ghcdir ++ "/bin/haddock")
+            tell_env "HADDOCK" "$HCDIR/bin/haddock"
 
             -- TODO: configurable cabal version
             tell_env "CABAL" $ "/opt/cabal/" ++ cabalVer ++ "/bin/cabal -vnormal+nowrap"
@@ -139,9 +170,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 (tell_env' "HEADHACKAGE" "true")
                 (tell_env' "HEADHACKAGE" "false")
 
-            tell_env "ARG_COMPILER" "--ghc --with-compiler=$HC"
+            tell_env "ARG_COMPILER" "--$HCNAME --with-compiler=$HC"
 
-            tell_env "GHCJSARITH" "0"
+            unless anyGHCJS $
+                tell_env "GHCJSARITH" "0"
 
         githubRun "env" $ do
             sh "env"
@@ -179,6 +211,9 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh "$HC --version || true"
             sh "$HC --print-project-git-commit-id || true"
             sh "$CABAL --version || true"
+            when anyGHCJS $ do
+                sh_if RangeGHCJS "node --version"
+                sh_if RangeGHCJS "echo $GHCJS"
 
         githubRun "update cabal index" $ do
             sh "$CABAL v2-update -v"
@@ -189,7 +224,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 Binary.put cfgHLint
 
         when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUses "cache (tools)" "actions/cache@v2"
-            [ ("key", "${{ runner.os }}-${{ matrix.ghc }}-tools-" ++ toolsConfigHash)
+            [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
             , ("path", "~/.haskell-ci-tools")
             ]
 
@@ -201,6 +236,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh "rm -f cabal-plan.xz"
             sh "chmod a+x $HOME/.cabal/bin/cabal-plan"
             sh "cabal-plan --version"
+
+        when anyGHCJS $ githubRun "install happy" $ do
+            for_ cfgGhcjsTools $ \t ->
+                sh_if RangeGHCJS $ "$CABAL v2-install -w ghc-8.4.4 --ignore-project -j2" ++ C.prettyShow t
 
         when docspecEnabled $ githubRun "install cabal-docspec" $ do
             let hash = cfgDocspecHash cfgDocspec
@@ -332,8 +371,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
         -- This a hack. https://github.com/actions/cache/issues/109
         -- Hashing Java - Maven style.
         githubUses "cache" "actions/cache@v2"
-            [ ("key", "${{ runner.os }}-${{ matrix.ghc }}-${{ github.sha }}")
-            , ("restore-keys", "${{ runner.os }}-${{ matrix.ghc }}-")
+            [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
+            , ("restore-keys", "${{ runner.os }}-${{ matrix.compiler }}-")
             , ("path", "~/.cabal/store")
             ]
 
@@ -354,6 +393,26 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
         githubRun "tests" $ do
             let range = RangeGHC /\ Range (cfgTests /\ cfgRunTests) /\ hasTests
             sh_if range $ "$CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all" ++ testShowDetails
+
+            when (anyGHCJS && cfgGhcjsTests) $ sh $ unlines $
+                [ "pkgdir() {"
+                , "  case $1 in"
+                ] ++
+                [ "    " ++ pkgName ++ ") echo " ++ pkgNameDirVariable pkgName ++ " ;;"
+                | Pkg{pkgName} <- pkgs
+                ] ++
+                [ "  esac"
+                , "}"
+                ]
+
+            when cfgGhcjsTests $ sh_if (RangeGHCJS /\ hasTests) $ unwords
+                [ "cabal-plan list-bins '*:test:*' | while read -r line; do"
+                , "testpkg=$(echo \"$line\" | perl -pe 's/:.*//');"
+                , "testexe=$(echo \"$line\" | awk '{ print $2 }');"
+                , "echo \"testing $textexe in package $textpkg\";"
+                , "(cd \"$(pkgdir $testpkg)\" && nodejs \"$testexe\".jsexe/all.js);"
+                , "done"
+                ]
 
         -- doctest
         when doctestEnabled $ githubRun "doctest" $ do
@@ -453,7 +512,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             }
         , ghJobs = Map.fromList $ buildList $ do
             item (mainJobName, GitHubJob
-                { ghjName            = actionName ++ " - Linux - GHC ${{ matrix.ghc }}"
+                { ghjName            = actionName ++ " - Linux - ${{ matrix.compiler }}"
                 , ghjRunsOn          = "ubuntu-18.04" -- TODO: use cfgUbuntu
                 , ghjNeeds           = []
                 , ghjSteps           = steps
@@ -464,12 +523,14 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     [ Map.singleton "postgres" postgresService | cfgPostgres ]
                 , ghjMatrix          =
                     [ GitHubMatrixEntry
-                        { ghmeGhcVersion = v
+                        { ghmeCompiler = compiler
                         , ghmeAllowFailure =
                                previewGHC cfgHeadHackage compiler
                             || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
                         }
-                    | compiler@(GHC v) <- reverse $ toList versions
+                    | compiler <- reverse $ toList versions
+                    , compiler /= GHCHead -- TODO: Make this work
+                                          -- https://github.com/haskell-CI/haskell-ci/issues/458
                     ]
                 })
             unless (null cfgIrcChannels) $
@@ -482,6 +543,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     cabalVer = dispCabalVersion cfgCabalInstallVersion
 
     Auxiliary {..} = auxiliary config prj jobs
+
+    anyGHCJS = any isGHCJS versions
 
     -- GHC versions which need head.hackage
     headGhcVers :: Set CompilerVersion

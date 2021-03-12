@@ -7,6 +7,7 @@ import HaskellCI.Prelude
 
 import qualified Data.Map.Strict as M
 
+import HaskellCI.Compiler
 import HaskellCI.List
 import HaskellCI.Sh
 import HaskellCI.YamlSyntax
@@ -41,7 +42,7 @@ data GitHubJob = GitHubJob
   deriving (Show)
 
 data GitHubMatrixEntry = GitHubMatrixEntry
-    { ghmeGhcVersion   :: Version
+    { ghmeCompiler     :: CompilerVersion
     , ghmeAllowFailure :: Bool
     }
   deriving (Show)
@@ -124,7 +125,7 @@ instance ToYaml GitHubJob where
 
 instance ToYaml GitHubMatrixEntry where
     toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
-        [ "ghc" ~> fromString (prettyShow ghmeGhcVersion)
+        [ "compiler" ~> fromString (dispGhcVersion ghmeCompiler)
         , "allow-failure" ~> toYaml ghmeAllowFailure
         ]
 
