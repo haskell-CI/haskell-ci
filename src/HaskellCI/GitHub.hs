@@ -444,9 +444,11 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         -- docspec
         when docspecEnabled $ githubRun "docspec" $ do
+            -- docspec doesn't work with non-GHC (i.e. GHCJS)
+            let docspecRange' = docspecRange /\ RangeGHC
             -- we need to rebuild, if tests screwed something.
-            sh_if docspecRange "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all"
-            sh_if docspecRange cabalDocspec
+            sh_if docspecRange' "$CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all"
+            sh_if docspecRange' cabalDocspec
 
         -- hlint
         when (cfgHLintEnabled cfgHLint) $ githubRun "hlint" $ do
