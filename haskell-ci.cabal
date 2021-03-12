@@ -1,9 +1,12 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.11.20210311
+version:            0.12
 synopsis:           Cabal package script generator for Travis-CI
 description:
-  Script generator (@haskell-ci@) for [Travis-CI](https://travis-ci.org/) for continuous-integration testing of Haskell Cabal packages.
+  Script generator (@haskell-ci@) for
+  [GitHub Actions](https://docs.github.com/en/actions) and
+  [Travis-CI](https://travis-ci.org/)
+  for continuous-integration testing of Haskell Cabal packages.
   .
   Included features (not limited to):
   .
@@ -12,7 +15,6 @@ description:
   * cabal.project support (see [Nix-style local builds documentation](https://cabal.readthedocs.io/en/latest/nix-local-build-overview.html))
   * Runs tests and builds benchmarks
   * Generates Haddocks
-  * macOS (OSX) support
   * GHCJS support
   * building with specific constraints
   .
