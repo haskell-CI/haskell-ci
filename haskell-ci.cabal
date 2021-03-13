@@ -170,8 +170,8 @@ library haskell-ci-internal
     , zinza                          ^>=0.2
 
   -- ShellCheck. Would need newer transformers for older GHC
-  if (flag(shellcheck) && impl(ghc >=7.10 && <8.11))
-    build-depends: ShellCheck ==0.7.0 || ==0.7.1
+  if flag(shellcheck)
+    build-depends: ShellCheck ==0.7.1
 
 executable haskell-ci
   main-is:          Main.hs
