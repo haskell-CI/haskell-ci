@@ -1,4 +1,4 @@
-## 0.12 - 2021-03-dd
+## 0.12 - 2021-03-13
 
 - Use `cabal-install-3.4`
 - Add `bash` (Bash + Docker) generator
