@@ -285,7 +285,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             [ ("path", "source")
             ]
 
-        githubRun "initial cabal.project for sdist" $do
+        githubRun "initial cabal.project for sdist" $ do
             sh "touch cabal.project"
             for_ pkgs $ \pkg ->
                 echo_if_to (RangePoints $ pkgJobs pkg) "cabal.project" $ "packages: $GITHUB_WORKSPACE/source/" ++ pkgDir pkg
