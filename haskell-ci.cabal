@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.12
+version:            0.12.1
 synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@haskell-ci@) for
@@ -150,7 +150,7 @@ library haskell-ci-internal
 
   -- other dependencies
   build-depends:
-    , aeson                          ^>=1.4.2.0 || ^>=1.5.0.0
+    , aeson                          ^>=1.5.6.0
     , attoparsec                     ^>=0.13.2.4
     , base-compat                    ^>=0.11
     , base16-bytestring              ^>=1.0.1.0
@@ -203,5 +203,5 @@ test-suite golden
   build-depends:
     , ansi-terminal  >=0.10    && <0.12
     , Diff           ^>=0.4.0
-    , tasty          >=1.0     && <1.5
+    , tasty          ^>=1.4.1
     , tasty-golden   ^>=2.3.1.1
