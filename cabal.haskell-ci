@@ -63,7 +63,7 @@ folds: constraint-sets
 
 -- Run HLint
 hlint: True
-hlint-job: 8.10.4
+-- hlint-job: 8.10.4
 hlint-yaml: .hlint.yaml
 hlint-download-binary: True
 -- hlint-version: ==3.1.*
