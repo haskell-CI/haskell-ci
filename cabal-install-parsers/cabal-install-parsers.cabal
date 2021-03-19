@@ -125,7 +125,7 @@ test-suite cabal-parsers-golden
     , ansi-terminal  >=0.10    && <0.12
     , tasty          ^>=1.2.3 || ^>=1.3.1 || ^>=1.4
     , tasty-golden   ^>=2.3.1.1
-    , tree-diff      ^>=0.1
+    , tree-diff      ^>=0.2
 
 benchmark cabal-parsers-bench
   default-language: Haskell2010
