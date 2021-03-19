@@ -9,7 +9,7 @@ import Test.Tasty.Golden.Advanced (goldenTest)
 import Text.PrettyPrint           (Doc, render)
 
 import qualified Data.ByteString as BS
-import qualified Data.Map.Strict as Map
+import qualified Data.TreeDiff.OMap as OMap
 
 import Distribution.Fields           (PrettyField (..))
 import Distribution.Types.SourceRepo (KnownRepoType, RepoKind, RepoType, SourceRepo)
@@ -36,7 +36,7 @@ main = defaultMain $ testGroup "golden"
 -------------------------------------------------------------------------------
 
 instance (ToExpr uri, ToExpr opt, ToExpr pkg) => ToExpr (Project uri opt pkg) where
-    toExpr prj = Rec "Project" $ Map.fromList
+    toExpr prj = Rec "Project" $ OMap.fromList
         [ field "prjPackages"     prjPackages
         , field "prjOptPackages"  prjOptPackages
         , field "prjUriPackages"  prjUriPackages
