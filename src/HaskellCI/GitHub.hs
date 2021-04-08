@@ -41,6 +41,7 @@ import HaskellCI.GitHub.Yaml
 import HaskellCI.HeadHackage
 import HaskellCI.Jobs
 import HaskellCI.List
+import HaskellCI.MonadErr
 import HaskellCI.Package
 import HaskellCI.Sh
 import HaskellCI.ShVersionRange
@@ -98,6 +99,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     let envEnv = Map.fromList
             [ ("CC", "${{ matrix.compiler }}")
             ]
+
+    when (cfgSubmodules && cfgUbuntu < Focal) $
+        throwErr $ ShError $ "Using submodules on the GitHub Actions backend requires "
+                          ++ "Ubuntu 20.04 (Focal Fossa) or later."
 
     steps <- sequence $ buildList $ do
         -- This have to be first, since the packages we install depend on
@@ -282,9 +287,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 forHLint $ "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
                 forHLint "hlint --version"
 
-        githubUses "checkout" "actions/checkout@v2"
-            [ ("path", "source")
-            ]
+        githubUses "checkout" "actions/checkout@v2" $ buildList $ do
+            item ("path", "source")
+            when cfgSubmodules $
+                item ("submodules", "true")
 
         githubRun "initial cabal.project for sdist" $ do
             sh "touch cabal.project"
