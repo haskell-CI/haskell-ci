@@ -88,6 +88,7 @@ library haskell-ci-internal
     HaskellCI.Config.Jobs
     HaskellCI.Config.PackageScope
     HaskellCI.Config.Ubuntu
+    HaskellCI.Config.Validity
     HaskellCI.Diagnostics
     HaskellCI.GitConfig
     HaskellCI.GitHub

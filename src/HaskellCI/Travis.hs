@@ -29,6 +29,7 @@ import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
+import HaskellCI.Config.Validity
 import HaskellCI.HeadHackage
 import HaskellCI.Jobs
 import HaskellCI.List
@@ -93,6 +94,9 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
 
     -- before install: we set up the environment, install GHC/cabal on OSX
     beforeInstall <- runSh $ do
+        -- Validity checks
+        checkConfigValidity config jobs
+
         -- This have to be first
         when anyGHCJS $ sh $ unlines
             [ "if echo $CC | grep -q ghcjs; then"

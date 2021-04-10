@@ -36,6 +36,7 @@ import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.PackageScope
 import HaskellCI.Config.Ubuntu
+import HaskellCI.Config.Validity
 import HaskellCI.GitConfig
 import HaskellCI.GitHub.Yaml
 import HaskellCI.HeadHackage
@@ -100,6 +101,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             [ ("CC", "${{ matrix.compiler }}")
             ]
 
+    -- Validity checks
+    checkConfigValidity config jobs
     when (cfgSubmodules && cfgUbuntu < Focal) $
         throwErr $ ShError $ "Using submodules on the GitHub Actions backend requires "
                           ++ "Ubuntu 20.04 (Focal Fossa) or later."
