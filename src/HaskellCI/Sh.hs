@@ -8,17 +8,18 @@ module HaskellCI.Sh (
     sh,
     ShM (..),
     runSh,
-    ShError (..),
-    FromShError (..),
+    HsCiError (..),
+    FromHsCiError (..),
     ) where
 
 import HaskellCI.Prelude
 
 #ifdef MIN_VERSION_ShellCheck
-import           ShellCheck.Checker    (checkScript)
-import qualified ShellCheck.Interface  as SC
+import           ShellCheck.Checker   (checkScript)
+import qualified ShellCheck.Interface as SC
 #endif
 
+import HaskellCI.Error
 import HaskellCI.MonadErr
 
 -------------------------------------------------------------------------------
@@ -61,34 +62,15 @@ sh = sh'
     ]
 
 -------------------------------------------------------------------------------
--- Errors
--------------------------------------------------------------------------------
-
-data ShError
-    = ShellCheckError String  -- ^ @ShellCheck@ disagrees.
-    | ShError String          -- ^ made by 'fail'.
-  deriving (Show)
-
-instance Exception ShError where
-    displayException (ShellCheckError s) = s
-    displayException (ShError s)         = "PANIC " ++ s
-
-class FromShError e where
-    fromShError :: ShError -> e
-
-instance FromShError ShError where
-    fromShError = id
-
--------------------------------------------------------------------------------
 -- implementation
 -------------------------------------------------------------------------------
 
-newtype ShM a = ShM { unShM :: ([Sh] -> [Sh]) -> Either ShError ([Sh] -> [Sh], a) }
+newtype ShM a = ShM { unShM :: ([Sh] -> [Sh]) -> Either HsCiError ([Sh] -> [Sh], a) }
   deriving (Functor)
 
-runSh :: (MonadErr e m, FromShError e) => ShM () -> m [Sh]
+runSh :: (MonadErr e m, FromHsCiError e) => ShM () -> m [Sh]
 runSh (ShM f) = case f id of
-    Left err      -> throwErr (fromShError err)
+    Left err      -> throwErr (fromHsCiError err)
     Right (g, ()) -> return (g [])
 
 instance Applicative ShM where
@@ -103,7 +85,7 @@ instance Monad ShM where
         (shs2, y) <- unShM (k x) shs1
         return (shs2, y)
 
-instance MonadErr ShError ShM where
+instance MonadErr HsCiError ShM where
     throwErr err = ShM $ \_ -> Left err
 
 unsafeSh :: String -> ShM ()

@@ -79,7 +79,7 @@ makeTravis
     -> Config
     -> Project URI Void Package
     -> JobVersions
-    -> Either ShError Travis -- TODO: writer
+    -> Either HsCiError Travis -- TODO: writer
 makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
     -- before caching: clear some redundant stuff
     beforeCache <- runSh $ when cfgCache $ do

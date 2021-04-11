@@ -90,6 +90,7 @@ library haskell-ci-internal
     HaskellCI.Config.Ubuntu
     HaskellCI.Config.Validity
     HaskellCI.Diagnostics
+    HaskellCI.Error
     HaskellCI.GitConfig
     HaskellCI.GitHub
     HaskellCI.GitHub.Yaml

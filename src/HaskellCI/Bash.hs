@@ -42,7 +42,7 @@ makeBash
     -> Config
     -> Project URI Void Package
     -> JobVersions
-    -> Either ShError Z -- TODO: writer
+    -> Either HsCiError Z -- TODO: writer
 makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
     -- Validity checks
     checkConfigValidity config jobs
@@ -242,7 +242,7 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
     Auxiliary {..} = auxiliary config prj jobs
 
     -- TODO: this can be smart and do nothing is there are only comments in [Sh]
-    step :: String -> ShM () -> ListBuilder (Either ShError [Sh]) ()
+    step :: String -> ShM () -> ListBuilder (Either HsCiError [Sh]) ()
     step name action = item $ runSh $ do
         comment name
         put_info name

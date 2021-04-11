@@ -95,7 +95,7 @@ makeGitHub
     -> GitConfig
     -> Project URI Void Package
     -> JobVersions
-    -> Either ShError GitHub
+    -> Either HsCiError GitHub
 makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     let envEnv = Map.fromList
             [ ("CC", "${{ matrix.compiler }}")
@@ -104,8 +104,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     -- Validity checks
     checkConfigValidity config jobs
     when (cfgSubmodules && cfgUbuntu < Focal) $
-        throwErr $ ShError $ "Using submodules on the GitHub Actions backend requires "
-                          ++ "Ubuntu 20.04 (Focal Fossa) or later."
+        throwErr $ ValidationError $ unwords
+            [ "Using submodules on the GitHub Actions backend requires"
+            , "Ubuntu 20.04 (Focal Fossa) or later."
+            ]
 
     steps <- sequence $ buildList $ do
         -- This have to be first, since the packages we install depend on
@@ -566,16 +568,15 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     headGhcVers = S.filter (previewGHC cfgHeadHackage) versions
 
     -- step primitives
-    githubRun' :: String -> Map.Map String String ->  ShM () -> ListBuilder (Either ShError GitHubStep) ()
+    githubRun' :: String -> Map.Map String String ->  ShM () -> ListBuilder (Either HsCiError GitHubStep) ()
     githubRun' name env shm = item $ do
         shs <- runSh shm
         return $ GitHubStep name $ Left $ GitHubRun shs env
 
-    githubRun :: String -> ShM () -> ListBuilder (Either ShError GitHubStep) ()
+    githubRun :: String -> ShM () -> ListBuilder (Either HsCiError GitHubStep) ()
     githubRun name = githubRun' name mempty
 
-
-    githubUses :: String -> String -> [(String, String)] -> ListBuilder (Either ShError GitHubStep) ()
+    githubUses :: String -> String -> [(String, String)] -> ListBuilder (Either HsCiError GitHubStep) ()
     githubUses name action with = item $ return $
         GitHubStep name $ Right $ GitHubUses action Nothing (Map.fromList with)
 
