@@ -1,6 +1,7 @@
 ## 0.12.1 - 2021-03-20
 
 - Use HLint-3.3
+- GHA: Support --distribution and --submodules (thanks to Ryan Scott)
 
 ## 0.12 - 2021-03-13
 
