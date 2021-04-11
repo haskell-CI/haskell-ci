@@ -22,6 +22,7 @@ import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Installed
 import HaskellCI.Config.PackageScope
+import HaskellCI.Config.Validity
 import HaskellCI.Jobs
 import HaskellCI.List
 import HaskellCI.Package
@@ -43,6 +44,9 @@ makeBash
     -> JobVersions
     -> Either ShError Z -- TODO: writer
 makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
+    -- Validity checks
+    checkConfigValidity config jobs
+
     blocks <- traverse (fmap shsToList) $ buildList $ do
         -- install doctest
         when doctestEnabled $ step "install doctest" $ do

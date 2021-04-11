@@ -21,7 +21,7 @@ jobs:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
     runs-on: ubuntu-18.04
     container:
-      image: buildpack-deps:bionic
+      image: buildpack-deps:xenial
     services:
       postgres:
         image: postgres:10

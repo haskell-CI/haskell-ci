@@ -35,11 +35,14 @@ import HaskellCI.Config.Doctest
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.PackageScope
+import HaskellCI.Config.Ubuntu
+import HaskellCI.Config.Validity
 import HaskellCI.GitConfig
 import HaskellCI.GitHub.Yaml
 import HaskellCI.HeadHackage
 import HaskellCI.Jobs
 import HaskellCI.List
+import HaskellCI.MonadErr
 import HaskellCI.Package
 import HaskellCI.Sh
 import HaskellCI.ShVersionRange
@@ -98,6 +101,12 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             [ ("CC", "${{ matrix.compiler }}")
             ]
 
+    -- Validity checks
+    checkConfigValidity config jobs
+    when (cfgSubmodules && cfgUbuntu < Focal) $
+        throwErr $ ShError $ "Using submodules on the GitHub Actions backend requires "
+                          ++ "Ubuntu 20.04 (Focal Fossa) or later."
+
     steps <- sequence $ buildList $ do
         -- This have to be first, since the packages we install depend on
         -- whether we need GHCJS or not.
@@ -118,7 +127,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             when anyGHCJS $ do
                 sh_if RangeGHCJS "apt-add-repository -y 'ppa:hvr/ghcjs'"
                 sh_if RangeGHCJS "curl -sSL \"https://deb.nodesource.com/gpgkey/nodesource.gpg.key\" | apt-key add -"
-                sh_if RangeGHCJS "apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x bionic main'" -- TODO: Use cfgUbuntu
+                sh_if RangeGHCJS $ "apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x " ++ ubuntuVer ++ " main'"
             sh "apt-get update"
             let basePackages  = ["$CC", "cabal-install-" ++ cabalVer] ++ S.toList cfgApt
                 ghcjsPackages = ["ghc-8.4.4", "nodejs"]
@@ -281,9 +290,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 forHLint $ "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
                 forHLint "hlint --version"
 
-        githubUses "checkout" "actions/checkout@v2"
-            [ ("path", "source")
-            ]
+        githubUses "checkout" "actions/checkout@v2" $ buildList $ do
+            item ("path", "source")
+            when cfgSubmodules $
+                item ("submodules", "true")
 
         githubRun "initial cabal.project for sdist" $ do
             sh "touch cabal.project"
@@ -515,11 +525,13 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
         , ghJobs = Map.fromList $ buildList $ do
             item (mainJobName, GitHubJob
                 { ghjName            = actionName ++ " - Linux - ${{ matrix.compiler }}"
-                , ghjRunsOn          = "ubuntu-18.04" -- TODO: use cfgUbuntu
+                  -- NB: The Ubuntu version used in `runs-on` isn't
+                  -- particularly important since we use a Docker container.
+                , ghjRunsOn          = "ubuntu-18.04"
                 , ghjNeeds           = []
                 , ghjSteps           = steps
                 , ghjIf              = Nothing
-                , ghjContainer       = Just "buildpack-deps:bionic" -- use cfgUbuntu?
+                , ghjContainer       = Just $ "buildpack-deps:" ++ ubuntuVer
                 , ghjContinueOnError = Just "${{ matrix.allow-failure }}"
                 , ghjServices        = mconcat
                     [ Map.singleton "postgres" postgresService | cfgPostgres ]
@@ -543,6 +555,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     mainJobName = "linux"
 
     cabalVer = dispCabalVersion cfgCabalInstallVersion
+    ubuntuVer = showUbuntu cfgUbuntu
 
     Auxiliary {..} = auxiliary config prj jobs
 
