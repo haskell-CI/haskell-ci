@@ -101,7 +101,7 @@ emptyConfig :: Config
 emptyConfig = Config
     { cfgCabalInstallVersion = defaultCabalInstallVersion
     , cfgJobs            = Nothing
-    , cfgUbuntu          = Xenial
+    , cfgUbuntu          = Bionic
     , cfgTestedWith      = TestedWithUniform
     , cfgCopyFields      = CopyFieldsSome
     , cfgDoctest         = defaultDoctestConfig
