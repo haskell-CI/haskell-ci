@@ -21,7 +21,7 @@ jobs:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
     runs-on: ubuntu-18.04
     container:
-      image: buildpack-deps:xenial
+      image: buildpack-deps:bionic
     continue-on-error: ${{ matrix.allow-failure }}
     strategy:
       matrix:
@@ -128,7 +128,7 @@ jobs:
           apt-add-repository -y 'ppa:hvr/ghc'
           if [ $((GHCJSARITH)) -ne 0 ] ; then apt-add-repository -y 'ppa:hvr/ghcjs' ; fi
           if [ $((GHCJSARITH)) -ne 0 ] ; then curl -sSL "https://deb.nodesource.com/gpgkey/nodesource.gpg.key" | apt-key add - ; fi
-          if [ $((GHCJSARITH)) -ne 0 ] ; then apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x xenial main' ; fi
+          if [ $((GHCJSARITH)) -ne 0 ] ; then apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x bionic main' ; fi
           apt-get update
           if [ $((GHCJSARITH)) -ne 0 ] ; then apt-get install -y $CC cabal-install-3.4 ghc-8.4.4 nodejs ; else apt-get install -y $CC cabal-install-3.4 ; fi
         env:
