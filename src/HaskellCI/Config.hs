@@ -71,6 +71,8 @@ data Config = Config
     , cfgCheck               :: !Bool
     , cfgOnlyBranches        :: [String]
     , cfgIrcChannels         :: [String]
+    , cfgIrcNickname         :: Maybe String
+    , cfgIrcPassword         :: Maybe String
     , cfgIrcIfInOriginRepo   :: Bool
     , cfgEmailNotifications  :: Bool
     , cfgProjectName         :: Maybe String
@@ -178,7 +180,11 @@ configGrammar = Config
     <*> C.monoidalFieldAla    "branches"                  (C.alaList' C.FSep C.Token')        (field @"cfgOnlyBranches")
         ^^^ metahelp "BRANCH" "Enable builds only for specific branches"
     <*> C.monoidalFieldAla    "irc-channels"              (C.alaList' C.FSep C.Token')        (field @"cfgIrcChannels")
-        ^^^ metahelp "IRC" "Enable IRC notifications to given channel (e.g. 'irc.freenode.org#haskell-lens')"
+        ^^^ metahelp "IRC" "Enable IRC notifications to given channel (e.g. 'irc.libera.chat#haskell-lens')"
+    <*> C.freeTextField       "irc-nickname"                                                  (field @"cfgIrcNickname")
+        ^^^ metahelp "NICKNAME" "Nickname with which to authenticate to an IRC server. Only used if `irc-channels` are set."
+    <*> C.freeTextField       "irc-password"                                                  (field @"cfgIrcPassword")
+        ^^^ metahelp "PASSWORD" "Password with which to authenticate to an IRC server. Only used if `irc-channels` are set."
     <*> C.booleanFieldDef     "irc-if-in-origin-repo"                                         (field @"cfgIrcIfInOriginRepo") False
         ^^^ help "Only send IRC notifications if run from the original remote (GitHub Actions only)"
     <*> C.booleanFieldDef "email-notifications"                                               (field @"cfgEmailNotifications") True

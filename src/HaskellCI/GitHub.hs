@@ -770,15 +770,16 @@ ircJob actionName mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
         GitHubStep ("IRC " ++ result ++ " notification (" ++ serverChannelName ++ ")") $ Right $
         GitHubUses "Gottox/irc-message-action@v1.1"
                    (Just $ "needs." ++ mainJobName ++ ".result " ++ eqCheck ++ " 'success'") $
-        Map.fromList
-            [ ("server",   serverName)
-            , ("channel",  channelName)
-            , ("nickname", "github-actions")
-            , ("message",  "\x0313" ++ projectName ++ "\x03/\x0306${{ github.ref }}\x03 "
-                                    ++ "\x0314${{ github.sha }}\x03 "
-                                    ++ "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} "
-                                    ++ "The build " ++ resultPastTense ++ ".")
-            ]
+        Map.fromList $ buildList $ do
+            item ("server",   serverName)
+            item ("channel",  channelName)
+            item ("nickname", fromMaybe "github-actions" $ cfgIrcNickname cfg)
+            for_ (cfgIrcPassword cfg) $ \p ->
+                item ("sasl_password", p)
+            item ("message",  "\x0313" ++ projectName ++ "\x03/\x0306${{ github.ref }}\x03 "
+                                       ++ "\x0314${{ github.sha }}\x03 "
+                                       ++ "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} "
+                                       ++ "The build " ++ resultPastTense ++ ".")
 
 catCmd :: FilePath -> String -> String
 catCmd path contents = concat
