@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.13.20210525
+version:            0.13.20210526
 synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@haskell-ci@) for
@@ -153,7 +153,7 @@ library haskell-ci-internal
   -- other dependencies
   build-depends:
     , aeson                          ^>=1.5.6.0
-    , attoparsec                     ^>=0.13.2.4
+    , attoparsec                     ^>=0.14.1
     , base-compat                    ^>=0.11
     , base16-bytestring              ^>=1.0.1.0
     , cabal-install-parsers          ^>=0.4.1
@@ -173,7 +173,7 @@ library haskell-ci-internal
 
   -- ShellCheck. Would need newer transformers for older GHC
   if flag(shellcheck)
-    build-depends: ShellCheck ==0.7.1
+    build-depends: ShellCheck ==0.7.2
 
 executable haskell-ci
   main-is:          Main.hs
