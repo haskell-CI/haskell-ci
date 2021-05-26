@@ -49,6 +49,7 @@ data Config = Config
     , cfgJobs                :: Maybe Jobs
     , cfgUbuntu              :: !Ubuntu
     , cfgTestedWith          :: !TestedWithJobs
+    , cfgEnabledJobs         :: !VersionRange
     , cfgCopyFields          :: !CopyFields
     , cfgLocalGhcOptions     :: [String]
     , cfgSubmodules          :: !Bool
@@ -78,7 +79,8 @@ data Config = Config
     , cfgEnv                 :: M.Map Version String
     , cfgAllowFailures       :: !VersionRange
     , cfgLastInSeries        :: !Bool
-    , cfgOsx                 :: S.Set Version
+    , cfgLinuxJobs           :: !VersionRange
+    , cfgMacosJobs           :: !VersionRange
     , cfgApt                 :: S.Set String
     , cfgTravisPatches       :: [FilePath]
     , cfgGitHubPatches       :: [FilePath]
@@ -103,6 +105,7 @@ emptyConfig = Config
     , cfgJobs            = Nothing
     , cfgUbuntu          = Bionic
     , cfgTestedWith      = TestedWithUniform
+    , cfgEnabledJobs     = anyVersion
     , cfgCopyFields      = CopyFieldsSome
     , cfgDoctest         = defaultDoctestConfig
     , cfgDocspec         = defaultDocspecConfig
@@ -136,7 +139,8 @@ emptyConfig = Config
     , cfgEnv             = M.empty
     , cfgAllowFailures   = noVersion
     , cfgLastInSeries    = False
-    , cfgOsx             = S.empty
+    , cfgLinuxJobs       = anyVersion
+    , cfgMacosJobs       = noVersion
     , cfgApt             = S.empty
     , cfgTravisPatches   = []
     , cfgGitHubPatches   = []
@@ -174,6 +178,8 @@ configGrammar = Config
         ^^^ metahelp "DIST" "distribution version (xenial, bionic)"
     <*> C.optionalFieldDef    "jobs-selection"                                                (field @"cfgTestedWith") TestedWithUniform
         ^^^ metahelp "uniform|any" "Jobs selection across packages"
+    <*> rangeField            "enabled"                                                       (field @"cfgEnabledJobs") anyVersion
+        ^^^ metahelp "RANGE" "Restrict jobs selection futher from per package tested-with"
     <*> C.optionalFieldDef    "copy-fields"                                                   (field @"cfgCopyFields") CopyFieldsSome
         ^^^ metahelp "none|some|all" "Copy ? fields from cabal.project fields"
     <*> C.monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') (field @"cfgLocalGhcOptions")
@@ -232,8 +238,10 @@ configGrammar = Config
         ^^^ metahelp "JOB" "Allow failures of particular GHC version"
     <*> C.booleanFieldDef     "last-in-series"                                                (field @"cfgLastInSeries") False
         ^^^ help "[Discouraged] Assume there are only GHCs last in major series: 8.2.* will match only 8.2.2"
-    <*> C.monoidalFieldAla    "osx"                       (alaSet C.NoCommaFSep)              (field @"cfgOsx")
-        ^^^ metahelp "JOB" "Jobs to additionally build with OSX"
+    <*> rangeField            "linux-jobs"                                                    (field @"cfgLinuxJobs") anyVersion
+        ^^^ metahelp "RANGE" "Jobs to build on Linux"
+    <*> rangeField            "macos-jobs"                                                    (field @"cfgMacosJobs") noVersion
+        ^^^ metahelp "RANGE" "Jobs to additionally build with OSX"
     <*> C.monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    (field @"cfgApt")
         ^^^ metahelp "PKG" "Additional apt packages to install"
     <*> C.monoidalFieldAla    "travis-patches"            (C.alaList' C.NoCommaFSep C.Token') (field @"cfgTravisPatches")

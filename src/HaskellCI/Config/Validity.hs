@@ -17,4 +17,4 @@ checkConfigValidity Config {..} JobVersions {..} = do
     when (anyGHCJS && cfgUbuntu > Bionic) $
         throwErr $ ValidationError $ "Using GHCJS requires Ubuntu 16.04 (Xenial) or 18.04 (Bionic)."
   where
-    anyGHCJS = any isGHCJS versions
+    anyGHCJS = any isGHCJS linuxVersions

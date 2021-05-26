@@ -114,7 +114,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
 
         -- Needed to work around haskell/cabal#6214
         sh "HADDOCK=$(echo \"/opt/$CC/bin/haddock\" | sed 's/-/\\//')"
-        unless (null cfgOsx) $ do
+        unless (null macosVersions) $ do
             sh $ "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then HADDOCK=$(echo $HADDOCK | sed \"s:^/opt:$HOME/.ghc-install:\"); fi"
 
         -- Hack: happy needs ghc. Let's install version matching GHCJS.
@@ -133,7 +133,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
         sh "TOP=$(pwd)"
         -- macOS installing
         let haskellOnMacos = "https://haskell.futurice.com/haskell-on-macos.py"
-        unless (null cfgOsx) $ do
+        unless (null macosVersions) $ do
             sh $ "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then curl " ++ haskellOnMacos ++ " | python3 - --make-dirs --install-dir=$HOME/.ghc-install --cabal-alias=3.2.0.0 install cabal-install-3.2.0.0 ${TRAVIS_COMPILER}; fi"
             sh' [2034,2039] "if [ \"$TRAVIS_OS_NAME\" = \"osx\" ]; then HC=$HOME/.ghc-install/ghc/bin/$TRAVIS_COMPILER; WITHCOMPILER=\"-w $HC\"; HCPKG=$HOME/.ghc-install/ghc/bin/${TRAVIS_COMPILER/ghc/ghc-pkg}; CABAL=$HOME/.ghc-install/ghc/bin/cabal; fi"
         -- HCNUMVER, numeric HC version, e.g. ghc 7.8.4 is 70804 and 7.10.3 is 71003
@@ -224,7 +224,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 | C.isAnyVersion (cfgHLintVersion cfgHLint) = ""
                 | otherwise = " --constraint='hlint " ++ C.prettyShow (cfgHLintVersion cfgHLint) ++ "'"
         when (cfgHLintEnabled cfgHLint) $ do
-            let forHLint = shForJob (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint))
+            let forHLint = shForJob (hlintJobVersionRange allVersions  cfgHeadHackage (cfgHLintJob cfgHLint))
             if cfgHLintDownload cfgHLint
             then do
                 -- install --dry-run and use perl regex magic to find a hlint version
@@ -335,8 +335,8 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 -- removing the vowels to make filepaths shorter
                 let manglePkgNames :: String -> [String]
                     manglePkgNames n
-                        | null cfgOsx = [n]
-                        | otherwise   = [n, filter notVowel n]
+                        | null macosVersions = [n]
+                        | otherwise          = [n, filter notVowel n]
                       where
                         notVowel c = notElem c ("aeiou" :: String)
                 let filterPkgs = intercalate "|" $ concatMap (manglePkgNames . C.unPackageName) $ cfgDoctestFilterEnvPkgs cfgDoctest
@@ -366,7 +366,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 for_ (hlintArgs pkgGpd) $ \args -> do
                     let args' = unwords args
                     unless (null args) $
-                        shForJob (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint) /\ RangePoints pkgJobs) $
+                        shForJob (hlintJobVersionRange allVersions cfgHeadHackage (cfgHLintJob cfgHLint) /\ RangePoints pkgJobs) $
                         "(cd " ++ pkgNameDirVariable pkgName ++ " && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
 
         -- cabal check
@@ -431,7 +431,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 item "$HOME/.hlint"
                 -- on OSX ghc is installed in $HOME so we can cache it
                 -- independently of linux
-                when (cfgCache && not (null cfgOsx)) $ do
+                when (cfgCache && not (null macosVersions)) $ do
                     item "$HOME/.ghc-install"
             }
         , travisBranches      = TravisBranches
@@ -496,12 +496,12 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                                 }
                             }
 
-                for_ (reverse $ S.toList versions) $ tellJob False
-                for_ (reverse $ S.toList osxVersions) $ tellJob True . GHC
+                for_ (reverse $ S.toList linuxVersions) $ tellJob False
+                for_ (reverse $ S.toList macosVersions) $ tellJob True
 
             , tmAllowFailures =
                 [ TravisAllowFailure $ dispGhcVersion compiler
-                | compiler <- toList versions
+                | compiler <- toList allVersions
                 , previewGHC cfgHeadHackage compiler || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
                 ]
             }
@@ -519,7 +519,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
     -- TODO: should this be part of MonadSh ?
     foldedSh label = foldedSh' label ""
 
-    anyGHCJS = any isGHCJS versions
+    anyGHCJS = any isGHCJS allVersions
 
     -- https://github.com/travis-ci/docs-travis-ci-com/issues/949#issuecomment-276755003
     -- https://github.com/travis-ci/travis-rubies/blob/9f7962a881c55d32da7c76baefc58b89e3941d91/build.sh#L38-L44
@@ -547,7 +547,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
 
     -- GHC versions which need head.hackage
     headGhcVers :: Set CompilerVersion
-    headGhcVers = S.filter (previewGHC cfgHeadHackage) versions
+    headGhcVers = S.filter (previewGHC cfgHeadHackage) allVersions
 
     cabal :: String -> String
     cabal cmd = "${CABAL} " ++ cmd
@@ -557,11 +557,11 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
 
     forJob :: CompilerRange -> String -> Maybe String
     forJob vr cmd
-        | all (`compilerWithinRange` vr) versions       = Just cmd
-        | not $ any (`compilerWithinRange` vr) versions = Nothing
-        | otherwise                                     = Just $ unwords
+        | all (`compilerWithinRange` vr) allVersions       = Just cmd
+        | not $ any (`compilerWithinRange` vr) allVersions = Nothing
+        | otherwise                                        = Just $ unwords
             [ "if"
-            , compilerVersionPredicate versions vr
+            , compilerVersionPredicate allVersions vr
             , "; then"
             , cmd
             , "; fi"

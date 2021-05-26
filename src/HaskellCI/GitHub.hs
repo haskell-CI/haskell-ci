@@ -272,7 +272,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 | C.isAnyVersion (cfgHLintVersion cfgHLint) = ""
                 | otherwise = " --constraint='hlint " ++ prettyShow (cfgHLintVersion cfgHLint) ++ "'"
         when (cfgHLintEnabled cfgHLint) $ githubRun "install hlint" $ do
-            let forHLint = sh_if (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint))
+            let forHLint = sh_if (hlintJobVersionRange allVersions cfgHeadHackage (cfgHLintJob cfgHLint))
             if cfgHLintDownload cfgHLint
             then do
                 -- install --dry-run and use perl regex magic to find a hlint version
@@ -435,8 +435,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 -- removing the vowels to make filepaths shorter
                 let manglePkgNames :: String -> [String]
                     manglePkgNames n
-                        | null cfgOsx = [n]
-                        | otherwise   = [n, filter notVowel n]
+                        | null macosVersions = [n]
+                        | otherwise          = [n, filter notVowel n]
                       where
                         notVowel c = notElem c ("aeiou" :: String)
                 let filterPkgs = intercalate "|" $ concatMap (manglePkgNames . C.unPackageName) $ cfgDoctestFilterEnvPkgs cfgDoctest
@@ -477,7 +477,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 for_ (hlintArgs pkgGpd) $ \args -> do
                     let args' = unwords args
                     unless (null args) $
-                        sh_if (hlintJobVersionRange versions cfgHeadHackage (cfgHLintJob cfgHLint) /\ RangePoints pkgJobs) $
+                        sh_if (hlintJobVersionRange allVersions cfgHeadHackage (cfgHLintJob cfgHLint) /\ RangePoints pkgJobs) $
                         "(cd " ++ pkgNameDirVariable pkgName ++ " && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
 
         -- cabal check
@@ -544,7 +544,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                                previewGHC cfgHeadHackage compiler
                             || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
                         }
-                    | compiler <- reverse $ toList versions
+                    | compiler <- reverse $ toList linuxVersions
                     , compiler /= GHCHead -- TODO: Make this work
                                           -- https://github.com/haskell-CI/haskell-ci/issues/458
                     ]
@@ -561,11 +561,11 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
     Auxiliary {..} = auxiliary config prj jobs
 
-    anyGHCJS = any isGHCJS versions
+    anyGHCJS = any isGHCJS allVersions
 
     -- GHC versions which need head.hackage
     headGhcVers :: Set CompilerVersion
-    headGhcVers = S.filter (previewGHC cfgHeadHackage) versions
+    headGhcVers = S.filter (previewGHC cfgHeadHackage) allVersions
 
     -- step primitives
     githubRun' :: String -> Map.Map String String ->  ShM () -> ListBuilder (Either HsCiError GitHubStep) ()
@@ -601,11 +601,11 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
     if_then_else :: CompilerRange -> String -> String -> ShM ()
     if_then_else range con alt
-        | all (`compilerWithinRange` range) versions       = sh con
-        | not $ any (`compilerWithinRange` range) versions = sh alt
+        | all (`compilerWithinRange` range) allVersions       = sh con
+        | not $ any (`compilerWithinRange` range) allVersions = sh alt
         | otherwise = sh $ unwords
         [ "if ["
-        , compilerVersionArithPredicate versions range
+        , compilerVersionArithPredicate allVersions range
         , "-ne 0 ]"
         , "; then"
         , con
@@ -618,11 +618,11 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
     sh_if :: CompilerRange -> String -> ShM ()
     sh_if range con
-        | all (`compilerWithinRange` range) versions       = sh con
-        | not $ any (`compilerWithinRange` range) versions = pure ()
+        | all (`compilerWithinRange` range) allVersions       = sh con
+        | not $ any (`compilerWithinRange` range) allVersions = pure ()
         | otherwise = sh $ unwords
         [ "if ["
-        , compilerVersionArithPredicate versions range
+        , compilerVersionArithPredicate allVersions range
         , "-ne 0 ]"
         , "; then"
         , con
