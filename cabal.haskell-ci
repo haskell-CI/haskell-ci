@@ -79,7 +79,7 @@ docspec: True
 docspec-options: --verbose --timeout 2
 
 -- macOS job
-osx: 8.4.4 8.6.5
+macos-jobs: ==8.10.*
 
 -- Define per-job environment variables
 -- env: 8.4.4:FOO=bar,

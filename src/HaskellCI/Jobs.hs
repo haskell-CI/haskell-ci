@@ -4,8 +4,7 @@ module HaskellCI.Jobs where
 
 import HaskellCI.Prelude
 
-import qualified Data.Set            as S
-import qualified Distribution.Pretty as C
+import qualified Data.Set as S
 
 import HaskellCI.Compiler
 import HaskellCI.Config
@@ -14,9 +13,9 @@ import HaskellCI.Package
 import HaskellCI.TestedWith
 
 data JobVersions = JobVersions
-    { versions           :: Set CompilerVersion  -- ^ all jobs
-    , osxVersions        :: Set Version          -- ^ osx jobs: GHC only
-    , omittedOsxVersions :: Set Version
+    { allVersions   :: Set CompilerVersion  -- ^ all versions (useful for Travis)
+    , linuxVersions :: Set CompilerVersion  -- ^ linux jobs
+    , macosVersions :: Set CompilerVersion  -- ^ macos jobs
     }
 
 describeJobs
@@ -35,25 +34,17 @@ describeJobs typ twj JobVersions {..} pkgs = do
             let vs = showVersions vr
             putStrLnInfo $ pkgName pkg ++ " " ++ ": " ++ vs
 
-    unless (null osxVersions) $  do
-        putStrLnInfo $ "Also OSX jobs for: " ++ ghcOsxVersions
-        unless (S.null omittedOsxVersions) $
-            putStrLnWarn $ "Not all GHC versions specified with --osx are generated: " ++ ghcOmittedOsxVersions
+    unless (null macosVersions) $  do
+        putStrLnInfo $ "Also macos jobs for: " ++ ghcmacosVersions
   where
     showVersions :: Set CompilerVersion -> String
     showVersions = unwords . map dispGhcVersionShort . S.toList
 
-    showVersionsV :: Set Version -> String
-    showVersionsV = unwords . map C.prettyShow . S.toList
-
     ghcVersions :: String
-    ghcVersions = showVersions versions
+    ghcVersions = showVersions linuxVersions
 
-    ghcOsxVersions :: String
-    ghcOsxVersions = showVersionsV osxVersions
-
-    ghcOmittedOsxVersions :: String
-    ghcOmittedOsxVersions = showVersionsV omittedOsxVersions
+    ghcmacosVersions :: String
+    ghcmacosVersions = showVersions macosVersions
 
 makeJobVersions :: Config -> Set CompilerVersion -> JobVersions
 makeJobVersions Config {..} versions' = JobVersions {..} where
@@ -63,10 +54,18 @@ makeJobVersions Config {..} versions' = JobVersions {..} where
         | cfgGhcHead = S.insert GHCHead versions'
         | otherwise  = versions'
 
-    osxVersions' :: Set Version
-    osxVersions' = cfgOsx
+    allVersions :: Set CompilerVersion
+    allVersions = S.filter (`compilerWithinRange` range)  versions
 
-    osxVersions, omittedOsxVersions :: Set Version
-    (osxVersions, omittedOsxVersions) = S.partition (\x -> GHC x `S.member` versions') osxVersions'
+    linuxVersions :: Set CompilerVersion
+    linuxVersions = S.filter (`compilerWithinRange` linuxRange) allVersions
+
+    macosVersions :: Set CompilerVersion
+    macosVersions = S.filter (`compilerWithinRange` macosRange) allVersions
+
+    range, linuxRange, macosRange :: CompilerRange
+    range      = Range cfgEnabledJobs
+    linuxRange = Range cfgLinuxJobs
+    macosRange = RangeGHC /\ Range cfgMacosJobs
 
 

@@ -52,8 +52,8 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
     uris = prjUriPackages prj
     projectName = fromMaybe (pkgName $ Prelude.head pkgs) cfgProjectName
 
-    doctestEnabled = any (maybeGHC False (`C.withinRange` cfgDoctestEnabled cfgDoctest)) versions
-    docspecEnabled = any (maybeGHC False (`C.withinRange` cfgDocspecEnabled cfgDocspec)) versions
+    doctestEnabled = any (maybeGHC False (`C.withinRange` cfgDoctestEnabled cfgDoctest)) linuxVersions
+    docspecEnabled = any (maybeGHC False (`C.withinRange` cfgDocspecEnabled cfgDocspec)) linuxVersions
 
     testShowDetails
         | cfgTestOutputDirect = " --test-show-details=direct"

@@ -167,8 +167,8 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
                 -- removing the vowels to make filepaths shorter
                 let manglePkgNames :: String -> [String]
                     manglePkgNames n
-                        | null cfgOsx = [n]
-                        | otherwise   = [n, filter notVowel n]
+                        | null macosVersions = [n]
+                        | otherwise          = [n, filter notVowel n]
                       where
                         notVowel c = notElem c ("aeiou" :: String)
                 let filterPkgs = intercalate "|" $ concatMap (manglePkgNames . C.unPackageName) $ cfgDoctestFilterEnvPkgs cfgDoctest
@@ -231,12 +231,12 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
     return defaultZ
         { zJobs =
             [ prettyShow v
-            | GHC v <- reverse $ toList versions
+            | GHC v <- reverse $ toList linuxVersions
             ]
         , zBlocks = blocks
         , zApt = S.toList cfgApt
-        , zTestsCond = compilerVersionArithPredicate versions $ Range cfgTests
-        , zBenchCond = compilerVersionArithPredicate versions $ Range cfgBenchmarks
+        , zTestsCond = compilerVersionArithPredicate linuxVersions $ Range cfgTests
+        , zBenchCond = compilerVersionArithPredicate linuxVersions $ Range cfgBenchmarks
         }
   where
     Auxiliary {..} = auxiliary config prj jobs
@@ -256,11 +256,11 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
 
     change_dir_if :: CompilerRange -> String -> ShM ()
     change_dir_if vr dir
-        | all (`compilerWithinRange` vr) versions       = change_dir dir
-        | not $ any (`compilerWithinRange` vr) versions = pure ()
+        | all (`compilerWithinRange` vr) linuxVersions       = change_dir dir
+        | not $ any (`compilerWithinRange` vr) linuxVersions = pure ()
         | otherwise = sh $ unwords
             [ "change_dir_if"
-            , compilerVersionArithPredicate versions vr
+            , compilerVersionArithPredicate linuxVersions vr
             , dir
             ]
 
@@ -272,25 +272,25 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
 
     run_cmd_if :: CompilerRange -> String -> ShM ()
     run_cmd_if vr cmd
-        | all (`compilerWithinRange` vr) versions       = run_cmd cmd
-        | not $ any (`compilerWithinRange` vr) versions = pure ()
+        | all (`compilerWithinRange` vr) linuxVersions       = run_cmd cmd
+        | not $ any (`compilerWithinRange` vr) linuxVersions = pure ()
         | otherwise = sh $ unwords
             [ "run_cmd_if"
-            , compilerVersionArithPredicate versions vr
+            , compilerVersionArithPredicate linuxVersions vr
             , cmd
             ]
 
     echo_if_to :: CompilerRange -> FilePath -> String -> ShM ()
     echo_if_to vr path contents
-        | all (`compilerWithinRange` vr) versions = sh $ unwords
+        | all (`compilerWithinRange` vr) linuxVersions = sh $ unwords
             [ "echo_to"
             , path
             , show contents
             ]
-        | not $ any (`compilerWithinRange` vr) versions = pure ()
+        | not $ any (`compilerWithinRange` vr) linuxVersions = pure ()
         | otherwise = sh $ unwords
             [ "echo_if_to"
-            , compilerVersionArithPredicate versions vr
+            , compilerVersionArithPredicate linuxVersions vr
             , path
             , show contents
             ]
