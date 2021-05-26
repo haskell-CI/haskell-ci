@@ -26,7 +26,7 @@ data DoctestConfig = DoctestConfig
 -------------------------------------------------------------------------------
 
 defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = majorBoundVersion (mkVersion [0,17])
+defaultDoctestVersion = majorBoundVersion (mkVersion [0,18,1])
 
 defaultDoctestConfig :: DoctestConfig
 defaultDoctestConfig = DoctestConfig

@@ -144,7 +144,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
         sh "CABAL=\"$CABAL -vnormal+nowrap\""
 
         -- SC2039: In POSIX sh, set option pipefail is undefined. Travis is bash, so it's fine :)
-        sh' [2039] "set -o pipefail"
+        sh' [2039, 3040] "set -o pipefail"
 
         sh "TEST=--enable-tests"
         shForJob (invertCompilerRange $ Range cfgTests) "TEST=--disable-tests"

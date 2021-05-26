@@ -143,7 +143,7 @@ jobs:
       - name: cache (tools)
         uses: actions/cache@v2
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-af688f77
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-803c0a4b
           path: ~/.haskell-ci-tools
       - name: install cabal-plan
         run: |
