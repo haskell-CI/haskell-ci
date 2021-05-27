@@ -192,7 +192,7 @@ install:
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo 'package servant-server' >> cabal.project ; fi
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - |
+  - ""
   - |
     if $HEADHACKAGE; then
     echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> $CABALHOME/config
@@ -238,7 +238,7 @@ script:
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo 'package servant-server' >> cabal.project ; fi
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - |
+  - ""
   - |
     if $HEADHACKAGE; then
     echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> $CABALHOME/config

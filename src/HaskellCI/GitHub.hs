@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards   #-}
 module HaskellCI.GitHub (
     makeGitHub,
@@ -98,9 +99,9 @@ makeGitHub
     -> Either HsCiError GitHub
 makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     let envEnv = Map.fromList
-            [ ("HC",      "${{ matrix.compiler }}")
-            , ("HCKIND", "${{ matrix.compilerKind }}")
-            , ("HCVER",  "${{ matrix.compilerVersion }}")
+            [ ("HCNAME", "${{ matrix.compiler }}")         -- e.g. ghc-8.8.4
+            , ("HCKIND", "${{ matrix.compilerKind }}")     --      ghc
+            , ("HCVER",  "${{ matrix.compilerVersion }}")  --      8.8.4
             ]
 
     -- Validity checks
@@ -126,20 +127,35 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         githubRun' "apt" envEnv $ do
             sh "apt-get update"
-            sh "apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common"
-            sh "apt-add-repository -y 'ppa:hvr/ghc'"
-            when anyGHCJS $ do
-                sh_if RangeGHCJS "apt-add-repository -y 'ppa:hvr/ghcjs'"
-                sh_if RangeGHCJS "curl -sSL \"https://deb.nodesource.com/gpgkey/nodesource.gpg.key\" | apt-key add -"
-                sh_if RangeGHCJS $ "apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x " ++ ubuntuVer ++ " main'"
-            sh "apt-get update"
-            let basePackages  = ["$HC", "cabal-install-" ++ cabalVer] ++ S.toList cfgApt
-                ghcjsPackages = ["ghc-8.4.4", "nodejs"]
-                baseInstall   = "apt-get install -y " ++ unwords basePackages
-                ghcjsInstall  = "apt-get install -y " ++ unwords (basePackages ++ ghcjsPackages)
-            if anyGHCJS
-                then if_then_else RangeGHCJS ghcjsInstall baseInstall
-                else sh baseInstall
+            sh "apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5" -- libnuma-dev?
+
+            hvrppa <- runSh $ do
+                sh "apt-add-repository -y 'ppa:hvr/ghc'"
+                when anyGHCJS $ do
+                    sh_if RangeGHCJS "apt-add-repository -y 'ppa:hvr/ghcjs'"
+                    sh_if RangeGHCJS "curl -sSL \"https://deb.nodesource.com/gpgkey/nodesource.gpg.key\" | apt-key add -"
+                    sh_if RangeGHCJS $ "apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x " ++ ubuntuVer ++ " main'"
+                sh "apt-get update"
+                let basePackages  = ["\"$HCNAME\"", "cabal-install-" ++ cabalVer] ++ S.toList cfgApt
+                    ghcjsPackages = ["ghc-8.4.4", "nodejs"]
+                    baseInstall   = "apt-get install -y " ++ unwords basePackages
+                    ghcjsInstall  = "apt-get install -y " ++ unwords (basePackages ++ ghcjsPackages)
+                if anyGHCJS
+                    then if_then_else RangeGHCJS ghcjsInstall baseInstall
+                    else sh baseInstall
+
+            ghcup <- runSh $ do
+                let ghcupVer = C.prettyShow cfgGhcupVersion
+                sh $ "mkdir -p \"$HOME/.ghcup/bin\""
+                sh $ "curl -sL https://downloads.haskell.org/ghcup/" ++ ghcupVer ++ "/x86_64-linux-ghcup-" ++ ghcupVer ++ " > \"$HOME/.ghcup/bin/ghcup\""
+                sh $ "chmod a+x \"$HOME/.ghcup/bin/ghcup\""
+                sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\""
+                sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer
+                unless (null cfgApt) $ do
+                    sh "apt-get update"
+                    sh $ "apt-get install -y " ++ unwords (S.toList cfgApt)
+
+            setup hvrppa ghcup
 
         githubRun' "Set PATH and environment variables" envEnv $ do
             echo_to "$GITHUB_PATH" "$HOME/.cabal/bin"
@@ -156,18 +172,23 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
             sh "HCDIR=/opt/$HCKIND/$HCVER"
 
-            if_then_else RangeGHCJS
-                "HCNAME=ghcjs"
-                "HCNAME=ghc"
+            hvrppa <- runSh $ do
+                let hc = "$HCDIR/bin/$HCKIND"
+                sh $ "HC=" ++ hc -- HC is an absolute path.
+                tell_env "HC" "$HC"
+                tell_env "HCPKG" $ hc ++ "-pkg"
+                tell_env "HADDOCK" "$HCDIR/bin/haddock"
+                tell_env "CABAL" $ "/opt/cabal/" ++ cabalVer ++ "/bin/cabal -vnormal+nowrap"
 
-            let hc = "$HCDIR/bin/$HCNAME"
-            sh ("HC=" ++ hc)
-            tell_env "HC" "$HC"
-            tell_env "HCPKG" (hc ++ "-pkg")
-            tell_env "HADDOCK" "$HCDIR/bin/haddock"
+            ghcup <- runSh $ do
+                let hc = "$HOME/.ghcup/bin/$HCKIND-$HCVER"
+                sh $ "HC=" ++ hc -- HC is an absolute path.
+                tell_env "HC"      "$HC"
+                tell_env "HCPKG" $ "$HOME/.ghcup/bin/$HCKIND-pkg-$HCVER"
+                tell_env "HADDOCK" "$HOME/.ghcup/bin/haddock-$HCVER"
+                tell_env "CABAL" $ "$HOME/.ghcup/bin/cabal-" ++ cabalFullVer ++ " -vnormal+nowrap"
 
-            -- TODO: configurable cabal version
-            tell_env "CABAL" $ "/opt/cabal/" ++ cabalVer ++ "/bin/cabal -vnormal+nowrap"
+            setup hvrppa ghcup
 
             sh "HCNUMVER=$(${HC} --numeric-version|perl -ne '/^(\\d+)\\.(\\d+)\\.(\\d+)(\\.(\\d+))?$/; print(10000 * $1 + 100 * $2 + ($3 == 0 ? $5 != 1 : $3))')"
             tell_env "HCNUMVER" "$HCNUMVER"
@@ -182,7 +203,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 (tell_env' "HEADHACKAGE" "true")
                 (tell_env' "HEADHACKAGE" "false")
 
-            tell_env "ARG_COMPILER" "--$HCNAME --with-compiler=$HC"
+            tell_env "ARG_COMPILER" "--$HCKIND --with-compiler=$HC"
 
             unless anyGHCJS $
                 tell_env "GHCJSARITH" "0"
@@ -317,6 +338,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 sh $ pkgNameDirVariable' pkgName ++ "=\"$(find \"$GITHUB_WORKSPACE/unpacked\" -maxdepth 1 -type d -regex '.*/" ++ pkgName ++ "-[0-9.]*')\""
                 tell_env (pkgNameDirVariable' pkgName) (pkgNameDirVariable pkgName)
 
+            sh "rm -f cabal.project cabal.project.local"
             sh "touch cabal.project"
             sh "touch cabal.project.local"
 
@@ -540,10 +562,11 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     [ Map.singleton "postgres" postgresService | cfgPostgres ]
                 , ghjMatrix          =
                     [ GitHubMatrixEntry
-                        { ghmeCompiler = compiler
+                        { ghmeCompiler     = compiler
                         , ghmeAllowFailure =
                                previewGHC cfgHeadHackage compiler
                             || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
+                        , ghmeSetupMethod = if isGHCUP compiler then GHCUP else HVRPPA
                         }
                     | compiler <- reverse $ toList linuxVersions
                     , compiler /= GHCHead -- TODO: Make this work
@@ -557,12 +580,43 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     actionName  = fromMaybe "Haskell-CI" cfgGitHubActionName
     mainJobName = "linux"
 
-    cabalVer = dispCabalVersion cfgCabalInstallVersion
-    ubuntuVer = showUbuntu cfgUbuntu
+    ubuntuVer    = showUbuntu cfgUbuntu
+    cabalVer     = dispCabalVersion cfgCabalInstallVersion
+    cabalFullVer = dispCabalVersion $ cfgCabalInstallVersion <&> \ver ->
+        case C.versionNumbers ver of
+            [x,y] -> C.mkVersion [x,y,0,0]
+            _     -> ver
 
     Auxiliary {..} = auxiliary config prj jobs
 
     anyGHCJS = any isGHCJS allVersions
+    anyGHCUP = any isGHCUP allVersions
+    allGHCUP = all isGHCUP allVersions
+
+    -- Generate a setup block for hvr-ppa or ghcup, or both.
+    setup :: [Sh] -> [Sh] -> ShM ()
+    setup hvrppa ghcup
+        | allGHCUP     = traverse_ liftSh ghcup
+        | not anyGHCUP = traverse_ liftSh hvrppa
+        -- 2192: ${{ ...}} will match (ShellCheck think it doesn't)
+        -- 2129: individual redirects
+        | otherwise    = sh' [2193, 2129] $ unlines $
+            [ "if [ \"${{ matrix.setup-method }}\" = ghcup ]; then"
+            ] ++
+            [ "  " ++ shToString s
+            | s <- ghcup
+            ] ++
+            [ "else"
+            ] ++
+            [ "  " ++ shToString s
+            | s <- hvrppa
+            ] ++
+            [ "fi"
+            ]
+
+    -- job to be setup with ghcup
+    isGHCUP :: CompilerVersion -> Bool
+    isGHCUP v = compilerWithinRange v (RangeGHC /\ Range cfgGhcupJobs)
 
     -- GHC versions which need head.hackage
     headGhcVers :: Set CompilerVersion
@@ -595,7 +649,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     change_dir_if range dir = sh_if range ("cd " ++ dir ++ " || false")
 
     tell_env' :: String -> String -> String
-    tell_env' k v = "echo " ++ show (k ++ "=" ++ v) ++ " >> $GITHUB_ENV"
+    tell_env' k v = "echo " ++ show (k ++ "=" ++ v) ++ " >> \"$GITHUB_ENV\""
 
     tell_env :: String -> String -> ShM ()
     tell_env k v = sh $ tell_env' k v

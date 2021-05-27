@@ -19,6 +19,7 @@ import Prelude ()
 
 import Data.Bits   (shiftR, (.&.))
 import Data.Char   (isControl, isPrint, ord)
+import Data.List   (dropWhileEnd)
 import Data.Monoid (Endo (..))
 
 import qualified Data.Aeson              as Aeson
@@ -295,12 +296,14 @@ prettyYaml comment' = flatten . go where
     -- Note: the input have to end with @\n@ for this to be triggered.
     --
     multiline :: String -> Maybe [String]
-    multiline s = case YAML.decodeStrict bs of
-        Right [[t']] | t == t' -> Just ls
-        _                      -> Nothing
+    multiline s
+        | elem '\n' s = case YAML.decodeStrict bs of
+            Right [[t']] | t == t' -> Just ls
+            _                      -> Nothing
+        | otherwise = Nothing
       where
-        ls = lines s
-        t  = T.pack s
+        ls = dropWhileEnd null $ lines s
+        t  = T.pack $ unlines ls
 
         ys = "- |\n" ++ concatMap (\l -> "  " ++ l ++ "\n") ls
         yt  = T.pack ys

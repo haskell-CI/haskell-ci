@@ -2,6 +2,11 @@ module HaskellCI.HeadHackage where
 
 import HaskellCI.Prelude
 
+import qualified Distribution.Version as C
+
+defaultHeadHackage :: VersionRange
+defaultHeadHackage = C.orLaterVersion (C.mkVersion [9,1])
+
 headHackageRepoStanza :: [String]
 headHackageRepoStanza =
     [ "repository head.hackage.ghc.haskell.org"

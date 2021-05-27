@@ -4,10 +4,13 @@
 module HaskellCI.Sh (
     Sh (..),
     isComment,
+    shToString,
+    shlistToString,
     MonadSh (..),
     sh,
     ShM (..),
     runSh,
+    liftSh,
     HsCiError (..),
     FromHsCiError (..),
     ) where
@@ -34,6 +37,13 @@ data Sh
 isComment :: Sh -> Bool
 isComment (Comment _) = True
 isComment (Sh _)      = False
+
+shToString :: Sh -> String
+shToString (Comment c) = "# " ++ c
+shToString (Sh x)      = x
+
+shlistToString :: [Sh] -> String
+shlistToString shs = unlines (map shToString shs)
 
 -------------------------------------------------------------------------------
 -- class
@@ -72,6 +82,9 @@ runSh :: (MonadErr e m, FromHsCiError e) => ShM () -> m [Sh]
 runSh (ShM f) = case f id of
     Left err      -> throwErr (fromHsCiError err)
     Right (g, ()) -> return (g [])
+
+liftSh :: Sh -> ShM ()
+liftSh s = ShM $ \shs -> Right (shs . (s :), ())
 
 instance Applicative ShM where
     pure x = ShM $ \shs -> Right (shs, x)

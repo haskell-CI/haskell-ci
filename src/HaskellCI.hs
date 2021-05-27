@@ -61,6 +61,7 @@ import HaskellCI.Config.Dump
 import HaskellCI.Diagnostics
 import HaskellCI.GitConfig
 import HaskellCI.GitHub
+import HaskellCI.HeadHackage
 import HaskellCI.Jobs
 import HaskellCI.Package
 import HaskellCI.TestedWith

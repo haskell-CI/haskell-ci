@@ -41,9 +41,13 @@ data GitHubJob = GitHubJob
     }
   deriving (Show)
 
+data SetupMethod = HVRPPA | GHCUP
+  deriving Show
+
 data GitHubMatrixEntry = GitHubMatrixEntry
     { ghmeCompiler     :: CompilerVersion
     , ghmeAllowFailure :: Bool
+    , ghmeSetupMethod  :: SetupMethod
     }
   deriving (Show)
 
@@ -123,11 +127,16 @@ instance ToYaml GitHubJob where
             ]
         item $ "steps" ~> ylistFilt [] (map toYaml $ filter notEmptyStep ghjSteps)
 
+instance ToYaml SetupMethod where
+    toYaml HVRPPA = "hvr-ppa"
+    toYaml GHCUP  = "ghcup"
+
 instance ToYaml GitHubMatrixEntry where
     toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
         [ "compiler"        ~> fromString (dispGhcVersion ghmeCompiler)
         , "compilerKind"    ~> fromString (compilerKind ghmeCompiler)
         , "compilerVersion" ~> fromString (compilerVersion ghmeCompiler)
+        , "setup-method"    ~> toYaml ghmeSetupMethod
         , "allow-failure"   ~> toYaml ghmeAllowFailure
         ]
 
@@ -164,8 +173,3 @@ mapToYaml m = ykeyValuesFilt []
     [ k ~> fromString v
     | (k, v) <- M.toList m
     ]
-
-shlistToString :: [Sh] -> String
-shlistToString shs = unlines (map go shs) where
-    go (Comment c) = "# " ++ c
-    go (Sh x)      = x
