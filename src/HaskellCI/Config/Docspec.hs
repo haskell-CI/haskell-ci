@@ -1,7 +1,10 @@
 {-# LANGUAGE DataKinds         #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications  #-}
-module HaskellCI.Config.Docspec where
+module HaskellCI.Config.Docspec (
+    DocspecConfig (..),
+    docspecConfigGrammar,
+) where
 
 import HaskellCI.Prelude
 
@@ -37,7 +40,7 @@ docspecConfigGrammar
     :: (OptionsGrammar c g, Applicative (g DocspecConfig))
     => g DocspecConfig DocspecConfig
 docspecConfigGrammar = DocspecConfig
-    <$> rangeField            "docspec"                                              (field @"cfgDocspecEnabled") noVersion
+    <$> rangeField            "docspec"                                              (field @"cfgDocspecEnabled") (cfgDocspecEnabled defaultDocspecConfig)
         ^^^ help "Enable Docspec job"
     <*> C.monoidalFieldAla    "docspec-options" (C.alaList' C.NoCommaFSep C.Token')  (field @"cfgDocspecOptions")
         ^^^ metahelp "OPTS" "Additional Docspec options"

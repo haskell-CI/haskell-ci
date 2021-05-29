@@ -30,6 +30,7 @@ import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Docspec
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Folds
+import HaskellCI.Config.Empty
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
@@ -100,56 +101,9 @@ defaultCabalInstallVersion :: Maybe Version
 defaultCabalInstallVersion = Just (C.mkVersion [3,4])
 
 emptyConfig :: Config
-emptyConfig = Config
-    { cfgCabalInstallVersion = defaultCabalInstallVersion
-    , cfgJobs            = Nothing
-    , cfgUbuntu          = Bionic
-    , cfgTestedWith      = TestedWithUniform
-    , cfgEnabledJobs     = anyVersion
-    , cfgCopyFields      = CopyFieldsSome
-    , cfgDoctest         = defaultDoctestConfig
-    , cfgDocspec         = defaultDocspecConfig
-    , cfgHLint           = defaultHLintConfig
-    , cfgLocalGhcOptions = []
-    , cfgConstraintSets  = []
-    , cfgSubmodules      = False
-    , cfgCache           = True
-    , cfgInstalled       = []
-    , cfgInstallDeps     = True
-    , cfgTests           = anyVersion
-    , cfgRunTests        = anyVersion
-    , cfgBenchmarks      = anyVersion
-    , cfgHaddock         = anyVersion
-    , cfgNoTestsNoBench  = anyVersion
-    , cfgUnconstrainted  = anyVersion
-    , cfgHeadHackage     = defaultHeadHackage
-    , cfgGhcjsTests      = False
-    , cfgGhcjsTools      = []
-    , cfgTestOutputDirect = True
-    , cfgCheck           = True
-    , cfgOnlyBranches    = []
-    , cfgIrcChannels     = []
-    , cfgIrcIfInOriginRepo  = False
-    , cfgEmailNotifications = True
-    , cfgProjectName     = Nothing
-    , cfgFolds           = S.empty
-    , cfgGhcHead         = False
-    , cfgPostgres        = False
-    , cfgGoogleChrome    = False
-    , cfgEnv             = M.empty
-    , cfgAllowFailures   = noVersion
-    , cfgLastInSeries    = False
-    , cfgLinuxJobs       = anyVersion
-    , cfgMacosJobs       = noVersion
-    , cfgApt             = S.empty
-    , cfgTravisPatches   = []
-    , cfgGitHubPatches   = []
-    , cfgInsertVersion   = True
-    , cfgRawProject      = []
-    , cfgRawTravis       = ""
-    , cfgGitHubActionName = Nothing
-    , cfgErrorMissingMethods = PackageScopeLocal
-    }
+emptyConfig = case runEG configGrammar of
+    Left xs -> error $ "Required fields: " ++ show xs
+    Right x -> x
 
 -------------------------------------------------------------------------------
 -- Grammar
@@ -174,7 +128,7 @@ configGrammar = Config
         ^^^ metahelp "VERSION" "cabal-install version for all jobs"
     <*> C.optionalField       "jobs"                                                          (field @"cfgJobs")
         ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
-    <*> C.optionalFieldDef    "distribution"                                                  (field @"cfgUbuntu") Xenial
+    <*> C.optionalFieldDef    "distribution"                                                  (field @"cfgUbuntu") Bionic
         ^^^ metahelp "DIST" "distribution version (xenial, bionic)"
     <*> C.optionalFieldDef    "jobs-selection"                                                (field @"cfgTestedWith") TestedWithUniform
         ^^^ metahelp "uniform|any" "Jobs selection across packages"
