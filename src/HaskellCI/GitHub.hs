@@ -98,7 +98,9 @@ makeGitHub
     -> Either HsCiError GitHub
 makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     let envEnv = Map.fromList
-            [ ("CC", "${{ matrix.compiler }}")
+            [ ("HC",      "${{ matrix.compiler }}")
+            , ("HCKIND", "${{ matrix.compilerKind }}")
+            , ("HCVER",  "${{ matrix.compilerVersion }}")
             ]
 
     -- Validity checks
@@ -113,7 +115,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
         -- This have to be first, since the packages we install depend on
         -- whether we need GHCJS or not.
         when anyGHCJS $ githubRun' "Set GHCJS environment variables" envEnv $ sh $ intercalate "\n"
-            [ "if echo $CC | grep -q ghcjs; then"
+            [ "if [ $HCKIND = ghcjs ]; then"
             , tell_env' "GHCJS" "true"
             , tell_env' "GHCJSARITH" "1"
             , "else"
@@ -131,7 +133,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 sh_if RangeGHCJS "curl -sSL \"https://deb.nodesource.com/gpgkey/nodesource.gpg.key\" | apt-key add -"
                 sh_if RangeGHCJS $ "apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x " ++ ubuntuVer ++ " main'"
             sh "apt-get update"
-            let basePackages  = ["$CC", "cabal-install-" ++ cabalVer] ++ S.toList cfgApt
+            let basePackages  = ["$HC", "cabal-install-" ++ cabalVer] ++ S.toList cfgApt
                 ghcjsPackages = ["ghc-8.4.4", "nodejs"]
                 baseInstall   = "apt-get install -y " ++ unwords basePackages
                 ghcjsInstall  = "apt-get install -y " ++ unwords (basePackages ++ ghcjsPackages)
@@ -152,8 +154,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             tell_env "CABAL_DIR"    "$HOME/.cabal"
             tell_env "CABAL_CONFIG" "$HOME/.cabal/config"
 
-            let hcdir = "$(echo \"/opt/$CC\" | sed 's/-/\\//')"
-            sh ("HCDIR=" ++ hcdir)
+            sh "HCDIR=/opt/$HCKIND/$HCVER"
 
             if_then_else RangeGHCJS
                 "HCNAME=ghcjs"

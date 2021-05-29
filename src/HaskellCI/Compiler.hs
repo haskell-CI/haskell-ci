@@ -6,6 +6,9 @@ module HaskellCI.Compiler (
     isGHCJS,
     maybeGHCJS,
     previewGHC,
+    -- ** Selectors
+    compilerKind,
+    compilerVersion,
     -- * Compiler version range
     CompilerRange (..),
     compilerWithinRange,
@@ -51,6 +54,20 @@ isGHCJS _         = False
 maybeGHCJS :: CompilerVersion -> Maybe Version
 maybeGHCJS (GHCJS v) = Just v
 maybeGHCJS _         = Nothing
+
+-------------------------------------------------------------------------------
+-- String selectors
+-------------------------------------------------------------------------------
+
+compilerKind :: CompilerVersion -> String
+compilerKind GHCHead   = "ghc"
+compilerKind (GHC _)   = "ghc"
+compilerKind (GHCJS _) = "ghcjs"
+
+compilerVersion :: CompilerVersion -> String
+compilerVersion GHCHead   = "head"
+compilerVersion (GHC v)   = C.prettyShow v
+compilerVersion (GHCJS v) = C.prettyShow v
 
 -------------------------------------------------------------------------------
 -- CompilerRange

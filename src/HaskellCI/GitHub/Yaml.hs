@@ -125,8 +125,10 @@ instance ToYaml GitHubJob where
 
 instance ToYaml GitHubMatrixEntry where
     toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
-        [ "compiler" ~> fromString (dispGhcVersion ghmeCompiler)
-        , "allow-failure" ~> toYaml ghmeAllowFailure
+        [ "compiler"        ~> fromString (dispGhcVersion ghmeCompiler)
+        , "compilerKind"    ~> fromString (compilerKind ghmeCompiler)
+        , "compilerVersion" ~> fromString (compilerVersion ghmeCompiler)
+        , "allow-failure"   ~> toYaml ghmeAllowFailure
         ]
 
 instance ToYaml GitHubStep where
