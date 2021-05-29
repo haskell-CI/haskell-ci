@@ -27,56 +27,102 @@ jobs:
       matrix:
         include:
           - compiler: ghcjs-8.4
+            compilerKind: ghcjs
+            compilerVersion: "8.4"
             allow-failure: false
           - compiler: ghc-9.0.1
+            compilerKind: ghc
+            compilerVersion: 9.0.1
             allow-failure: false
           - compiler: ghc-8.10.4
+            compilerKind: ghc
+            compilerVersion: 8.10.4
             allow-failure: false
           - compiler: ghc-8.10.3
+            compilerKind: ghc
+            compilerVersion: 8.10.3
             allow-failure: false
           - compiler: ghc-8.10.2
+            compilerKind: ghc
+            compilerVersion: 8.10.2
             allow-failure: false
           - compiler: ghc-8.10.1
+            compilerKind: ghc
+            compilerVersion: 8.10.1
             allow-failure: false
           - compiler: ghc-8.8.4
+            compilerKind: ghc
+            compilerVersion: 8.8.4
             allow-failure: false
           - compiler: ghc-8.8.3
+            compilerKind: ghc
+            compilerVersion: 8.8.3
             allow-failure: false
           - compiler: ghc-8.8.2
+            compilerKind: ghc
+            compilerVersion: 8.8.2
             allow-failure: false
           - compiler: ghc-8.8.1
+            compilerKind: ghc
+            compilerVersion: 8.8.1
             allow-failure: false
           - compiler: ghc-8.6.5
+            compilerKind: ghc
+            compilerVersion: 8.6.5
             allow-failure: false
           - compiler: ghc-8.6.4
+            compilerKind: ghc
+            compilerVersion: 8.6.4
             allow-failure: false
           - compiler: ghc-8.6.3
+            compilerKind: ghc
+            compilerVersion: 8.6.3
             allow-failure: false
           - compiler: ghc-8.6.2
+            compilerKind: ghc
+            compilerVersion: 8.6.2
             allow-failure: false
           - compiler: ghc-8.6.1
+            compilerKind: ghc
+            compilerVersion: 8.6.1
             allow-failure: false
           - compiler: ghc-8.4.4
+            compilerKind: ghc
+            compilerVersion: 8.4.4
             allow-failure: false
           - compiler: ghc-8.4.3
+            compilerKind: ghc
+            compilerVersion: 8.4.3
             allow-failure: false
           - compiler: ghc-8.4.2
+            compilerKind: ghc
+            compilerVersion: 8.4.2
             allow-failure: false
           - compiler: ghc-8.4.1
+            compilerKind: ghc
+            compilerVersion: 8.4.1
             allow-failure: false
           - compiler: ghc-8.2.2
+            compilerKind: ghc
+            compilerVersion: 8.2.2
             allow-failure: false
           - compiler: ghc-8.2.1
+            compilerKind: ghc
+            compilerVersion: 8.2.1
             allow-failure: false
           - compiler: ghc-8.0.2
+            compilerKind: ghc
+            compilerVersion: 8.0.2
             allow-failure: false
           - compiler: ghc-8.0.1
+            compilerKind: ghc
+            compilerVersion: 8.0.1
             allow-failure: false
       fail-fast: false
     steps:
       - name: Set GHCJS environment variables
         run: |
-          if echo $CC | grep -q ghcjs; then
+          if [ $HCKIND = ghcjs ]; then
           echo "GHCJS=true" >> $GITHUB_ENV
           echo "GHCJSARITH=1" >> $GITHUB_ENV
           else
@@ -84,7 +130,9 @@ jobs:
           echo "GHCJSARITH=0" >> $GITHUB_ENV
           fi
         env:
-          CC: ${{ matrix.compiler }}
+          HC: ${{ matrix.compiler }}
+          HCKIND: ${{ matrix.compilerKind }}
+          HCVER: ${{ matrix.compilerVersion }}
       - name: apt
         run: |
           apt-get update
@@ -94,9 +142,11 @@ jobs:
           if [ $((GHCJSARITH)) -ne 0 ] ; then curl -sSL "https://deb.nodesource.com/gpgkey/nodesource.gpg.key" | apt-key add - ; fi
           if [ $((GHCJSARITH)) -ne 0 ] ; then apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x bionic main' ; fi
           apt-get update
-          if [ $((GHCJSARITH)) -ne 0 ] ; then apt-get install -y $CC cabal-install-3.4 ghc-8.4.4 nodejs ; else apt-get install -y $CC cabal-install-3.4 ; fi
+          if [ $((GHCJSARITH)) -ne 0 ] ; then apt-get install -y $HC cabal-install-3.4 ghc-8.4.4 nodejs ; else apt-get install -y $HC cabal-install-3.4 ; fi
         env:
-          CC: ${{ matrix.compiler }}
+          HC: ${{ matrix.compiler }}
+          HCKIND: ${{ matrix.compilerKind }}
+          HCVER: ${{ matrix.compilerVersion }}
       - name: Set PATH and environment variables
         run: |
           echo "$HOME/.cabal/bin" >> $GITHUB_PATH
@@ -104,7 +154,7 @@ jobs:
           echo "LANG=C.UTF-8" >> $GITHUB_ENV
           echo "CABAL_DIR=$HOME/.cabal" >> $GITHUB_ENV
           echo "CABAL_CONFIG=$HOME/.cabal/config" >> $GITHUB_ENV
-          HCDIR=$(echo "/opt/$CC" | sed 's/-/\//')
+          HCDIR=/opt/$HCKIND/$HCVER
           if [ $((GHCJSARITH)) -ne 0 ] ; then HCNAME=ghcjs ; else HCNAME=ghc ; fi
           HC=$HCDIR/bin/$HCNAME
           echo "HC=$HC" >> $GITHUB_ENV
@@ -118,7 +168,9 @@ jobs:
           echo "HEADHACKAGE=false" >> $GITHUB_ENV
           echo "ARG_COMPILER=--$HCNAME --with-compiler=$HC" >> $GITHUB_ENV
         env:
-          CC: ${{ matrix.compiler }}
+          HC: ${{ matrix.compiler }}
+          HCKIND: ${{ matrix.compilerKind }}
+          HCVER: ${{ matrix.compilerVersion }}
       - name: env
         run: |
           env
