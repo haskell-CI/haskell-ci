@@ -33,16 +33,6 @@ data HLintConfig = HLintConfig
 defaultHLintVersion :: VersionRange
 defaultHLintVersion = withinVersion (mkVersion [3,3])
 
-defaultHLintConfig :: HLintConfig
-defaultHLintConfig = HLintConfig
-    { cfgHLintEnabled  = False
-    , cfgHLintJob      = HLintJobLatest
-    , cfgHLintYaml     = Nothing
-    , cfgHLintVersion  = defaultHLintVersion
-    , cfgHLintOptions  = []
-    , cfgHLintDownload = True
-    }
-
 -------------------------------------------------------------------------------
 -- HLintJob
 -------------------------------------------------------------------------------
