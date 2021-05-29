@@ -22,27 +22,28 @@ import qualified Distribution.Parsec             as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.PackageName  as C
 import qualified Distribution.Types.Version      as C
-import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
 
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Docspec
 import HaskellCI.Config.Doctest
-import HaskellCI.Config.Folds
 import HaskellCI.Config.Empty
+import HaskellCI.Config.Folds
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
 import HaskellCI.Config.Ubuntu
+import HaskellCI.HeadHackage
 import HaskellCI.Newtypes
 import HaskellCI.OptionsGrammar
 import HaskellCI.ParsecUtils
 import HaskellCI.TestedWith
 
-defaultHeadHackage :: VersionRange
-defaultHeadHackage = C.orLaterVersion (C.mkVersion [9,1])
+-------------------------------------------------------------------------------
+-- Config
+-------------------------------------------------------------------------------
 
 -- TODO: split other blocks like DoctestConfig
 data Config = Config
@@ -82,6 +83,8 @@ data Config = Config
     , cfgLastInSeries        :: !Bool
     , cfgLinuxJobs           :: !VersionRange
     , cfgMacosJobs           :: !VersionRange
+    , cfgGhcupJobs           :: !VersionRange
+    , cfgGhcupVersion        :: !Version
     , cfgApt                 :: S.Set String
     , cfgTravisPatches       :: [FilePath]
     , cfgGitHubPatches       :: [FilePath]
@@ -100,6 +103,9 @@ data Config = Config
 defaultCabalInstallVersion :: Maybe Version
 defaultCabalInstallVersion = Just (C.mkVersion [3,4])
 
+defaultGhcupVersion :: Version
+defaultGhcupVersion = C.mkVersion [0,1,14,1]
+
 emptyConfig :: Config
 emptyConfig = case runEG configGrammar of
     Left xs -> error $ "Required fields: " ++ show xs
@@ -117,6 +123,7 @@ configGrammar
        , c (Identity Ubuntu)
        , c (Identity Jobs)
        , c (Identity CopyFields)
+       , c (Identity Version)
        , c Env, c Folds, c CopyFields, c HeadVersion
        , c (C.List C.FSep (Identity Installed) Installed)
        , Applicative (g DoctestConfig)
@@ -196,6 +203,10 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Jobs to build on Linux"
     <*> rangeField            "macos-jobs"                                                    (field @"cfgMacosJobs") noVersion
         ^^^ metahelp "RANGE" "Jobs to additionally build with OSX"
+    <*> rangeField            "ghcup-jobs"                                                    (field @"cfgGhcupJobs") noVersion
+        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup to install tools"
+    <*> C.optionalFieldDef    "ghcup-version"                                                 (field @"cfgGhcupVersion") defaultGhcupVersion
+        ^^^ metahelp "VERSION" "ghcup version"
     <*> C.monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    (field @"cfgApt")
         ^^^ metahelp "PKG" "Additional apt packages to install"
     <*> C.monoidalFieldAla    "travis-patches"            (C.alaList' C.NoCommaFSep C.Token') (field @"cfgTravisPatches")

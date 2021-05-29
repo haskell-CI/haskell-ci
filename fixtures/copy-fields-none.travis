@@ -176,7 +176,7 @@ install:
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo 'package servant-server' >> cabal.project ; fi
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - |
+  - ""
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant|servant-client|servant-docs|servant-server)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -218,7 +218,7 @@ script:
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo 'package servant-server' >> cabal.project ; fi
   - "if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
-  - |
+  - ""
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(servant|servant-client|servant-docs|servant-server)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
