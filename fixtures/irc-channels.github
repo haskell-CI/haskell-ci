@@ -196,7 +196,7 @@ jobs:
       - name: apt
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5
+          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5 libnuma-dev
           apt-add-repository -y 'ppa:hvr/ghc'
           apt-get update
           apt-get install -y "$HCNAME" cabal-install-3.4

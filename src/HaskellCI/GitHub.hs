@@ -127,7 +127,9 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         githubRun' "apt" envEnv $ do
             sh "apt-get update"
-            sh "apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5" -- libnuma-dev?
+            -- Installing libnuma-dev is required to work around
+            -- https://gitlab.haskell.org/haskell/ghcup-hs/-/blob/b0522507be6fa991a819aaf22f9a551757380821/README.md#libnuma-required
+            sh "apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5 libnuma-dev"
 
             hvrppa <- runSh $ do
                 sh "apt-add-repository -y 'ppa:hvr/ghc'"
