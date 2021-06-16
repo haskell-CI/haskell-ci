@@ -74,7 +74,8 @@ findConfig = do
     case env of
         Just p -> return p
         Nothing -> do
-            cabalDir <- maybe (getAppUserDataDirectory "cabal") pure =<< lookupEnv "CABAL_DIR"
+            cabalDirVar <- lookupEnv "CABAL_DIR"
+            cabalDir <- maybe (getAppUserDataDirectory "cabal") return cabalDirVar
             return (cabalDir </> "config")
 
 -------------------------------------------------------------------------------
