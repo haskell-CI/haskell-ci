@@ -6,10 +6,3 @@ tests: True
 package haskell-ci
   ghc-options: -Wall
   ghc-options: -Werror
-
-allow-newer: cryptohash-sha256:base
-allow-newer: generic-lens-lite:base
-allow-newer: HsYAML:base
-allow-newer: cassava-0.5.2.0:base
-allow-newer: vector-th-unbox-0.2.1.7:base
-allow-newer: vector-th-unbox-0.2.1.7:template-haskell
