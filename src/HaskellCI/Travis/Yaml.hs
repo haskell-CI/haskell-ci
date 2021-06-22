@@ -60,6 +60,8 @@ data TravisIRC = TravisIRC
     { tiChannels :: [String]
     , tiSkipJoin :: Bool
     , tiTemplate :: [String]
+    , tiNick     :: Maybe String
+    , tiPassword :: Maybe String
     }
   deriving Show
 
@@ -165,11 +167,14 @@ instance ToYaml TravisNotifications where
         unless tnEmail $ item $ "email" ~> toYaml False
 
 instance ToYaml TravisIRC where
-    toYaml TravisIRC {..} = ykeyValuesFilt []
-        [ "channels"  ~> YList [] (map fromString tiChannels)
-        , "skip_join" ~> toYaml tiSkipJoin
-        , "template"  ~> YList [] (map fromString tiTemplate)
-        ]
+    toYaml TravisIRC {..} = ykeyValuesFilt [] $ buildList $ do
+        item $ "channels"  ~> YList [] (map fromString tiChannels)
+        item $ "skip_join" ~> toYaml tiSkipJoin
+        item $ "template"  ~> YList [] (map fromString tiTemplate)
+        for_ tiNick $ \n ->
+            item $ "nick" ~> fromString n
+        for_ tiPassword $ \p ->
+            item $ "password" ~> fromString p
 
 instance ToYaml TravisCache where
     toYaml TravisCache {..} = ykeyValuesFilt []

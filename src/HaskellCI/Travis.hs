@@ -444,6 +444,8 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 , tiTemplate =
                     [ "\x0313" ++ projectName ++ "\x03/\x0306%{branch}\x03 \x0314%{commit}\x03 %{build_url} %{message}"
                     ]
+                , tiNick     = cfgIrcNickname
+                , tiPassword = cfgIrcPassword
                 }
             , tnEmail = cfgEmailNotifications
             }
