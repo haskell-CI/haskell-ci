@@ -346,7 +346,6 @@ Real-world Examples
 -------------------
 
  - [lens](https://github.com/ekmett/lens) [![Build Status](https://travis-ci.org/ekmett/lens.png?branch=master)](https://travis-ci.org/ekmett/lens)
- - [bytestring](https://github.com/haskell/bytestring) [![Build Status](https://travis-ci.org/haskell/bytestring.png?branch=master)](https://travis-ci.org/haskell/bytestring)
  - [Cabal](https://github.com/haskell/cabal) [![Build Status](https://travis-ci.org/haskell/cabal.png?branch=master)](https://travis-ci.org/haskell/cabal)
  - [deepseq-generics](https://github.com/hvr/deepseq-generics) [![Build Status](https://travis-ci.org/hvr/deepseq-generics.png?branch=master)](https://travis-ci.org/hvr/deepseq-generics)
  - [filepath](https://github.com/ghc/packages-filepath)  [![Build Status](https://travis-ci.org/ghc/packages-filepath.png)](https://travis-ci.org/ghc/packages-filepath)
