@@ -56,6 +56,7 @@ import HaskellCI.Bash
 import HaskellCI.Cli
 import HaskellCI.Compiler
 import HaskellCI.Config
+import HaskellCI.Config.Diff
 import HaskellCI.Config.Dump
 import HaskellCI.Diagnostics
 import HaskellCI.GitConfig
@@ -88,6 +89,17 @@ main = do
         CommandDumpConfig -> do
             putStr $ unlines $ runDG configGrammar
 
+        CommandDiffConfig cfg fp Nothing -> do
+            newConfig <- configFromRegenOrConfigFile fp
+
+            let oldConfig = optConfigMorphism opts emptyConfig
+            putStr . unlines $ diffConfigs cfg configGrammar oldConfig newConfig
+
+        CommandDiffConfig cfg oldConfigFp (Just newConfigFp) -> do
+            oldConfig <- configFromRegenOrConfigFile oldConfigFp
+            newConfig <- configFromRegenOrConfigFile newConfigFp
+            putStr . unlines $ diffConfigs cfg configGrammar oldConfig newConfig
+
         CommandRegenerate -> do
             regenerateBash opts
             regenerateGitHub opts
@@ -113,6 +125,26 @@ main = do
 
     ifor_ :: Map.Map k v -> (k -> v -> IO a) -> IO ()
     ifor_ xs f = Map.foldlWithKey' (\m k a -> m >> void (f k a)) (return ()) xs
+
+-------------------------------------------------------------------------------
+-- Diffing
+-------------------------------------------------------------------------------
+configFromRegenOrConfigFile :: FilePath -> IO Config
+configFromRegenOrConfigFile fp = do
+    withContents fp noFile $ \contents -> case findRegendataArgv contents of
+        Nothing     -> readConfigFile fp
+        Just (mversion, argv) -> do
+            -- warn if we regenerate using older haskell-ci
+            for_ mversion $ \version -> for_ (simpleParsec haskellCIVerStr) $ \haskellCIVer ->
+                when (haskellCIVer < version) $ do
+                    putStrLnWarn $ "Regenerating using older haskell-ci-" ++ haskellCIVerStr
+                    putStrLnWarn $ "File generated using haskell-ci-" ++ prettyShow version
+
+            opts <- snd <$> parseOptions argv
+            optConfigMorphism opts <$> findConfigFile (optConfig opts)
+  where
+    noFile :: IO Config
+    noFile = putStrLnErr $ "No file named \"" ++ fp ++ "\" exists."
 
 -------------------------------------------------------------------------------
 -- Travis

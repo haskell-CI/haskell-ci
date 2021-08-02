@@ -19,6 +19,7 @@ import qualified Distribution.Pretty             as C
 import qualified Text.PrettyPrint                as PP
 
 import HaskellCI.OptionsGrammar
+import HaskellCI.Config.Empty (runEG)
 
 data ShowDiffOptions = ShowAllOptions | ShowChangedOptions
     deriving (Eq, Show, Generic, Binary)
@@ -46,6 +47,11 @@ diffConfigGrammar = DiffConfig
         ^^^ help "Which fields to show"
     <*> C.booleanFieldDef "diff-show-old" (field @"diffShowOld") False
         ^^^ help "Show the old values for every field"
+
+defaultDiffConfig :: DiffConfig
+defaultDiffConfig = case runEG diffConfigGrammar of
+    Left xs -> error $ "Required fields: " ++ show xs
+    Right x -> x
 
 newtype DiffOptions s a =
   DiffOptions { runDiffOptions :: (s, s) -> DiffConfig -> [String] }
@@ -98,7 +104,7 @@ instance C.FieldGrammar C.Pretty DiffOptions where
     optionalFieldAla fn pack valueLens = DiffOptions $
         diffUnique toPretty toPretty fn valueLens
       where
-        toPretty = maybe "" C.prettyShow . fmap pack
+        toPretty = maybe "" (C.prettyShow . pack)
 
     optionalFieldDefAla fn pack valueLens _ = DiffOptions $
         diffUnique id (C.prettyShow . pack) fn valueLens
