@@ -15,6 +15,7 @@ import qualified Distribution.PackageDescription               as C
 import qualified Distribution.PackageDescription.Configuration as C
 import qualified Distribution.Pretty                           as C
 import qualified Distribution.Types.VersionRange               as C
+import qualified Distribution.Utils.Path                       as C
 import qualified Distribution.Version                          as C
 
 import qualified Distribution.Types.BuildInfo.Lens          as L
@@ -60,7 +61,7 @@ libraryModuleArgs l
 
     dirsOrMods
         | null (C.hsSourceDirs bi) = map C.prettyShow (C.exposedModules l)
-        | otherwise                 = C.hsSourceDirs bi
+        | otherwise                = map C.getSymbolicPath $ C.hsSourceDirs bi
 
     exts = map (("-X" ++) . C.prettyShow) (C.defaultExtensions bi)
 
@@ -74,7 +75,7 @@ executableModuleArgs e
     dirsOrMods
         -- note: we don't try to find main_is location, if hsSourceDirs is empty.
         | null (C.hsSourceDirs bi) = map C.prettyShow (C.otherModules bi)
-        | otherwise                 = C.hsSourceDirs bi
+        | otherwise                = map C.getSymbolicPath $ C.hsSourceDirs bi
 
     exts = map (("-X" ++) . C.prettyShow) (C.defaultExtensions bi)
 
