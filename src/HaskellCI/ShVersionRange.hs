@@ -122,12 +122,12 @@ ghcVersionPredicate' = conj . C.asVersionIntervals
     conj = joins . map disj
 
     disj :: C.VersionInterval -> Free String
-    disj (C.LowerBound v C.InclusiveBound, C.UpperBound u C.InclusiveBound)
+    disj (C.VersionInterval (C.LowerBound v C.InclusiveBound) (C.UpperBound u C.InclusiveBound))
         | v == u                = Var ("HCNUMVER == " ++ f v)
-    disj (lb, C.NoUpperBound)
+    disj (C.VersionInterval lb C.NoUpperBound)
         | isInclZero lb         = top
         | otherwise             = Var (lower lb)
-    disj (lb, C.UpperBound v b)
+    disj (C.VersionInterval lb (C.UpperBound v b))
         | isInclZero lb         = Var (upper v b)
         | otherwise             = Var (lower lb) /\ Var (upper v b)
 

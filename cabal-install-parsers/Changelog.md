@@ -1,3 +1,7 @@
+## 0.4.3
+
+- Use `Cabal-3.6`
+
 ## 0.4.2
 
 - `findConfig` respects `CABAL_DIR` environment variable

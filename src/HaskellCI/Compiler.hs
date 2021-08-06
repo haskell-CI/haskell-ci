@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-deprecations #-}
 -- | This module encodes what we know about GHC, including existing/supported versions.
 module HaskellCI.Compiler (
     -- * Compiler version
@@ -28,7 +29,8 @@ module HaskellCI.Compiler (
 
 import HaskellCI.Prelude
 
-import Distribution.Version (hasUpperBound, invertVersionRange, versionNumbers, withinRange)
+import Distribution.Types.VersionInterval.Legacy (fromVersionIntervals, invertVersionIntervals, toVersionIntervals)
+import Distribution.Version                      (hasUpperBound, versionNumbers, withinRange)
 
 import qualified Data.Set            as S
 import qualified Distribution.Pretty as C
@@ -113,6 +115,9 @@ invertCompilerRange RangeGHCJS       = RangeGHC
 invertCompilerRange (RangeInter a b) = RangeUnion (invertCompilerRange a) (invertCompilerRange b)
 invertCompilerRange (RangeUnion a b) = RangeInter (invertCompilerRange a) (invertCompilerRange b)
 invertCompilerRange (RangePoints vs) = RangePoints (S.difference allCompilerVersions vs)
+
+invertVersionRange :: VersionRange -> VersionRange
+invertVersionRange = fromVersionIntervals . invertVersionIntervals . toVersionIntervals
 
 -------------------------------------------------------------------------------
 -- Known versions
