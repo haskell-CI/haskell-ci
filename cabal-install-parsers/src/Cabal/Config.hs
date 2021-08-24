@@ -74,9 +74,14 @@ findConfig = do
     case env of
         Just p -> return p
         Nothing -> do
-            cabalDirVar <- lookupEnv "CABAL_DIR"
-            cabalDir <- maybe (getAppUserDataDirectory "cabal") return cabalDirVar
+            cabalDir <- findCabalDir
             return (cabalDir </> "config")
+
+-- | Find the @~\/.cabal@ dir.
+findCabalDir :: IO FilePath
+findCabalDir = do
+    cabalDirVar <- lookupEnv "CABAL_DIR"
+    maybe (getAppUserDataDirectory "cabal") return cabalDirVar
 
 -------------------------------------------------------------------------------
 -- Config
@@ -174,7 +179,7 @@ repoGrammar = Repo
 -- | Fill the default in @~\/.cabal\/config@  file.
 resolveConfig :: Config Maybe -> IO (Config Identity)
 resolveConfig cfg = do
-    c <- getAppUserDataDirectory "cabal"
+    c <- findCabalDir
     return cfg
         { cfgRemoteRepoCache = Identity $ fromMaybe (c </> "packages") (cfgRemoteRepoCache cfg)
         , cfgInstallDir      = Identity $ fromMaybe (c </> "bin")      (cfgInstallDir cfg)
