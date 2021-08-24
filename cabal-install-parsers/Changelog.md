@@ -1,6 +1,7 @@
 ## 0.4.3
 
 - Use `Cabal-3.6`
+- `resolveConfig` respects `CABAL_DIR` environment variable
 
 ## 0.4.2
 
