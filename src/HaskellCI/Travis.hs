@@ -402,6 +402,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 let allFlags        = unwords (testFlag : benchFlag : constraintFlags)
 
                 foldedSh' FoldConstraintSets name ("Constraint set " ++ name) cfgFolds $ do
+                    shForCs $ cabal $ "v2-build $WITHCOMPILER " ++ allFlags ++ " --dependencies-only -j2 all"
                     shForCs $ cabal $ "v2-build $WITHCOMPILER " ++ allFlags ++ " all"
                     when (csRunTests cs) $
                         shForCs' hasTests $ cabal $ "v2-test $WITHCOMPILER " ++ allFlags ++ " all --test-show-details=direct"

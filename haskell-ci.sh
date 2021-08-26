@@ -548,6 +548,7 @@ run_cmd $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
 put_info "constraint sets"
 run_cmd rm -f cabal.project.local
 put_info "constraint set deepseq-1.4"
+run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' --dependencies-only -j all
 run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all
 run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all
 

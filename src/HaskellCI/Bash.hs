@@ -222,6 +222,7 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
                 let allFlags        = unwords (testFlag : benchFlag : constraintFlags)
 
                 put_info $ "constraint set " ++ name
+                run_cmd_cs $ "$CABAL v2-build $ARG_COMPILER " ++ allFlags ++ " --dependencies-only -j all"
                 run_cmd_cs $ "$CABAL v2-build $ARG_COMPILER " ++ allFlags ++ " all"
                 when (csRunTests cs) $
                     run_cmd_cs' hasTests $ "$CABAL v2-test $ARG_COMPILER " ++ allFlags ++ " all"
