@@ -1,84 +1,66 @@
-Multiple [GHC](http://haskell.org/ghc) Versions for [Travis-CI](https://travis-ci.org) [![Build](https://img.shields.io/travis/haskell-CI/haskell-ci.svg)](https://travis-ci.org/haskell-CI/haskell-ci)
+Haskell-CI: Continuous Integration for Haskell [![Hackage](https://img.shields.io/hackage/v/haskell-ci.svg)](https://hackage.haskell.org/package/haskell-ci)[![Travis Build](https://img.shields.io/travis/haskell-CI/haskell-ci.svg)](https://travis-ci.org/haskell-CI/haskell-ci)[![Build Status](https://github.com/haskell-CI/haskell-ci/workflows/Haskell-CI/badge.svg)](https://github.com/haskell-CI/haskell-ci/actions?query=workflow%3Ahaskell-ci)
 ============================================================
 
-The purpose of this document is to describe how to set up the [`.travis.yml` script](http://about.travis-ci.org/docs/user/build-configuration/) in order to build and test your [cabalized](http://www.haskell.org/cabal) Haskell package with multiple [GHC](http://haskell.org/ghc) configurations.
-At time of writing [Travis-CI](https://travis-ci.org/) has [support for building Haskell packages](http://about.travis-ci.org/docs/user/languages/haskell/) but only for a single GHC configuration (i.e. *Haskell Platform 2012.2.0.0 with GHC 7.4.1*). By following this guide, you can set up [Travis-CI](https://travis-ci.org/) jobs which have access to the following GHC versions (all compiled for *Ubuntu Linux 12.04 LTS 64-bit*):
+This project provides a script generator for continuous-integration testing of Haskell packages. It currently provides substantive support for:
 
- - GHC 6.12.3,
- - GHC 7.0.1, GHC 7.0.2, GHC 7.0.3, GHC 7.0.4,
- - GHC 7.2.1, GHC 7.2.2,
- - GHC 7.4.1, GHC 7.4.2,
- - GHC 7.6.1, GHC 7.6.2, GHC 7.6.3,
- - GHC 7.8.1, GHC 7.8.2, GHC 7.8.3, GHC 7.8.4
- - GHC 7.10.1, GHC 7.10.2, GHC 7.10.3
- - GHC 8.0.1, GHC 8.0.2
- - GHC 8.2.1, GHC 8.2.2
- - GHC 8.4.1, GHC 8.4.2, GHC 8.4.3, GHC 8.4.4
- - GHC 8.6.1, GHC 8.6.2, GHC 8.6.3, GHC 8.6.4, GHC 8.6.5
- - GHC 8.8.1, GHC 8.8.2, GHC 8.8.3, GHC-8.8.4
- - GHC 8.10.1, GHC-8.10.2, GHC-8.10.3, GHC-8.10.4
- - GHC 9.0.1
- - GHC HEAD.
+- [Travis-CI](https://travis-ci.org/)
+- [GitHub Actions](https://docs.github.com/en/actions)
 
-Each GHC version is provided in a separate `ghc-<version>` `.deb` package installing into `/opt/ghc/<version>` (thus allowing to be installed at the same time if needed) published in a [PPA](https://launchpad.net/~hvr/+archive/ghc). The easiest way to "activate" a particular GHC version is to prepend its `bin`-folder to the `$PATH` environment variable (see example in next section).
+Features include:
 
-Note: For actually enabling continuous integration for a GitHub hosted project, see section [Getting Started](http://about.travis-ci.org/docs/user/getting-started/) in [Travis-CI](https://travis-ci.org/)'s online documentation.
+- Multiple [GHC](http://haskell.org/ghc) support
+- Building with specific constraints
+- Dependency caching
+- cabal and cabal.project support (see [Nix-style local builds documentation](https://cabal.readthedocs.io/en/latest/nix-local-build-overview.html))
+- Runs tests and builds benchmarks
+- Support for Haskell build tools, including [Haddock](https://hackage.haskell.org/package/haddock), [GHCJS](https://github.com/ghcjs/ghcjs) & [HLint](https://hackage.haskell.org/package/hlint)
+- doctest runner integration using either [doctest](https://hackage.haskell.org/package/doctest) or [cabal-docspec](https://github.com/phadej/cabal-extras/blob/master/cabal-docspec/MANUAL.md).
 
-### Quick-start instructions
+Usage
+---
 
-* Step 1: Clone and install this project in/from any directory
+See `haskell-ci --help` for details.
 
-    ```bash
-    $ git clone https://github.com/haskell-CI/haskell-ci.git
-    $ cd haskell-ci
-    $ cabal new-install haskell-ci:exe:haskell-ci
-    ```
+1. Install `haskell-ci`
 
-  or
+```bash
+cabal install haskell-ci
+```
 
-    ```bash
-    cabal new-install haskell-ci
-    ```
+2. Add a `tested-with` line to your .cabal file (e.g. `tested-with: GHC == 8.10.4 || == 9.0.1`)
 
-    *Note:* currently (2019-02-12) released version of `haskell-ci` installs
-    an executable named `make-travis-yml`
+3. Create a configuration file. A good starting point for this is the `dump-config` command eg
 
-* Step 2: Change directories to your project:
+``` shell
+haskell-ci dump-config > haskell-ci.config
+```
 
-    ```bash
-    $ cd path/to/your-project
-    ```
+4. Run the `github` or `travis` commands as appropriate to your workflow. eg
 
-* Step 3: Edit your project's `*.cabal` file to add a `Tested-With` line, such as this one:
+``` shell
+haskell-ci github '--config=haskell-ci.config' 'cabal.project' --output .github/workflows/haskell-ci.yml
+```
+
+``` shell
+haskell-ci travis '--config=haskell-ci.config' 'cabal.project' --output .travis.yml
+```
+
+5. Push your project adding the files created, which should trigger the appropriate CI for your setup.
+
+GitHub actions example:
 
     ```bash
-    $ cat your-project.cabal
-    ...
-    Tested-With: GHC ==8.6.3 || ==8.4.4 || ==8.2.2
-    ...
-    ```
-    
-    Add as many or as few GHC versions to test as you want.
-
-* Step 4: Generate a Travis file for your project:
-
-    ```bash
-    $ # You run the following command from your project's directory, even
-    $ # though it references the script from the `haskell-ci` project
-    $ haskell-ci your-project.cabal --output .travis.yml
+    $ git checkout master            # Check out `master`
+    $ git pull --ff-only             # Get the latest version of `master`
+    $ git checkout -b new_action     # Create a `new_action` branch
+    $ git add .github/workflows/haskell-ci.yml
+    $ git commit -m "New action"
+    $ git push -u origin new_action  # Push your branch upstream
     ```
 
-    Note: If you have multiple local Cabal projects that you wish to build together
-    using a `cabal.project` file, pass that file to haskell-ci instead:
-    ```bash
-    $ haskell-ci cabal.project --output .travis.yml
-    ```
+GitHub actions will automatically be triggered.
 
-    The `haskell-ci` tool looks at the `Tested-With` line in your
-    `*.cabal` files and generates a Travis build that tests each compiler
-    version you listed in parallel.
-
-* Step 5: Create a branch with your new Travis file and push your branch:
+Travis-CI example:
 
     ```bash
     $ git checkout master            # Check out `master`
@@ -92,21 +74,21 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
     If you have Travis enabled for your repository this will test your branch
     using your newly created Travis file.  This lets you test the Travis script
     before merging the new script into `master`.
-    
-* Step 6: Fix the build
+
+6. Fix the build
 
     If you're lucky, your repository will build for every compiler version
     you listed.  If that's the case, then just merge your changes into `master`:
     
     ```bash
     $ git checkout master
-    $ git merge new_travis  # Update `master` with your new Travis script
+    $ git merge new_action  # Update `master` with your new script
     $ git push
     ```
     
-    You can also merge your branch into `master` from Github's pull request view.
+    You can also merge your branch into `master` from GitHub's pull request view.
     
-    If you're not lucky, then your new Travis branch will fail for one or more
+    If you're not lucky, then your new branch will fail for one or more
     versions of GHC, which is okay!  Look at the build and fix any build failures
     you find and commit the fixes to your branch:
     
@@ -123,207 +105,45 @@ Note: For actually enabling continuous integration for a GitHub hosted project, 
     Each time you push an update to your branch Travis will run again to see if
     any build failures still remain.  Repeat this process until your project
     builds against each GHC version you listed.  Once your project builds against
-    each target version of GHC you can merge your Travis script into `master`
+    each target version of GHC you can merge your script into `master`
 
-### Add-on Packages
+7. Add a badge.
 
-For convenience, a few add-on packages are available to provide more recent versions of `cabal`, `alex` and `happy` than are available in Ubuntu 12.04.
+To add a badge to your project readme, signalling build status, follow these templates:
 
-They install into a respective `/opt/<name>/<version>/bin` folder (see table below) which can be put into the search `$PATH`. 
+For Travis-CI:
 
-There's also a `/opt/ghc/bin` (& `/opt/cabal/bin`) folder which contains version-suffixed symlinks to installed GHC versions for convenient use with `cabal` (e.g. "`cabal new-build -w ghc-7.8.4`"), as well as symlinks managed by [`update-alternatives(1)`](https://manpages.debian.org/unstable/dpkg/update-alternatives.1.en.html) which can be configured via
-
-    sudo update-alternatives --config opt-ghc
-    sudo update-alternatives --config opt-cabal
-
-Note that `/opt/ghc/bin` also contains a default symlink for `cabal`, so it's enough to include `/opt/ghc/bin` in your PATH to get access to both `cabal` and `ghc`.
-
-| `.deb` Package Name  | Executable
-| -------------------- | ----------
-| `cabal-install-1.16` | `/opt/cabal/1.16/bin/cabal`
-| `cabal-install-1.18` | `/opt/cabal/1.18/bin/cabal`
-| `cabal-install-1.20` | `/opt/cabal/1.20/bin/cabal`
-| `cabal-install-1.22` | `/opt/cabal/1.22/bin/cabal`
-| `cabal-install-1.24` | `/opt/cabal/1.24/bin/cabal`
-| `cabal-install-2.0`  | `/opt/cabal/2.0/bin/cabal`
-| `cabal-install-2.2`  | `/opt/cabal/2.2/bin/cabal`
-| `cabal-install-2.4`  | `/opt/cabal/2.4/bin/cabal`
-| `cabal-install-head` | `/opt/cabal/head/bin/cabal`
-| `alex-3.1.3`         | `/opt/alex/3.1.3/bin/alex`
-| `alex-3.1.4`         | `/opt/alex/3.1.4/bin/alex`
-| `alex-3.1.7`         | `/opt/alex/3.1.7/bin/alex`
-| `happy-1.19.3`       | `/opt/happy/1.19.3/bin/happy`
-| `happy-1.19.4`       | `/opt/happy/1.19.4/bin/happy`
-| `happy-1.19.5`       | `/opt/happy/1.19.5/bin/happy`
-
-
-See examples below for how to use those.
-
-`.travis.yml` (for container-based infrastructure)
---------------------------------------------------
-
-Since 2015, Travis-CI is migrating build-jobs towards a [contained-based infrastructure](http://docs.travis-ci.com/user/workers/container-based-infrastructure/) which requires a different way to setup the build-matrix in the first half of the `.travis.yml`.
-
-The following `.travis.yml` snippet shows the different `matrix` and
-`before_install` sections (relative to the non-container
-`.travis.yml`):
-
-```yaml
-language: c
-
-# explicitly request container-based infrastructure
-sudo: false
-
-matrix:
-  include:
-    - env: CABALVER=1.16 GHCVER=7.6.3
-      addons: {apt: {packages: [cabal-install-1.16,ghc-7.6.3], sources: [hvr-ghc]}}
-    - env: CABALVER=1.18 GHCVER=7.8.4
-      addons: {apt: {packages: [cabal-install-1.18,ghc-7.8.4], sources: [hvr-ghc]}}
-    - env: CABALVER=1.22 GHCVER=7.10.1
-      addons: {apt: {packages: [cabal-install-1.22,ghc-7.10.1],sources: [hvr-ghc]}}
-    - env: CABALVER=head GHCVER=head
-      addons: {apt: {packages: [cabal-install-head,ghc-head],  sources: [hvr-ghc]}}
-
-  allow_failures:
-   - env: CABALVER=head GHCVER=head
-
-before_install:
- - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
+``` bash
+[![Travis Build](https://img.shields.io/travis/<your name>/<repo name>.svg)](https://travis-ci.org/<your name>/<repo name>)
 ```
 
-#### Caching dependencies & `.travis.yml` script generator
+For a GitHub action:
 
-The top-level `tested-with:` field has a similiar syntax to the `build-depends:` field but with compilers instead of packages. The script contains a list of known GHC versions and emits entries for all matching versions. Here are a few examples:
-
-```
-tested-with: GHC >= 7.4 && < 7.8
--- selects GHC 7.4.1, 7.4.2, 7.6.1, 7.6.2, and 7.6.3
-
-tested-with: GHC == 7.4.2, GHC == 7.6.3, GHC == 7.8.4, GHC == 7.11.*
--- selects GHC 7.4.2, 7.6.3, 7.8.4, and GHC HEAD
+``` bash
+[![Build Status](https://github.com/<your name>/<repo name>/workflows/<github action name>/badge.svg)](https://github.com/<your name>/<repo name>/actions?query=workflow%3A<github action name>)
 ```
 
-If you need additional Ubuntu packages installed (e.g. `alex-3.1.5` or `libxml-dev`), you can pass the Ubuntu package names as additional commandline arguments after the `.cabal` filename argument.
+Support & Development
+---
 
-### Known Issues
+The intention of the package is to support modern continuous integration for Haskell projects. Given this intent, and given the nature of rapid development of GHC and Haskell tooling, this project requires active maintenance and development. 
 
-- The container environment reports 16 cores, causing `cabal`'s default configuration (`jobs: $ncpus`) to run into the [GHC #9221](https://ghc.haskell.org/trac/ghc/ticket/9221) bug which can result in longer build-times. This can be workarounded by commenting out the `jobs: $ncpus` right after `cabal update` creates that file:
+There are likely to be delays between support for GHC versions and new project releases. Users who are developing and tracking close to latest release should install `haskell-ci` directly from the repository; eg
 
-    ```yaml
-    install:
-    # ...
-      - travis_retry cabal update
-      - sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
-    # ...
-    ```
-
-
-`.travis.yml` Template (for non-container-based infrastructure)
----------------------------------------------------------------
-
-Below is a commented `.travis.yml` example that can be used as a template:
-
-```yaml
-# NB: don't set `language: haskell` here
-
-# explicitly request legacy non-sudo based build environment
-sudo: required
-
-# The following enables several GHC versions to be tested; often it's enough to test only against the last release in a major GHC version. Feel free to omit lines listings versions you don't need/want testing for.
-env:
- - CABALVER=1.16 GHCVER=6.12.3
- - CABALVER=1.16 GHCVER=7.0.1
- - CABALVER=1.16 GHCVER=7.0.2
- - CABALVER=1.16 GHCVER=7.0.3
- - CABALVER=1.16 GHCVER=7.0.4
- - CABALVER=1.16 GHCVER=7.2.1
- - CABALVER=1.16 GHCVER=7.2.2
- - CABALVER=1.16 GHCVER=7.4.1
- - CABALVER=1.16 GHCVER=7.4.2
- - CABALVER=1.16 GHCVER=7.6.1
- - CABALVER=1.16 GHCVER=7.6.2
- - CABALVER=1.18 GHCVER=7.6.3
- - CABALVER=1.18 GHCVER=7.8.1  # see note about Alex/Happy for GHC >= 7.8
- - CABALVER=1.18 GHCVER=7.8.2
- - CABALVER=1.18 GHCVER=7.8.3
- - CABALVER=1.18 GHCVER=7.8.4
- - CABALVER=1.22 GHCVER=7.10.1
- - CABALVER=1.22 GHCVER=7.10.2
- - CABALVER=head GHCVER=head   # see section about GHC HEAD snapshots
-
-# Note: the distinction between `before_install` and `install` is not important.
-before_install:
- - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
- - travis_retry sudo apt-get update
- - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER # see note about happy/alex
- - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
-
-install:
- - cabal --version
- - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
- - travis_retry cabal update
- - cabal install --only-dependencies --enable-tests --enable-benchmarks
-
-# Here starts the actual work to be performed for the package under test; any command which exits with a non-zero exit code causes the build to fail.
-script:
- - if [ -f configure.ac ]; then autoreconf -i; fi
- - cabal configure --enable-tests --enable-benchmarks -v2  # -v2 provides useful information for debugging
- - cabal build   # this builds all libraries and executables (including tests/benchmarks)
- - cabal test
- - cabal check
- - cabal sdist   # tests that a source-distribution can be generated
-
-# Check that the resulting source distribution can be built & installed.
-# If there are no other `.tar.gz` files in `dist`, this can be even simpler:
-# `cabal install --force-reinstalls dist/*-*.tar.gz`
- - SRC_TGZ=$(cabal info . | awk '{print $2;exit}').tar.gz &&
-   (cd dist && cabal install --force-reinstalls "$SRC_TGZ")
-
+``` bash
+git clone https://github.com/haskell-CI/haskell-ci.git
+cd haskell-ci
+cabal install haskell-ci:exe:haskell-ci
 ```
 
-For more information about the `.travis.yml` script please consult the
-[official documentation](http://about.travis-ci.org/docs/user/build-configuration/).
+Given the evolving nature of the Haskell tool-set, options and configuration will continue to undergo transformation. New CI practices will cause change, some existing functionality may cease to be supported, or become non-standard practice. 
 
-### Haskell Platform Configurations
+At time of writing (August 2021):
 
-Basic idea: Generate a `cabal.config` file during the build job (before installing the build-dependencies) constraining to HP package versions, e.g. for HP 2013.2.0.0 the `cabal.config` would need to contain the following constraints definition:
-
-```
-constraints: async==2.0.1.4,attoparsec==0.10.4.0,case-insensitive==1.0.0.1,cgi==3001.1.7.5,fgl==5.4.2.4,GLUT==2.4.0.0,GLURaw==1.3.0.0,haskell-src==1.0.1.5,hashable==1.1.2.5,html==1.0.1.2,HTTP==4000.2.8,HUnit==1.2.5.2,mtl==2.1.2,network==2.4.1.2,OpenGL==2.8.0.0,OpenGLRaw==1.3.0.0,parallel==3.2.0.3,parsec==3.1.3,QuickCheck==2.6,random==1.0.1.1,regex-base==0.93.2,regex-compat==0.95.1,regex-posix==0.95.2,split==0.2.2,stm==2.4.2,syb==0.4.0,text==0.11.3.1,transformers==0.3.0.0,unordered-containers==0.2.3.0,vector==0.10.0.1,xhtml==3000.2.1,zlib==0.5.4.1
-```
-
-Use [this `.travis.yml` script](.travis.yml) as a template if you want
-to test against Haskell Platform configurations.
-
-### Alex & Happy with GHC ≥ 7.8
-
-If your package (or one of its dependencies) contain Alex/Happy generated parsers, GHC 7.8.1 and later require a more recent `alex`/`happy` executable installed (see [Happy, Alex, and GHC 7.8](http://ro-che.info/articles/2014-03-08-happy-alex-ghc-7.8.html) for the gory details). The following snipped (stolen from `lens`'s [`.travis.yaml`](https://github.com/ekmett/lens/blob/master/.travis.yml)) illustrates how to this can be accomplished:
-
-```yaml
- - |
-   if [ $GHCVER = "head" ] || [ ${GHCVER%.*} = "7.8" ] || [ ${GHCVER%.*} = "7.10" ]; then
-     travis_retry sudo apt-get install happy-1.19.4 alex-3.1.3
-     export PATH=/opt/alex/3.1.3/bin:/opt/happy/1.19.4/bin:$PATH
-   else
-     travis_retry sudo apt-get install happy alex
-   fi
-```
-
-### GHC HEAD Snapshots
-
- - Snapshots of current GHC development snapshots from the `master` branch (aka *GHC HEAD*) are uploaded at irregular intervals to the PPA
- - You can select *GHC HEAD* at your own risk by setting `GHCVER=head`
- - As GHC HEAD is experimental and likely to cause build failures, you might want to [tolerate failures](http://about.travis-ci.org/docs/user/build-configuration/#Rows-That-are-Allowed-To-Fail) by adding the following snippet to your `.travis.yml`:
-
-    ```yaml
-    matrix:
-      allow_failures:
-       - env: CABALVER=head GHCVER=head
-    ```
-
- - NB: the line in `matrix.allow_failures.env` must match exactly
-   (including any whitespace) the line specified in `env`
+- GitHub action support continues active development, and Travis-CI support is being maintained.
+- `ghcup` is starting to be used to help configure builds, replacing the current reliance on PPA.
+- macos support has been recently introduced and is in a testing phase.
+- GHC snapshots are no longer uploaded to PPA, and the `ghc-head` configuration option is thus unsupported. `ghcup` can be used to test prereleases by adding the recent version to the `tested-with`. For example, at time of writing `tested-with: GHC ==8.10.4 || ==9.2.0.20210821` creates a test that includes the 9.2 RC3 release.
 
 Ideas for Additional Checks
 ---------------------------
@@ -332,23 +152,31 @@ Ideas for Additional Checks
  - Check for unused `build-depends` with [`packunused`](http://hackage.haskell.org/package/packunused)
  - Check for 100% Haddock coverage
  - Check for trailing whitespaces and/or tabs in source files
-
-Random Remarks
---------------
-
- - If you want to know which core library version each GHC used (e.g. for deciding on what upper/lower bounds to declare for `build-depends`), see [GHC Boot Library Version History](http://ghc.haskell.org/trac/ghc/wiki/Commentary/Libraries/VersionHistory)
- - Supporting GHC versions prior to 7.0.1 requires more effort:
-    - GHC 7.0.1 was the first version to support `default-language: Haskell2010`
-    - Declaring `cabal-version >= 1.10` makes it more difficult to compile with GHC 6.12.3's default `cabal-install`
-    - `cabal-install` [falls back to top-down solver for GHC < 7](http://stackoverflow.com/questions/16021645/what-does-cabals-warning-falling-back-to-topdown-solver-for-ghc-7-mean) which may require additional tweaks to the build script to compensate for (e.g. installing `QuickCheck` via `cabal install --only-dep` is known to fail)
+ - Support for [weeder](https://hackage.haskell.org/package/weeder), [stan](https://github.com/kowainik/stan#stan) and other tools as they gain wider usage.
+ - Support for [stack](https://docs.haskellstack.org/en/stable/README/) and windows environment building.
+ - Style and format checking such as [ormolu](https://hackage.haskell.org/package/ormolu)
 
 Real-world Examples
 -------------------
 
- - [lens](https://github.com/ekmett/lens) [![Build Status](https://travis-ci.org/ekmett/lens.png?branch=master)](https://travis-ci.org/ekmett/lens)
- - [bytestring](https://github.com/haskell/bytestring) [![Build Status](https://travis-ci.org/haskell/bytestring.png?branch=master)](https://travis-ci.org/haskell/bytestring)
- - [Cabal](https://github.com/haskell/cabal) [![Build Status](https://travis-ci.org/haskell/cabal.png?branch=master)](https://travis-ci.org/haskell/cabal)
- - [deepseq-generics](https://github.com/hvr/deepseq-generics) [![Build Status](https://travis-ci.org/hvr/deepseq-generics.png?branch=master)](https://travis-ci.org/hvr/deepseq-generics)
- - [filepath](https://github.com/ghc/packages-filepath)  [![Build Status](https://travis-ci.org/ghc/packages-filepath.png)](https://travis-ci.org/ghc/packages-filepath)
- - [arbtt](https://github.com/nomeata/darcs-mirror-arbtt)  [![Build Status](https://travis-ci.org/nomeata/darcs-mirror-arbtt.png)](https://travis-ci.org/nomeata/darcs-mirror-arbtt)
- - [circle-packing](https://github.com/nomeata/darcs-mirror-circle-packing)  [![Build Status](https://travis-ci.org/nomeata/darcs-mirror-circle-packing.png)](https://travis-ci.org/nomeata/darcs-mirror-circle-packing)
+To understand `haskell-ci`, and why you would want to use it to generate scripts for GitHub actions, or if you want to step outside the restricted confine of automation, users should familiarise themselves with the [haskell/actions repository](https://github.com/haskell/actions/tree/main/setup#readme).
+
+Some projects that currently use `haskell-ci` include:
+
+- [lens](https://github.com/ekmett/lens) [![Build Status](https://github.com/ekmett/lens/workflows/Haskell-CI/badge.svg)](https://github.com/ekmett/lens/actions?query=workflow%3Ahaskell-ci)
+- [generics-sop](https://github.com/well-typed/generics-sop) [![Build Status](https://github.com/well-typed/generics-sop/workflows/Haskell-CI/badge.svg)](https://github.com/well-typed/generics-sop/actions?query=workflow%3Ahaskell-ci)
+- [input-parsers](https://github.com/blamario/input-parsers) [![Build Status](https://github.com/blamario/input-parsers/workflows/Haskell-CI/badge.svg)](https://github.com/blamario/input-parsers/actions?query=workflow%3Ahaskell-ci)
+- [generic-deriving](https://github.com/dreixel/generic-deriving) [![Build Status](https://github.com/dreixel/generic-deriving/workflows/Haskell-CI/badge.svg)](https://github.com/dreixel/generic-deriving/actions?query=workflow%3Ahaskell-ci)
+- [smash](https://github.com/emilypi/smash) [![Build Status](https://github.com/emilypi/smash/workflows/Haskell-CI/badge.svg)](https://github.com/emilypi/smash/actions?query=workflow%3Ahaskell-ci)
+- [scientific](https://github.com/basvandijk/scientific) [![Build Status](https://github.com/basvandijk/scientific/workflows/Haskell-CI/badge.svg)](https://github.com/basvandijk/scientific/actions?query=workflow%3Ahaskell-ci)
+- [numhask](https://github.com/tonyday567/numhask) [![Build Status](https://github.com/tonyday567/numhask/workflows/haskell-ci/badge.svg)](https://github.com/tonyday567/numhask/actions?query=workflow%3Ahaskell-ci)
+- [tasty-bench](https://github.com/Bodigrim/tasty-bench) [![Build Status](https://github.com/Bodigrim/tasty-bench/workflows/Haskell-CI/badge.svg)](https://github.com/Bodigrim/tasty-bench/actions?query=workflow%3Ahaskell-ci)
+- [agda-stdlib](https://github.com/agda/agda-stdlib) [![Build Status](https://github.com/agda/agda-stdlib/workflows/Haskell-CI/badge.svg)](https://github.com/agda/agda-stdlib/actions?query=workflow%3Ahaskell-ci)
+- [broadcast-chan](https://github.com/merijn/broadcast-chan) [![Build Status](https://github.com/merijn/broadcast-chan/workflows/Haskell-CI/badge.svg)](https://github.com/merijn/broadcast-chan/actions?query=workflow%3Ahaskell-ci)
+- [checkers](https://github.com/haskell-checkers/checkers) [![Build Status](https://github.com/haskell-checkers/checkers/workflows/Haskell-CI/badge.svg)](https://github.com/haskell-checkers/checkers/actions?query=workflow%3Ahaskell-ci)
+- [text-show](https://github.com/RyanGlScott/text-show) [![Build Status](https://github.com/RyanGlScott/text-show/workflows/Haskell-CI/badge.svg)](https://github.com/RyanGlScott/text-show/actions?query=workflow%3Ahaskell-ci)
+- [postgresql-simple](https://github.com/haskellari/postgresql-simple) [![Build Status](https://github.com/haskellari/postgresql-simple/workflows/Haskell-CI/badge.svg)](https://github.com/haskellari/postgresql-simple/actions?query=workflow%3Ahaskell-ci)
+- [optparse-applicative](https://github.com/pcapriotti/optparse-applicative) [![Build Status](https://github.com/pcapriotti/optparse-applicative/workflows/Haskell-CI/badge.svg)](https://github.com/pcapriotti/optparse-applicative/actions?query=workflow%3Ahaskell-ci)
+- [natural-transformation](https://github.com/ku-fpg/natural-transformation) [![Build Status](https://github.com/ku-fpg/natural-transformation/workflows/Haskell-CI/badge.svg)](https://github.com/ku-fpg/natural-transformation/actions?query=workflow%3Ahaskell-ci)
+
+
