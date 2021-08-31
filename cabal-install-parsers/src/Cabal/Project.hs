@@ -82,7 +82,7 @@ data Project uri opt pkg = Project
     }
   deriving (Functor, Foldable, Traversable, Generic)
 
--- | Doesn't compare prjOtherFields
+-- | Doesn't compare 'prjOtherFields'
 instance (Eq uri, Eq opt, Eq pkg) => Eq (Project uri opt pkg) where
     x == y = and
         [ eqOn prjPackages
@@ -97,6 +97,22 @@ instance (Eq uri, Eq opt, Eq pkg) => Eq (Project uri opt pkg) where
         ]
       where
         eqOn f = f x == f y
+
+-- | Doesn't show 'prjOtherFields'
+instance (Show uri, Show opt, Show pkg) => Show (Project uri opt pkg) where
+    showsPrec p prj =
+        showParen (p > 10)
+            ( showString "Project{prjPackages = " . shows (prjPackages prj)
+            . showString ", prjOptPackages = "    . shows (prjOptPackages prj)
+            . showString ", prjUriPackages = "    . shows (prjUriPackages prj)
+            . showString ", prjConstraints = "    . shows (prjConstraints prj)
+            . showString ", prjAllowNewer = "     . shows (prjAllowNewer prj)
+            . showString ", prjReorderGoals = "   . shows (prjReorderGoals prj)
+            . showString ", prjMaxBackjumps = "   . shows (prjMaxBackjumps prj)
+            . showString ", prjOptimization = "   . shows (prjOptimization prj)
+            . showString ", prjSourceRepos = "    . shows (prjSourceRepos prj)
+            . showChar '}'
+            )
 
 instance Bifunctor (Project c) where bimap = bimapDefault
 instance Bifoldable (Project c) where bifoldMap = bifoldMapDefault
