@@ -42,8 +42,7 @@ import Distribution.Compat.Lens     (LensLike', over)
 import GHC.Generics                 (Generic)
 import Network.URI                  (URI, parseURI)
 import System.Directory             (doesDirectoryExist, doesFileExist)
-import System.FilePath              (takeDirectory, takeExtension, (</>))
-import Text.ParserCombinators.ReadP (readP_to_S)
+import System.FilePath              (isAbsolute, takeDirectory, takeExtension, (</>), splitDirectories, splitDrive)
 
 import qualified Data.ByteString                 as BS
 import qualified Data.Map.Strict                 as M
@@ -82,7 +81,7 @@ data Project uri opt pkg = Project
     }
   deriving (Functor, Foldable, Traversable, Generic)
 
--- | Doesn't compare prjOtherFields
+-- | Doesn't compare 'prjOtherFields'
 instance (Eq uri, Eq opt, Eq pkg) => Eq (Project uri opt pkg) where
     x == y = and
         [ eqOn prjPackages
@@ -97,6 +96,22 @@ instance (Eq uri, Eq opt, Eq pkg) => Eq (Project uri opt pkg) where
         ]
       where
         eqOn f = f x == f y
+
+-- | Doesn't show 'prjOtherFields'
+instance (Show uri, Show opt, Show pkg) => Show (Project uri opt pkg) where
+    showsPrec p prj =
+        showParen (p > 10)
+            ( showString "Project{prjPackages = " . shows (prjPackages prj)
+            . showString ", prjOptPackages = "    . shows (prjOptPackages prj)
+            . showString ", prjUriPackages = "    . shows (prjUriPackages prj)
+            . showString ", prjConstraints = "    . shows (prjConstraints prj)
+            . showString ", prjAllowNewer = "     . shows (prjAllowNewer prj)
+            . showString ", prjReorderGoals = "   . shows (prjReorderGoals prj)
+            . showString ", prjMaxBackjumps = "   . shows (prjMaxBackjumps prj)
+            . showString ", prjOptimization = "   . shows (prjOptimization prj)
+            . showString ", prjSourceRepos = "    . shows (prjSourceRepos prj)
+            . showChar '}'
+            )
 
 instance Bifunctor (Project c) where bimap = bimapDefault
 instance Bifoldable (Project c) where bifoldMap = bifoldMapDefault
@@ -300,14 +315,25 @@ resolveProject filePath prj = runExceptT $ do
            | otherwise -> return Nothing
 
     -- if it looks like glob, glob
-    checkisFileGlobPackage pkglocstr =
-        case filter (null . snd) $ readP_to_S parseFilePathGlobRel pkglocstr of
-            [(g, "")] -> do
-                files <- liftIO $ expandRelGlob rootdir g
-                let files' = filter ((== ".cabal") . takeExtension) files
-                -- if nothing is matched, skip.
-                if null files' then return Nothing else return (Just files')
-            _         -> return Nothing
+    checkisFileGlobPackage pkglocstr = do
+        files <- liftIO $ matchFileGlob rootdir (globStarDotCabal pkglocstr)
+        let files' = filter ((== ".cabal") . takeExtension) files
+        -- if nothing is matched, skip.
+        if null files' then return Nothing else return (Just files')
+
+    -- A glob to find all the cabal files in a directory.
+    --
+    -- For a directory @some/dir/@, this is a glob of the form @some/dir/\*.cabal@.
+    -- The directory part can be either absolute or relative.
+    --
+    globStarDotCabal :: FilePath -> FilePathGlob
+    globStarDotCabal dir =
+        FilePathGlob
+          (if isAbsolute dir then FilePathRoot root else FilePathRelative)
+          (foldr (\d -> GlobDir [Literal d])
+                 (GlobFile [WildCard, Literal ".cabal"]) dirComponents)
+      where
+        (root, dirComponents) = fmap splitDirectories (splitDrive dir)
 
     mplusMaybeT :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
     mplusMaybeT ma mb = do
