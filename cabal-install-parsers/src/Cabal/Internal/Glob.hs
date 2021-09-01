@@ -4,7 +4,7 @@ import Control.Monad                (filterM, liftM2)
 import Control.Monad.IO.Class       (MonadIO (..))
 import Data.Functor                 (void)
 import Data.List                    (stripPrefix)
-import System.Directory             (doesDirectoryExist, getDirectoryContents)
+import System.Directory             (doesDirectoryExist, getDirectoryContents, getHomeDirectory)
 import System.FilePath.Posix        ((</>))
 import Text.ParserCombinators.ReadP
 
@@ -109,6 +109,30 @@ isGlobEscapedChar '{'  = True
 isGlobEscapedChar '}'  = True
 isGlobEscapedChar ','  = True
 isGlobEscapedChar _    = False
+
+-- | Get the 'FilePath' corresponding to a 'FilePathRoot'.
+--
+-- The 'FilePath' argument is required to supply the path for the
+-- 'FilePathRelative' case.
+--
+getFilePathRootDirectory :: FilePathRoot
+                         -> FilePath      -- ^ root for relative paths
+                         -> IO FilePath
+getFilePathRootDirectory  FilePathRelative   root = return root
+getFilePathRootDirectory (FilePathRoot root) _    = return root
+getFilePathRootDirectory  FilePathHomeDir    _    = getHomeDirectory
+
+-- | Match a 'FilePathGlob' against the file system, starting from a given
+-- root directory for relative paths. The results of relative globs are
+-- relative to the given root. Matches for absolute globs are absolute.
+--
+matchFileGlob :: FilePath -> FilePathGlob -> IO [FilePath]
+matchFileGlob relroot (FilePathGlob globroot glob) = do
+    root <- getFilePathRootDirectory globroot relroot
+    matches <- expandRelGlob root glob
+    case globroot of
+      FilePathRelative -> return matches
+      _                -> return (map (root </>) matches)
 
 expandRelGlob :: MonadIO m => FilePath -> FilePathGlobRel -> m [FilePath]
 expandRelGlob root glob0 = liftIO $ go glob0 ""
