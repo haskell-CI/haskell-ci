@@ -33,7 +33,7 @@ import System.Directory      (createDirectoryIfMissing, doesFileExist, setCurren
 import System.Environment    (getArgs)
 import System.Exit           (ExitCode (..), exitFailure)
 import System.FilePath.Posix (takeDirectory)
-import System.IO             (hClose, hFlush, hPutStrLn, stderr)
+import System.IO             (hClose, hPutStrLn, stderr)
 import System.IO.Temp        (withSystemTempFile)
 import System.Process        (readProcessWithExitCode)
 
@@ -407,9 +407,8 @@ patchYAML patches input
   | otherwise =
       withSystemTempFile "yml.tmp" $ \fp h -> liftIO $ do
         BS.hPutStr h input
-        hFlush h
-        for_ patches $ applyPatch fp
         hClose h
+        for_ patches $ applyPatch fp
         BS.readFile fp
   where
     applyPatch :: FilePath -- ^ The temporary file path to patch
