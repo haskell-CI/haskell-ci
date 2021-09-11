@@ -69,11 +69,15 @@ jobs:
             curl -sL https://downloads.haskell.org/ghcup/0.1.16.2/x86_64-linux-ghcup-0.1.16.2 > "$HOME/.ghcup/bin/ghcup"
             chmod a+x "$HOME/.ghcup/bin/ghcup"
             "$HOME/.ghcup/bin/ghcup" install ghc "$HCVER"
-            "$HOME/.ghcup/bin/ghcup" install cabal 3.4.0.0
+            "$HOME/.ghcup/bin/ghcup" install cabal 3.6.0.0
           else
             apt-add-repository -y 'ppa:hvr/ghc'
             apt-get update
-            apt-get install -y "$HCNAME" cabal-install-3.4
+            apt-get install -y "$HCNAME"
+            mkdir -p "$HOME/.ghcup/bin"
+            curl -sL https://downloads.haskell.org/ghcup/0.1.16.2/x86_64-linux-ghcup-0.1.16.2 > "$HOME/.ghcup/bin/ghcup"
+            chmod a+x "$HOME/.ghcup/bin/ghcup"
+            "$HOME/.ghcup/bin/ghcup" install cabal 3.6.0.0
           fi
         env:
           HCKIND: ${{ matrix.compilerKind }}
@@ -91,13 +95,13 @@ jobs:
             echo "HC=$HC" >> "$GITHUB_ENV"
             echo "HCPKG=$HOME/.ghcup/bin/$HCKIND-pkg-$HCVER" >> "$GITHUB_ENV"
             echo "HADDOCK=$HOME/.ghcup/bin/haddock-$HCVER" >> "$GITHUB_ENV"
-            echo "CABAL=$HOME/.ghcup/bin/cabal-3.4.0.0 -vnormal+nowrap" >> "$GITHUB_ENV"
+            echo "CABAL=$HOME/.ghcup/bin/cabal-3.6.0.0 -vnormal+nowrap" >> "$GITHUB_ENV"
           else
             HC=$HCDIR/bin/$HCKIND
             echo "HC=$HC" >> "$GITHUB_ENV"
             echo "HCPKG=$HCDIR/bin/$HCKIND-pkg" >> "$GITHUB_ENV"
             echo "HADDOCK=$HCDIR/bin/haddock" >> "$GITHUB_ENV"
-            echo "CABAL=/opt/cabal/3.4/bin/cabal -vnormal+nowrap" >> "$GITHUB_ENV"
+            echo "CABAL=$HOME/.ghcup/bin/cabal-3.6.0.0 -vnormal+nowrap" >> "$GITHUB_ENV"
           fi
 
           HCNUMVER=$(${HC} --numeric-version|perl -ne '/^(\d+)\.(\d+)\.(\d+)(\.(\d+))?$/; print(10000 * $1 + 100 * $2 + ($3 == 0 ? $5 != 1 : $3))')

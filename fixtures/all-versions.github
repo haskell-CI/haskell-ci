@@ -275,7 +275,11 @@ jobs:
           if [ $((GHCJSARITH)) -ne 0 ] ; then curl -sSL "https://deb.nodesource.com/gpgkey/nodesource.gpg.key" | apt-key add - ; fi
           if [ $((GHCJSARITH)) -ne 0 ] ; then apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x bionic main' ; fi
           apt-get update
-          if [ $((GHCJSARITH)) -ne 0 ] ; then apt-get install -y "$HCNAME" cabal-install-3.4 ghc-8.4.4 nodejs ; else apt-get install -y "$HCNAME" cabal-install-3.4 ; fi
+          if [ $((GHCJSARITH)) -ne 0 ] ; then apt-get install -y "$HCNAME" ghc-8.4.4 nodejs ; else apt-get install -y "$HCNAME" ; fi
+          mkdir -p "$HOME/.ghcup/bin"
+          curl -sL https://downloads.haskell.org/ghcup/0.1.16.2/x86_64-linux-ghcup-0.1.16.2 > "$HOME/.ghcup/bin/ghcup"
+          chmod a+x "$HOME/.ghcup/bin/ghcup"
+          "$HOME/.ghcup/bin/ghcup" install cabal 3.6.0.0
         env:
           HCKIND: ${{ matrix.compilerKind }}
           HCNAME: ${{ matrix.compiler }}
@@ -292,7 +296,7 @@ jobs:
           echo "HC=$HC" >> "$GITHUB_ENV"
           echo "HCPKG=$HCDIR/bin/$HCKIND-pkg" >> "$GITHUB_ENV"
           echo "HADDOCK=$HCDIR/bin/haddock" >> "$GITHUB_ENV"
-          echo "CABAL=/opt/cabal/3.4/bin/cabal -vnormal+nowrap" >> "$GITHUB_ENV"
+          echo "CABAL=$HOME/.ghcup/bin/cabal-3.6.0.0 -vnormal+nowrap" >> "$GITHUB_ENV"
           HCNUMVER=$(${HC} --numeric-version|perl -ne '/^(\d+)\.(\d+)\.(\d+)(\.(\d+))?$/; print(10000 * $1 + 100 * $2 + ($3 == 0 ? $5 != 1 : $3))')
           echo "HCNUMVER=$HCNUMVER" >> "$GITHUB_ENV"
           echo "ARG_TESTS=--enable-tests" >> "$GITHUB_ENV"
