@@ -85,6 +85,7 @@ data Config = Config
     , cfgLastInSeries        :: !Bool
     , cfgLinuxJobs           :: !VersionRange
     , cfgMacosJobs           :: !VersionRange
+    , cfgGhcupCabal          :: !Bool
     , cfgGhcupJobs           :: !VersionRange
     , cfgGhcupVersion        :: !Version
     , cfgApt                 :: S.Set String
@@ -103,7 +104,7 @@ data Config = Config
   deriving (Generic)
 
 defaultCabalInstallVersion :: Maybe Version
-defaultCabalInstallVersion = Just (C.mkVersion [3,4])
+defaultCabalInstallVersion = Just (C.mkVersion [3,6])
 
 defaultGhcupVersion :: Version
 defaultGhcupVersion = C.mkVersion [0,1,16,2]
@@ -209,6 +210,8 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Jobs to build on Linux"
     <*> rangeField            "macos-jobs"                                                    (field @"cfgMacosJobs") noVersion
         ^^^ metahelp "RANGE" "Jobs to additionally build with OSX"
+    <*> C.booleanFieldDef     "ghcup-cabal"                                                   (field @"cfgGhcupCabal") True
+        ^^^ help "Use (or don't) ghcup to install cabal"
     <*> rangeField            "ghcup-jobs"                                                    (field @"cfgGhcupJobs") noVersion
         ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup to install tools"
     <*> C.optionalFieldDef    "ghcup-version"                                                 (field @"cfgGhcupVersion") defaultGhcupVersion
