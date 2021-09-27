@@ -261,6 +261,14 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , "  url: http://hackage.haskell.org/"
                 ]
 
+            -- Using -optl-no-pie is required to work around
+            -- https://gitlab.haskell.org/haskell/ghcup-hs/-/issues/123
+            when ((GHC (C.mkVersion [7,10,3]) `elem` allVersions) &&
+                  (GHC (C.mkVersion [7,10,3]) & isGHCUP)) $ do
+                let range = Range (C.thisVersion (C.mkVersion [7,10,3])) /\ Range cfgGhcupJobs
+                echo_if_to range "$CABAL_CONFIG" "program-default-options"
+                echo_if_to range "$CABAL_CONFIG" "  ghc-options: -optl-no-pie"
+
             -- Add head.hackage repository to ~/.cabal/config
             -- (locally you want to add it to cabal.project)
             unless (S.null headGhcVers) $ sh $ concat $
