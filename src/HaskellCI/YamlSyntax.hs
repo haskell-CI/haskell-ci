@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveTraversable   #-}
@@ -24,7 +25,12 @@ import Data.Monoid (Endo (..))
 
 import qualified Data.Aeson              as Aeson
 import qualified Data.Aeson.Encoding     as AE
+#if MIN_VERSION_aeson(2,0,0)
+import qualified Data.Aeson.Key          as AK
+import qualified Data.Aeson.KeyMap       as AKM
+#else
 import qualified Data.HashMap.Strict     as HM
+#endif
 import qualified Data.List.NonEmpty      as NE
 import qualified Data.Map.Strict         as M
 import qualified Data.Text               as T
@@ -340,7 +346,11 @@ encodeValue = TL.unpack . TLE.decodeUtf8 . AE.encodingToLazyByteString . enc whe
     enc (Aeson.Array v)  = AE.list enc (toList v)
     enc (Aeson.Object m) = AE.dict AE.text enc M.foldrWithKey (toMap m)
 
+#if MIN_VERSION_aeson(2,0,0)
+    toMap = M.fromList . fmap (\(k, v) -> (AK.toText k, v)) . AKM.toList
+#else
     toMap = M.fromList . HM.toList
+#endif
 
 -- a 'Line' is comments before in and actual text after!
 data Line = Line [String] ShowS

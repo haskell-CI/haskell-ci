@@ -70,7 +70,7 @@ library
 
   -- extra dependencies
   build-depends:
-    , aeson              ^>=1.4.6.0 || ^>=1.5.0.0
+    , aeson              ^>=1.4.6.0 || ^>=1.5.0.0 || ^>=2.0.0.0
     , base16-bytestring  ^>=1.0.0.0
     , binary-instances   ^>=1
     , cryptohash-sha256  ^>=0.11.101.0
