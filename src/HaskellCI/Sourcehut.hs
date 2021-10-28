@@ -130,31 +130,33 @@ makeSourcehut argv config@Config{..} SourcehutOptions{..} prj JobVersions{linuxV
     cdToClone = Sh $ "cd " ++ clonePath
     -- TODO make this like the github/travis/bash ones
     mkTasks job = fmap (\(SourcehutTask name code) -> SourcehutTask
-                           (dispGhcVersionTask job ++ "-" ++ name)
-                           (cdToClone : code)
-                       )
-          [ SourcehutTask "prepare"
-              [ Sh $ "cabal configure -w /opt/ghc/bin/" ++ dispGhcVersion job
-              ]
-          , SourcehutTask "check"
-              [ Sh "cabal check"
-              ]
-          , SourcehutTask "dependencies"
-              [ Sh "cabal build all --enable-tests --only-dependencies"
-              , Sh "cabal build all --only-dependencies"
-              ]
-          , SourcehutTask "build"
-              [ Sh "cabal build all"
-              ]
-          , SourcehutTask "test"
-              [ Sh "cabal test all --enable-tests"
-              ]
-          , SourcehutTask "haddock"
-              [ Sh "cabal haddock all"
-              ]
-          , SourcehutTask "sdist"
-              [ Sh "cabal sdist -o .", Sh "mv *-*.tar.gz ../sdist.tar.gz"
-              ]
+                              (dispGhcVersionTask job ++ "-" ++ name)
+                              (cdToClone : code)
+                       ) $ concat
+          [ [ SourcehutTask "prepare"
+                [ Sh $ "cabal configure -w /opt/ghc/bin/" ++ dispGhcVersion job
+                ]
+            , SourcehutTask "check"
+                [ Sh "cabal check"
+                ]
+            ]
+          , (if cfgInstallDeps then (:[]) else const []) $ SourcehutTask "dependencies"
+                [ Sh "cabal build all --enable-tests --only-dependencies"
+                , Sh "cabal build all --only-dependencies"
+                ]
+          , [ SourcehutTask "build"
+                [ Sh "cabal build all"
+                ]
+            , SourcehutTask "test"
+                [ Sh "cabal test all --enable-tests"
+                ]
+            , SourcehutTask "haddock"
+                [ Sh "cabal haddock all"
+                ]
+            , SourcehutTask "sdist"
+                [ Sh "cabal sdist -o .", Sh "mv *-*.tar.gz ../sdist.tar.gz"
+                ]
+            ]
           ]
 
 getEmails :: Project URI Void Package -> [String]
