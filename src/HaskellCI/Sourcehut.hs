@@ -74,10 +74,14 @@ sourcehutHeader insertVersion argv =
     , "For more information, see https://github.com/haskell-CI/haskell-ci"
     , ""
     ] ++
-    if insertVersion then
-    [ "version: " ++ haskellCIVerStr
+    verlines ++
+    [ "REGENDATA " ++ if insertVersion then show (haskellCIVerStr, argv) else show argv
     , ""
-    ] else []
+    ]
+  where
+    verlines
+        | insertVersion = [ "version: " ++ haskellCIVerStr , "" ]
+        | otherwise     = []
 
 -------------------------------------------------------------------------------
 -- Generate sourcehut configuration

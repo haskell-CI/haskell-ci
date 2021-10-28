@@ -30,14 +30,15 @@ module HaskellCI (
 import HaskellCI.Prelude
 
 import Control.Exception     (try)
-import Data.List             (nubBy, sort, sortBy, (\\))
+import Data.List             (nubBy, sort, sortBy, (\\), isSuffixOf)
 import qualified Data.Map.Strict as M
-import System.Directory      (createDirectoryIfMissing, doesFileExist, setCurrentDirectory)
+import System.Directory      (createDirectoryIfMissing, doesFileExist, setCurrentDirectory, getDirectoryContents)
 import System.Environment    (getArgs)
 import System.Exit           (ExitCode (..), exitFailure)
 import System.FilePath       ((</>))
 import System.FilePath.Posix (takeDirectory)
 import System.IO             (hClose, hPutStrLn, stderr)
+import System.IO.Error       (catchIOError, isDoesNotExistError)
 import System.IO.Temp        (withSystemTempFile)
 import System.Process        (readProcessWithExitCode)
 
@@ -457,6 +458,8 @@ regenerateSourcehut opts = do
     -- change the directory
     for_ (optCwd opts) setCurrentDirectory
 
+    yamls <- filter (isSuffixOf ".yml") <$> getDirectoryContents' defaultSourcehutPath
+    let fp = case yamls of [] -> ".build.yml"; f : _ -> defaultSourcehutPath </> f
     -- read, and then change to the directory
     withContents fp noSourcehutScript $ \contents -> case findRegendataArgv contents of
         Nothing     -> do
@@ -470,14 +473,18 @@ regenerateSourcehut opts = do
                     hPutStrLn stderr $ "Regenerating using older haskell-ci-" ++ haskellCIVerStr
                     hPutStrLn stderr $ "File generated using haskell-ci-" ++ prettyShow version
 
+            -- Warn about outdated .yml files. to be safe, we don't delete them all.
+            putStrLnWarn "Outdated .yml files will not be deleted"
             (srhtOpts, opts') <- parseOptionsSrht argv
-            -- TODO delete existing .yml files
-            doSourcehut argv srhtOpts ( optionsWithOutputFile fp <> opts' <> opts)
+            doSourcehut argv srhtOpts ( opts' <> opts)
   where
-    fp = defaultSourcehutPath -- TODO get any of the .yml files in this directory
-
     noSourcehutScript :: IO ()
-    noSourcehutScript = putStrLn $ "No " ++ fp ++ ", skipping Sourcehut config regeneration"
+    noSourcehutScript = putStrLn $ "No " ++ defaultSourcehutPath ++ "/*.yml or .build.yml, skipping Sourcehut config regeneration"
+    getDirectoryContents' :: FilePath -> IO [FilePath]
+    getDirectoryContents' fp =
+      getDirectoryContents fp
+      `catchIOError`
+      \e -> if isDoesNotExistError e then return [] else ioError e
 
 -------------------------------------------------------------------------------
 -- Config file
