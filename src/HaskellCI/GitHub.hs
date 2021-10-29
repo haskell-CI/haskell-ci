@@ -557,8 +557,12 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh "rm -f cabal.project.local"
 
         for_ cfgConstraintSets $ \cs -> githubRun ("constraint set " ++ csName cs) $ do
-            let sh_cs           = sh_if (Range (csGhcVersions cs))
-            let sh_cs' r        = sh_if (Range (csGhcVersions cs) /\ r)
+            let range
+                  | csGhcjs cs  = Range (csGhcVersions cs)
+                  | otherwise   = RangeGHC /\ Range (csGhcVersions cs)
+
+            let sh_cs           = sh_if range
+            let sh_cs' r        = sh_if (range /\ r)
             let testFlag        = if csTests cs then "--enable-tests" else "--disable-tests"
             let benchFlag       = if csBenchmarks cs then "--enable-benchmarks" else "--disable-benchmarks"
             let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)

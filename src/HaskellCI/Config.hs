@@ -22,6 +22,7 @@ import qualified Distribution.Parsec             as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.PackageName  as C
 import qualified Distribution.Types.Version      as C
+import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
 
 import HaskellCI.Config.ConstraintSet
@@ -212,7 +213,7 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Jobs to additionally build with OSX"
     <*> C.booleanFieldDef     "ghcup-cabal"                                                   (field @"cfgGhcupCabal") True
         ^^^ help "Use (or don't) ghcup to install cabal"
-    <*> rangeField            "ghcup-jobs"                                                    (field @"cfgGhcupJobs") noVersion
+    <*> rangeField            "ghcup-jobs"                                                    (field @"cfgGhcupJobs") (C.unionVersionRanges (C.intersectVersionRanges (C.laterVersion (mkVersion [8,10,4])) (C.earlierVersion (mkVersion [9]))) (C.laterVersion (mkVersion [9,0,1])))
         ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup to install tools"
     <*> C.optionalFieldDef    "ghcup-version"                                                 (field @"cfgGhcupVersion") defaultGhcupVersion
         ^^^ metahelp "VERSION" "ghcup version"
