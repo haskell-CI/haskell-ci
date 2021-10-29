@@ -13,6 +13,7 @@ import HaskellCI.OptionsGrammar
 data ConstraintSet = ConstraintSet
     { csName        :: String
     , csGhcVersions :: VersionRange
+    , csGhcjs       :: Bool
     , csConstraints :: [String] -- we parse these simply as strings
     , csTests       :: Bool
     , csRunTests    :: Bool
@@ -21,9 +22,6 @@ data ConstraintSet = ConstraintSet
     , csHaddock     :: Bool
     }
   deriving (Show, Generic)
-
-emptyConstraintSet :: String -> ConstraintSet
-emptyConstraintSet n = ConstraintSet n anyVersion [] False False False False False
 
 -------------------------------------------------------------------------------
 -- Grammar
@@ -35,6 +33,7 @@ constraintSetGrammar
     => String -> g ConstraintSet ConstraintSet
 constraintSetGrammar name = ConstraintSet name
     <$> C.optionalFieldDef "ghc"                                           (field @"csGhcVersions") anyVersion
+    <*> C.booleanFieldDef  "ghcjs"                                         (field @"csGhcjs") True
     <*> C.monoidalFieldAla "constraints" (C.alaList' C.CommaVCat NoCommas) (field @"csConstraints")
     <*> C.booleanFieldDef  "tests"                                         (field @"csTests") False
     <*> C.booleanFieldDef  "run-tests"                                     (field @"csRunTests") False
