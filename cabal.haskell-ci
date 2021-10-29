@@ -88,7 +88,7 @@ docspec-options: --verbose --timeout 2
 macos-jobs: ==8.10.*
 
 -- on Linux we can use ghcup to setup (some) of jobs
-ghcup-jobs: >=9
+-- ghcup-jobs: >=9
 
 -- Define per-job environment variables
 -- env: 8.4.4:FOO=bar,
