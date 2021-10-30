@@ -35,6 +35,7 @@ import HaskellCI.Config.Docspec
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
+import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
 import HaskellCI.Config.Ubuntu
 import HaskellCI.Config.Validity
@@ -268,6 +269,12 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , catCmd "$CABAL_CONFIG" $ unlines headHackageRepoStanza
                 , "\nfi"
                 ]
+
+            -- Cabal jobs
+            for_ (cfgJobs >>= cabalJobs) $ \n ->
+                cat "$CABAL_CONFIG" $ unlines
+                    [ "jobs: " ++ show n
+                    ]
 
             sh "cat $CABAL_CONFIG"
 
