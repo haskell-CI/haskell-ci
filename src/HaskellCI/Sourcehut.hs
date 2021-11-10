@@ -103,76 +103,71 @@ makeSourcehut
     -> Project URI Void Package
     -> JobVersions
     -> Either HsCiError Sourcehut
-makeSourcehut argv config@Config{..} SourcehutOptions{..} prj JobVersions{linuxVersions} = do
-    return $ Sourcehut $
+makeSourcehut argv config@Config{..} SourcehutOptions{..} prj JobVersions{linuxVersions} =
+    Sourcehut <$>
       if sourcehutOptParallel
       then parallelManifests
-      else M.singleton "all" sequentialManifest
+      else M.singleton "all" <$> sequentialManifest
   where
-    parallelManifests = M.mapKeys dispGhcVersionShort $
-      M.fromSet (mkManifest . S.singleton) linuxVersions
+    parallelManifests :: Either HsCiError (M.Map String SourcehutManifest)
+    parallelManifests = fmap (M.mapKeys dispGhcVersionShort) $
+      sequence $ M.fromSet (mkManifest . S.singleton) linuxVersions
+    sequentialManifest :: Either HsCiError SourcehutManifest
     sequentialManifest = mkManifest linuxVersions
-    mkManifest jobs = SourcehutManifest
-      { srhtManifestImage = cfgUbuntu
-      , srhtManifestPackages = "gcc" : "cabal-install-3.4" : (dispGhcVersion <$> S.toList jobs)
-      , srhtManifestRepositories = M.singleton
-          "hvr-ghc"
-          ("http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main ff3aeacef6f88286")
-      , srhtManifestArtifacts = ["sdist.tar.gz"] -- TODO sdist (with proper name) and maybe the binary
-      , srhtManifestSources = [sourcehutOptSource]
-      , srhtManifestTasks =
-          [ SourcehutTask "prepare" [ Sh "export PATH=$PATH:/opt/cabal/bin"
-                                    , Sh "echo 'export PATH=$PATH:/opt/cabal/bin' >> .buildenv"
-                                    , Sh "cabal update"
-                                    ]
-          ] ++ foldMap mkTasks jobs
-      , srhtManifestTriggers = SourcehutTriggerEmail <$> getEmails prj
-      , srhtManifestEnvironment = mempty
-      }
-    dispGhcVersionTask job = (\c -> if c == '.' then '_' else c) <$> dispGhcVersionShort job
+    mkManifest :: Set CompilerVersion -> Either HsCiError SourcehutManifest
+    mkManifest jobs = do
+      prepare <- fmap (SourcehutTask "all-prepare") $ runSh $ do
+        sh "export PATH=$PATH:/opt/cabal/bin"
+        tell_env "PATH" "$PATH:/opt/cabal/bin"
+        sh "cabal update"
+      tasks <- concat <$> traverse mkTasksForGhc (S.toList jobs)
+      return SourcehutManifest
+        { srhtManifestImage = cfgUbuntu
+        , srhtManifestPackages = "gcc" : "cabal-install-3.4" : (dispGhcVersion <$> S.toList jobs)
+        , srhtManifestRepositories = M.singleton
+            "hvr-ghc"
+            ("http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main ff3aeacef6f88286")
+        , srhtManifestArtifacts = ["sdist.tar.gz"] -- TODO sdist (with proper name) and maybe the binary
+        , srhtManifestSources = [sourcehutOptSource]
+        , srhtManifestTasks = prepare : tasks
+        , srhtManifestTriggers = SourcehutTriggerEmail <$> getEmails prj
+        , srhtManifestEnvironment = mempty
+        }
     clonePath = takeFileName sourcehutOptSource
-    cdToClone = Sh $ "cd " ++ clonePath
-    -- TODO make this like the github/travis/bash ones
-    mkTasks job = fmap (\(SourcehutTask name code) -> SourcehutTask
-                              (dispGhcVersionTask job ++ "-" ++ name)
-                              (cdToClone : code)
-                       ) $ concat
-          [ [ SourcehutTask "prepare"
-                [ Sh $ "cabal configure -w /opt/ghc/bin/" ++ dispGhcVersion job
-                ]
-            , SourcehutTask "check"
-                [ Sh "cabal check"
-                ]
-            ]
-          , (if cfgInstallDeps then (:[]) else const []) $ SourcehutTask "dependencies"
-                [ Sh "cabal build all --enable-tests --only-dependencies"
-                , Sh "cabal build all --only-dependencies"
-                ]
-          , [ SourcehutTask "build"
-                [ Sh "cabal build all"
-                ]
-            , SourcehutTask "test"
-                [ Sh "cabal test all --enable-tests"
-                ]
-            , SourcehutTask "haddock"
-                [ Sh "cabal haddock all"
-                ]
-            , SourcehutTask "sdist"
-                [ Sh "cabal sdist -o .", Sh "mv *-*.tar.gz ../sdist.tar.gz"
-                ]
-            ]
-          ]
+    -- MAYBE reader for job and clonePath
+    mkTasksForGhc :: CompilerVersion -> Either HsCiError [SourcehutTask]
+    mkTasksForGhc job = sequence $ buildList $ do
+      sourcehutRun "prepare" job clonePath $
+        sh $ "cabal configure -w /opt/ghc/bin/" ++ dispGhcVersion job
+      sourcehutRun "check" job clonePath $
+        sh "cabal check"
+      when cfgInstallDeps $ sourcehutRun "dependencies" job clonePath $ do
+        sh "cabal build all --enable-tests --only-dependencies"
+        sh "cabal build all --only-dependencies"
+      sourcehutRun "build" job clonePath $
+        sh "cabal build all"
+      sourcehutRun "test" job clonePath $
+        sh "cabal test all --enable-tests"
+      sourcehutRun "haddock" job clonePath $
+        sh "cabal haddock all"
+      sourcehutRun "sdist" job clonePath $ do
+        sh "cabal sdist -o ."
+        sh "mv ./*-*.tar.gz ../sdist.tar.gz"
 
 getEmails :: Project URI Void Package -> [String]
 getEmails = fmap (C.fromShortText . C.maintainer . C.packageDescription . pkgGpd) . prjPackages
 
-sourcehutRun :: String -> ShM () -> ListBuilder (Either HsCiError SourcehutTask) ()
-sourcehutRun name shm = item $ do
-    shs <- runSh shm
-    return $ SourcehutTask name shs
+sourcehutRun :: String -> CompilerVersion -> FilePath -> ShM () -> ListBuilder (Either HsCiError SourcehutTask) ()
+sourcehutRun name job clonePath shm = item $ do
+    shs <- runSh $ do
+      -- 2164: -e is set by default
+      sh' [2164] $ "cd " ++ clonePath
+      shm
+    return $ SourcehutTask (ghcVersionTask <> "-" <> name) shs
+  where ghcVersionTask = (\c -> if c == '.' then '_' else c) <$> dispGhcVersionShort job
 
 tell_env' :: String -> String -> String
-tell_env' k v = "echo " ++ show ("export" ++ k ++ "=" ++ v) ++ " >> \"~/.buildenv\""
+tell_env' k v = "echo " ++ show ("export " ++ k ++ "=" ++ v) ++ " >> ~/.buildenv"
 
 tell_env :: String -> String -> ShM ()
 tell_env k v = sh $ tell_env' k v
