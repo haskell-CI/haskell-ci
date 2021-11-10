@@ -133,7 +133,7 @@ makeSourcehut argv config@Config{..} SourcehutOptions{..} prj JobVersions{linuxV
         , srhtManifestTriggers = SourcehutTriggerEmail <$> getEmails prj
         , srhtManifestEnvironment = mempty
         }
-    clonePath = takeFileName sourcehutOptSource
+    clonePath = removeSuffix ".git" $ takeFileName sourcehutOptSource
     -- MAYBE reader for job and clonePath
     mkTasksForGhc :: CompilerVersion -> Either HsCiError [SourcehutTask]
     mkTasksForGhc job = sequence $ buildList $ do
@@ -153,6 +153,12 @@ makeSourcehut argv config@Config{..} SourcehutOptions{..} prj JobVersions{linuxV
       sourcehutRun "sdist" job clonePath $ do
         sh "cabal sdist -o ."
         sh "mv ./*-*.tar.gz ../sdist.tar.gz"
+
+removeSuffix :: String -> String -> String
+removeSuffix suffix orig =
+  fromMaybe orig $ stripSuffix suffix orig
+  where
+    stripSuffix sf str = reverse <$> stripPrefix (reverse sf) (reverse str)
 
 getEmails :: Project URI Void Package -> [String]
 getEmails = fmap (C.fromShortText . C.maintainer . C.packageDescription . pkgGpd) . prjPackages
