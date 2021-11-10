@@ -2,7 +2,6 @@
 {-# LANGUAGE MultiWayIf          #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
 
@@ -435,7 +434,7 @@ genSourcehutFromConfigs
     -> Project URI Void Package
     -> Set CompilerVersion
     -> m (M.Map FilePath ByteString)
-genSourcehutFromConfigs argv config gitconfig SourcehutOptions{..} prj vs = do
+genSourcehutFromConfigs argv config gitconfig srhtOpts@SourcehutOptions{sourcehutOptSource} prj vs = do
     let jobVersions = makeJobVersions config vs
         gitRemote = case M.toList (gitCfgRemotes gitconfig) of
             [(_,url)] -> Just url
@@ -449,8 +448,8 @@ genSourcehutFromConfigs argv config gitconfig SourcehutOptions{..} prj vs = do
         Nothing -> case gitRemote of
           Just url -> return $ TS.unpack url
           Nothing -> putStrLnErr "multiple/no remotes found and --sourcehut-source was not used"
-    let srhtOpts = SourcehutOptions{sourcehutOptSource = sourcehutOptSource',..}
-    case makeSourcehut argv config srhtOpts prj jobVersions of
+    let srhtOpts' = srhtOpts {sourcehutOptSource = sourcehutOptSource'}
+    case makeSourcehut argv config srhtOpts' prj jobVersions of
         Left err     -> putStrLnErr $ displayException err
         Right sourcehut -> do
             describeJobs "Sourcehut config" (cfgTestedWith config) jobVersions (prjPackages prj)
