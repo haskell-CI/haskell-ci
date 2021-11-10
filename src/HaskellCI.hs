@@ -439,7 +439,11 @@ genSourcehutFromConfigs argv config gitconfig SourcehutOptions{..} prj vs = do
     let jobVersions = makeJobVersions config vs
         gitRemote = case M.toList (gitCfgRemotes gitconfig) of
             [(_,url)] -> Just url
-            _ -> Nothing -- TODO handle multiple remotes (pick origin?)
+            -- In case of multiple remotes, pick origin
+            -- MAYBE just pick the first instead?
+            rs -> case filter (("origin" ==) . fst) rs of
+              (_,url) : _ -> Just url
+              [] -> Nothing
     sourcehutOptSource' <- case sourcehutOptSource of
         Just url -> return url
         Nothing -> case gitRemote of
