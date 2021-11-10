@@ -127,7 +127,7 @@ makeSourcehut argv config@Config{..} SourcehutOptions{..} prj JobVersions{linuxV
         , srhtManifestRepositories = M.singleton
             "hvr-ghc"
             ("http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main ff3aeacef6f88286")
-        , srhtManifestArtifacts = ["sdist.tar.gz"] -- TODO sdist (with proper name) and maybe the binary
+        , srhtManifestArtifacts = []
         , srhtManifestSources = [sourcehutOptSource]
         , srhtManifestTasks = prepare : tasks
         , srhtManifestTriggers = SourcehutTriggerEmail <$> getEmails prj
@@ -150,9 +150,6 @@ makeSourcehut argv config@Config{..} SourcehutOptions{..} prj JobVersions{linuxV
         sh "cabal test all --enable-tests"
       sourcehutRun "haddock" job clonePath $
         sh "cabal haddock all"
-      sourcehutRun "sdist" job clonePath $ do
-        sh "cabal sdist -o ."
-        sh "mv ./*-*.tar.gz ../sdist.tar.gz"
 
 removeSuffix :: String -> String -> String
 removeSuffix suffix orig =
