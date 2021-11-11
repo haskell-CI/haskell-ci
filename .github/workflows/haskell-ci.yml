@@ -161,7 +161,7 @@ jobs:
           GHCJOBS=-j2
           cat >> $CABAL_CONFIG <<EOF
           program-default-options
-            ghc-options: $GHCJOBS +RTS -M3G -RTS
+            ghc-options: $GHCJOBS
           EOF
           cat $CABAL_CONFIG
       - name: versions
