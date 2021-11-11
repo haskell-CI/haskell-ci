@@ -76,6 +76,10 @@ library haskell-ci-internal
     MemoryHug3
     MemoryHug4
     MemoryHug5
+    MemoryHug6
+    MemoryHug7
+    MemoryHug8
+    MemoryHug9
 
   exposed-modules:
     HaskellCI
