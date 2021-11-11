@@ -22,6 +22,8 @@ jobs:
   linux:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
     runs-on: ubuntu-18.04
+    timeout-minutes:
+      60
     container:
       image: buildpack-deps:focal
     continue-on-error: ${{ matrix.allow-failure }}

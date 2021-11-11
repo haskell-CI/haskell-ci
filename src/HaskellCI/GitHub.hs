@@ -612,6 +612,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , ghjContinueOnError = Just "${{ matrix.allow-failure }}"
                 , ghjServices        = mconcat
                     [ Map.singleton "postgres" postgresService | cfgPostgres ]
+                , ghjTimeout         = max 10 cfgTimeoutMinutes
                 , ghjMatrix          =
                     [ GitHubMatrixEntry
                         { ghmeCompiler     = compiler
@@ -773,6 +774,7 @@ ircJob actionName mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
                            | serverChannelName <- serverChannelNames
                            , success <- [True, False]
                            ]
+    , ghjTimeout         = 10
     })
   where
     serverChannelNames = cfgIrcChannels cfg

@@ -38,6 +38,7 @@ data GitHubJob = GitHubJob
     , ghjContinueOnError :: Maybe String
     , ghjMatrix          :: [GitHubMatrixEntry]
     , ghjSteps           :: [GitHubStep]
+    , ghjTimeout         :: Natural
     }
   deriving (Show)
 
@@ -114,6 +115,7 @@ instance ToYaml GitHubJob where
         item $ "needs" ~> ylistFilt [] (map fromString ghjNeeds)
         for_ ghjIf $ \if_ ->
             item $ "if" ~> fromString if_
+        item $ "timeout-minutes" ~> YNumber [] (toInteger ghjTimeout)
         item $ "container" ~> ykeyValuesFilt [] (buildList $
             for_ ghjContainer $ \image -> item $ "image" ~> fromString image)
         item $ "services" ~> toYaml ghjServices

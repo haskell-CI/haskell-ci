@@ -52,6 +52,7 @@ import Numeric (showHex)
 -- only as much as we need in @haskell-ci@.
 data Yaml ann
     = YString ann String
+    | YNumber ann Integer
     | YBool ann Bool
     | YList ann [Yaml ann]
     | YKeyValues ann [(ann, String, Yaml ann)]
@@ -64,6 +65,7 @@ instance Monoid ann => IsString (Yaml ann) where
 -- | Re-annotate top-level term
 reann :: (ann -> ann) -> Yaml ann -> Yaml ann
 reann f (YString ann s)     = YString (f ann) s
+reann f (YNumber ann i)     = YNumber (f ann) i
 reann f (YBool ann b)       = YBool (f ann) b
 reann f (YList ann xs)      = YList (f ann) xs
 reann f (YKeyValues ann xs) = YKeyValues (f ann) xs
@@ -209,6 +211,9 @@ prettyYaml comment' = flatten . go where
     go (YString ann s) = case literal s of
         Just ss -> pure (0, Line (comment ann) ss)
         Nothing -> pure (0, Line (comment ann) $ encodeYAMLString s)
+
+    go (YNumber ann i) =
+        pure (0, Line (comment ann) (shows i))
 
     go (YBool ann b) =
         pure (0, Line (comment ann) (showString $ if b then "true" else "false"))

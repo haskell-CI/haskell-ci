@@ -101,6 +101,7 @@ data Config = Config
     , cfgRawProject          :: [C.PrettyField ()]
     , cfgRawTravis           :: !String
     , cfgGitHubActionName    :: !(Maybe String)
+    , cfgTimeoutMinutes      :: !Natural
     }
   deriving (Generic)
 
@@ -128,6 +129,7 @@ configGrammar
        , c (Identity Jobs)
        , c (Identity CopyFields)
        , c (Identity Version)
+       , c (Identity Natural)
        , c Env, c Folds, c CopyFields, c HeadVersion
        , c (C.List C.FSep (Identity Installed) Installed)
        , Applicative (g DoctestConfig)
@@ -236,6 +238,8 @@ configGrammar = Config
         ^^^ help "Raw travis commands which will be run at the very end of the script"
     <*> C.freeTextField "github-action-name"                                                  (field @"cfgGitHubActionName")
         ^^^ help "The name of GitHub Action"
+    <*> C.optionalFieldDef    "timeout-minutes"                                              (field @"cfgTimeoutMinutes") 60
+        ^^^ metahelp "MINUTES" "The maximum number of minutes to let a job run"
 
 -------------------------------------------------------------------------------
 -- Reading
