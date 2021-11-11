@@ -70,6 +70,9 @@ library haskell-ci-internal
     ghc-options: -Wnoncanonical-monadfail-instances
 
   exposed-modules:
+    MemoryHug
+
+  exposed-modules:
     HaskellCI
     HaskellCI.Auxiliary
     HaskellCI.Bash
