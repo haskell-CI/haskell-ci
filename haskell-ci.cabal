@@ -71,6 +71,11 @@ library haskell-ci-internal
 
   exposed-modules:
     MemoryHug
+    MemoryHug1
+    MemoryHug2
+    MemoryHug3
+    MemoryHug4
+    MemoryHug5
 
   exposed-modules:
     HaskellCI
@@ -156,6 +161,7 @@ library haskell-ci-internal
 
   -- other dependencies
   build-depends:
+    , jsaddle-dom
     , aeson                          ^>=1.5.6.0 || ^>=2.0.0.0
     , attoparsec                     ^>=0.14.1
     , base-compat                    ^>=0.11
