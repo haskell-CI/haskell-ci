@@ -153,6 +153,14 @@ jobs:
              key-threshold: 3
           EOF
           fi
+          cat >> $CABAL_CONFIG <<EOF
+          jobs: 2
+          EOF
+          GHCJOBS=-j2
+          cat >> $CABAL_CONFIG <<EOF
+          program-default-options
+            ghc-options: $GHCJOBS +RTS -M3G -RTS
+          EOF
           cat $CABAL_CONFIG
       - name: versions
         run: |

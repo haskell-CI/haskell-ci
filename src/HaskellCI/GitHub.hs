@@ -1,6 +1,6 @@
+{-# LANGUAGE MultiWayIf        #-}
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE RecordWildCards   #-}
 module HaskellCI.GitHub (
     makeGitHub,
@@ -275,6 +275,15 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 cat "$CABAL_CONFIG" $ unlines
                     [ "jobs: " ++ show n
                     ]
+
+            -- GHC jobs + ghc-options
+            for_ (cfgJobs >>= ghcJobs) $ \m -> do
+                sh_if (Range $ C.orLaterVersion (C.mkVersion [7,8])) $ "GHCJOBS=-j" ++ show m
+
+            cat "$CABAL_CONFIG" $ unlines
+                [ "program-default-options"
+                , "  ghc-options: $GHCJOBS +RTS -M3G -RTS"
+                ]
 
             sh "cat $CABAL_CONFIG"
 
