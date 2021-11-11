@@ -38,6 +38,7 @@ import Data.Typeable           as X (Typeable)
 import Data.Void               as X (Void)
 import GHC.Generics            as X (Generic)
 import Network.URI             as X (URI, parseURI, uriToString)
+import Numeric.Natural         as X (Natural)
 import Text.Read               as X (readMaybe)
 
 import Data.Generics.Lens.Lite  as X (field)
@@ -47,7 +48,11 @@ import Distribution.Parsec  as X (simpleParsec)
 import Distribution.Pretty  as X (prettyShow)
 import Distribution.Version as X (Version, VersionRange, anyVersion, mkVersion, noVersion)
 
-import qualified Distribution.Version as C
+import qualified Distribution.Compat.CharParsing as C
+import qualified Distribution.Parsec             as C
+import qualified Distribution.Pretty             as C
+import qualified Distribution.Version            as C
+import qualified Text.PrettyPrint                as PP
 
 import Data.Functor.WithIndex.Instances ()
 
@@ -101,3 +106,9 @@ equivVersionRanges = on (==) C.asVersionIntervals
 instance Lattice VersionRange where
     (/\) = C.intersectVersionRanges
     (\/) = C.unionVersionRanges
+
+instance C.Parsec Natural where
+    parsec = C.integral
+
+instance C.Pretty Natural where
+    pretty = PP.text . show
