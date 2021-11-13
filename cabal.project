@@ -1,5 +1,5 @@
 packages: .
-packages: cabal-install-parsers
+packages: cabal-install-parsers/*.cabal
 
 tests: True
 

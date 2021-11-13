@@ -22,27 +22,27 @@ module Cabal.Project (
     readPackagesOfProject
     ) where
 
-import Control.DeepSeq              (NFData (..))
-import Control.Exception            (Exception (..), throwIO)
-import Control.Monad.IO.Class       (liftIO)
-import Control.Monad.Trans.Except   (ExceptT, runExceptT, throwE)
-import Data.Bifoldable              (Bifoldable (..))
-import Data.Bifunctor               (Bifunctor (..))
-import Data.Bitraversable           (Bitraversable (..), bifoldMapDefault, bimapDefault)
-import Data.ByteString              (ByteString)
-import Data.Either                  (partitionEithers)
-import Data.Foldable                (toList)
-import Data.Function                ((&))
-import Data.Functor                 (void)
-import Data.List                    (foldl')
-import Data.List.NonEmpty           (NonEmpty)
-import Data.Traversable             (for)
-import Data.Void                    (Void)
-import Distribution.Compat.Lens     (LensLike', over)
-import GHC.Generics                 (Generic)
-import Network.URI                  (URI, parseURI)
-import System.Directory             (doesDirectoryExist, doesFileExist)
-import System.FilePath              (isAbsolute, takeDirectory, takeExtension, (</>), splitDirectories, splitDrive)
+import Control.DeepSeq            (NFData (..))
+import Control.Exception          (Exception (..), throwIO)
+import Control.Monad.IO.Class     (liftIO)
+import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
+import Data.Bifoldable            (Bifoldable (..))
+import Data.Bifunctor             (Bifunctor (..))
+import Data.Bitraversable         (Bitraversable (..), bifoldMapDefault, bimapDefault)
+import Data.ByteString            (ByteString)
+import Data.Either                (partitionEithers)
+import Data.Foldable              (toList)
+import Data.Function              ((&))
+import Data.Functor               (void)
+import Data.List                  (foldl')
+import Data.List.NonEmpty         (NonEmpty)
+import Data.Traversable           (for)
+import Data.Void                  (Void)
+import Distribution.Compat.Lens   (LensLike', over)
+import GHC.Generics               (Generic)
+import Network.URI                (URI, parseURI)
+import System.Directory           (doesDirectoryExist, doesFileExist)
+import System.FilePath            (isAbsolute, splitDirectories, splitDrive, takeDirectory, takeExtension, (</>))
 
 import qualified Data.ByteString                 as BS
 import qualified Data.Map.Strict                 as M
@@ -311,12 +311,17 @@ resolveProject filePath prj = runExceptT $ do
         isFile <- liftIO $ doesFileExist abspath
         isDir  <- liftIO $ doesDirectoryExist abspath
         if | isFile && takeExtension pkglocstr == ".cabal" -> return (Just [abspath])
-           | isDir -> checkisFileGlobPackage (pkglocstr </> "*.cabal")
+           | isDir -> checkGlob (globStarDotCabal pkglocstr)
            | otherwise -> return Nothing
 
     -- if it looks like glob, glob
-    checkisFileGlobPackage pkglocstr = do
-        files <- liftIO $ matchFileGlob rootdir (globStarDotCabal pkglocstr)
+    checkisFileGlobPackage pkglocstr = case C.eitherParsec pkglocstr of
+        Right g -> checkGlob g
+        Left _  -> return Nothing
+
+    checkGlob :: FilePathGlob -> ExceptT ResolveError IO (Maybe [FilePath])
+    checkGlob glob = do
+        files <- liftIO $ matchFileGlob rootdir glob
         let files' = filter ((== ".cabal") . takeExtension) files
         -- if nothing is matched, skip.
         if null files' then return Nothing else return (Just files')

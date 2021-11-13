@@ -1,46 +1,28 @@
+-- From Distribution.Client.Glob
 module Cabal.Internal.Glob where
 
-import Control.Monad                (filterM, liftM2)
-import Control.Monad.IO.Class       (MonadIO (..))
-import Data.Functor                 (void)
-import Data.List                    (stripPrefix)
-import System.Directory             (doesDirectoryExist, getDirectoryContents, getHomeDirectory)
-import System.FilePath.Posix        ((</>))
-import Text.ParserCombinators.ReadP
+import Control.Applicative   (some, (<|>))
+import Control.Monad         (filterM, void)
+import Data.Char             (isAsciiLower, isAsciiUpper, toUpper)
+import Data.Foldable         (toList)
+import Data.List             (stripPrefix)
+import Distribution.Parsec   (CabalParsing, Parsec (..))
+import Distribution.Pretty   (Pretty (..))
+import System.Directory      (doesDirectoryExist, getDirectoryContents, getHomeDirectory)
+import System.FilePath.Posix (addTrailingPathSeparator, joinPath, (</>))
 
--------------------------------------------------------------------------------
--- Glob
--------------------------------------------------------------------------------
+import qualified Distribution.Compat.CharParsing as P
+import qualified Text.PrettyPrint                as Disp
 
-{-
-
-Globbing code and grammar judiciously stolen from cabal-install:
-
-FilePathGlob    ::= FilePathRoot FilePathGlobRel
-FilePathRoot    ::= {- empty -}        # relative to cabal.project
-                  | "/"                # Unix root
-                  | [a-zA-Z] ":" [/\\] # Windows root
-                  | "~"                # home directory
-
-FilePathGlobRel ::= Glob "/"  FilePathGlobRel # Unix directory
-                  | Glob "\\" FilePathGlobRel # Windows directory
-                  | Glob         # file
-                  | {- empty -}  # trailing slash
-
-Glob      ::= GlobPiece *
-GlobPiece ::= "*"            # wildcard
-            | [^*{},/\\] *   # literal string
-            | "\\" [*{},]    # escaped reserved character
-            | "{" Glob "," ... "," Glob "}" # union (match any of these)
--}
-
+-- | A file path specified by globbing
+--
 data FilePathGlob = FilePathGlob FilePathRoot FilePathGlobRel
   deriving (Eq, Show)
 
 data FilePathGlobRel
-   = GlobDir  Glob FilePathGlobRel
-   | GlobFile Glob
-   | GlobDirTrailing -- trailing dir, a glob ending in '/'
+   = GlobDir  !Glob !FilePathGlobRel
+   | GlobFile !Glob
+   | GlobDirTrailing                -- ^ trailing dir, a glob ending in @/@
   deriving (Eq, Show)
 
 -- | A single directory or file component of a globbed path
@@ -54,61 +36,29 @@ data GlobPiece = WildCard
 
 data FilePathRoot
    = FilePathRelative
-   | FilePathRoot FilePath -- e.g. '/', 'c:\' or result of 'takeDrive'
+   | FilePathRoot FilePath -- ^ e.g. @"/"@, @"c:\"@ or result of 'takeDrive'
    | FilePathHomeDir
   deriving (Eq, Show)
 
-parseFilePathGlobRel :: ReadP FilePathGlobRel
-parseFilePathGlobRel =
-      parseGlob >>= \globpieces ->
-          asDir globpieces
-      <++ asTDir globpieces
-      <++ asFile globpieces
+-- | Check if a 'FilePathGlob' doesn't actually make use of any globbing and
+-- is in fact equivalent to a non-glob 'FilePath'.
+--
+-- If it is trivial in this sense then the result is the equivalent constant
+-- 'FilePath'. On the other hand if it is not trivial (so could in principle
+-- match more than one file) then the result is @Nothing@.
+--
+isTrivialFilePathGlob :: FilePathGlob -> Maybe FilePath
+isTrivialFilePathGlob (FilePathGlob root pathglob) =
+    case root of
+      FilePathRelative       -> go []      pathglob
+      FilePathRoot root'     -> go [root'] pathglob
+      FilePathHomeDir        -> Nothing
   where
-    asDir  glob = do dirSep
-                     GlobDir glob <$> parseFilePathGlobRel
-    asTDir glob = do dirSep
-                     return (GlobDir glob GlobDirTrailing)
-    asFile glob = return (GlobFile glob)
-
-    dirSep = void (char '/')
-         +++ (do _ <- char '\\'
-                 -- check this isn't an escape code
-                 following <- look
-                 case following of
-                   (c:_) | isGlobEscapedChar c -> pfail
-                   _                           -> return ())
-
-parseGlob :: ReadP Glob
-parseGlob = many1 parsePiece
-  where
-    parsePiece = literal +++ wildcard +++ union'
-
-    wildcard = char '*' >> return WildCard
-
-    union' = between (char '{') (char '}') $
-              fmap Union (sepBy1 parseGlob (char ','))
-
-    literal = Literal `fmap` litchars1
-
-    litchar = normal +++ escape
-
-    normal  = satisfy (\c -> not (isGlobEscapedChar c)
-                                && c /= '/' && c /= '\\')
-    escape  = char '\\' >> satisfy isGlobEscapedChar
-
-    litchars1 :: ReadP [Char]
-    litchars1 = liftM2 (:) litchar litchars
-
-    litchars :: ReadP [Char]
-    litchars = litchars1 <++ return []
-
-isGlobEscapedChar :: Char -> Bool
-isGlobEscapedChar '*'  = True
-isGlobEscapedChar '{'  = True
-isGlobEscapedChar '}'  = True
-isGlobEscapedChar ','  = True
-isGlobEscapedChar _    = False
+    go paths (GlobDir  [Literal path] globs) = go (path:paths) globs
+    go paths (GlobFile [Literal path]) = Just (joinPath (reverse (path:paths)))
+    go paths  GlobDirTrailing          = Just (addTrailingPathSeparator
+                                                 (joinPath (reverse paths)))
+    go _ _ = Nothing
 
 -- | Get the 'FilePath' corresponding to a 'FilePathRoot'.
 --
@@ -122,6 +72,11 @@ getFilePathRootDirectory  FilePathRelative   root = return root
 getFilePathRootDirectory (FilePathRoot root) _    = return root
 getFilePathRootDirectory  FilePathHomeDir    _    = getHomeDirectory
 
+
+------------------------------------------------------------------------------
+-- Matching
+--
+
 -- | Match a 'FilePathGlob' against the file system, starting from a given
 -- root directory for relative paths. The results of relative globs are
 -- relative to the given root. Matches for absolute globs are absolute.
@@ -129,13 +84,16 @@ getFilePathRootDirectory  FilePathHomeDir    _    = getHomeDirectory
 matchFileGlob :: FilePath -> FilePathGlob -> IO [FilePath]
 matchFileGlob relroot (FilePathGlob globroot glob) = do
     root <- getFilePathRootDirectory globroot relroot
-    matches <- expandRelGlob root glob
+    matches <- matchFileGlobRel root glob
     case globroot of
       FilePathRelative -> return matches
       _                -> return (map (root </>) matches)
 
-expandRelGlob :: MonadIO m => FilePath -> FilePathGlobRel -> m [FilePath]
-expandRelGlob root glob0 = liftIO $ go glob0 ""
+-- | Match a 'FilePathGlobRel' against the file system, starting from a
+-- given root directory. The results are all relative to the given root.
+--
+matchFileGlobRel :: FilePath -> FilePathGlobRel -> IO [FilePath]
+matchFileGlobRel root glob0 = go glob0 ""
   where
     go (GlobFile glob) dir = do
       entries <- getDirectoryContents (root </> dir)
@@ -147,11 +105,14 @@ expandRelGlob root glob0 = liftIO $ go glob0 ""
       subdirs <- filterM (\subdir -> doesDirectoryExist
                                        (root </> dir </> subdir))
                $ filter (matchGlob glob) entries
-      concat <$> mapM (\subdir -> go globPath (dir </> subdir)) subdirs
+      concat <$> traverse (\subdir -> go globPath (dir </> subdir)) subdirs
 
     go GlobDirTrailing dir = return [dir]
 
-matchGlob :: Glob -> FilePath -> Bool
+
+-- | Match a globbing pattern against a file path component
+--
+matchGlob :: Glob -> String -> Bool
 matchGlob = goStart
   where
     -- From the man page, glob(7):
@@ -175,3 +136,87 @@ matchGlob = goStart
     go (Union globs:rest)   cs  = any (\glob -> go (glob ++ rest) cs) globs
     go []                (_:_)  = False
     go (_:_)              ""    = False
+
+
+------------------------------------------------------------------------------
+-- Parsing & printing
+--
+
+instance Pretty FilePathGlob where
+  pretty (FilePathGlob root pathglob) = pretty root Disp.<> pretty pathglob
+
+instance Parsec FilePathGlob where
+    parsec = do
+        root <- parsec
+        case root of
+            FilePathRelative -> FilePathGlob root <$> parsec
+            _                -> FilePathGlob root <$> parsec <|> pure (FilePathGlob root GlobDirTrailing)
+
+instance Pretty FilePathRoot where
+    pretty  FilePathRelative    = Disp.empty
+    pretty (FilePathRoot root)  = Disp.text root
+    pretty FilePathHomeDir      = Disp.char '~' Disp.<> Disp.char '/'
+
+instance Parsec FilePathRoot where
+    parsec = root <|> P.try home <|> P.try drive <|> pure FilePathRelative where
+        root = FilePathRoot "/" <$ P.char '/'
+        home = FilePathHomeDir <$ P.string "~/"
+        drive = do
+            dr <- P.satisfy $ \c -> isAsciiLower c || isAsciiUpper c
+            _ <- P.char ':'
+            _ <- P.char '/' <|> P.char '\\'
+            return (FilePathRoot (toUpper dr : ":\\"))
+
+instance Pretty FilePathGlobRel where
+    pretty (GlobDir  glob pathglob) = dispGlob glob
+                            Disp.<> Disp.char '/'
+                            Disp.<> pretty pathglob
+    pretty (GlobFile glob)          = dispGlob glob
+    pretty GlobDirTrailing          = Disp.empty
+
+instance Parsec FilePathGlobRel where
+    parsec = parsecPath where
+        parsecPath :: CabalParsing m => m FilePathGlobRel
+        parsecPath = do
+            glob <- parsecGlob
+            dirSep *> (GlobDir glob <$> parsecPath <|> pure (GlobDir glob GlobDirTrailing)) <|> pure (GlobFile glob)
+
+        dirSep :: CabalParsing m => m ()
+        dirSep = void (P.char '/') <|> P.try (do
+            _ <- P.char '\\'
+            -- check this isn't an escape code
+            P.notFollowedBy (P.satisfy isGlobEscapedChar))
+
+dispGlob :: Glob -> Disp.Doc
+dispGlob = Disp.hcat . map dispPiece
+  where
+    dispPiece WildCard      = Disp.char '*'
+    dispPiece (Literal str) = Disp.text (escape str)
+    dispPiece (Union globs) = Disp.braces
+                                (Disp.hcat (Disp.punctuate
+                                             (Disp.char ',')
+                                             (map dispGlob globs)))
+    escape []               = []
+    escape (c:cs)
+      | isGlobEscapedChar c = '\\' : c : escape cs
+      | otherwise           =        c : escape cs
+
+parsecGlob :: CabalParsing m => m Glob
+parsecGlob = some parsecPiece where
+    parsecPiece = P.choice [ literal, wildcard, union ]
+
+    wildcard = WildCard <$ P.char '*'
+    union    = Union . toList <$> P.between (P.char '{') (P.char '}') (P.sepByNonEmpty parsecGlob (P.char ','))
+    literal  = Literal <$> some litchar
+
+    litchar = normal <|> escape
+
+    normal  = P.satisfy (\c -> not (isGlobEscapedChar c) && c /= '/' && c /= '\\')
+    escape  = P.try $ P.char '\\' >> P.satisfy isGlobEscapedChar
+
+isGlobEscapedChar :: Char -> Bool
+isGlobEscapedChar '*'  = True
+isGlobEscapedChar '{'  = True
+isGlobEscapedChar '}'  = True
+isGlobEscapedChar ','  = True
+isGlobEscapedChar _    = False
