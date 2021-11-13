@@ -1,3 +1,8 @@
+## 0.4.4
+
+- Try to fix glob behavior on Windows
+- Add `Show (Project ...)` instance
+
 ## 0.4.3
 
 - Use `Cabal-3.6`
