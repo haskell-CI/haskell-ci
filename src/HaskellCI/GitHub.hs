@@ -584,7 +584,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)
             let allFlags        = unwords (testFlag : benchFlag : constraintFlags)
 
-            sh_cs $ "$CABAL v2-build $ARG_COMPILER " ++ allFlags ++ " --dependencies-only -j2 all"
+            when cfgInstallDeps $ sh_cs $ "$CABAL v2-build $ARG_COMPILER " ++ allFlags ++ " --dependencies-only -j2 all"
             sh_cs $ "$CABAL v2-build $ARG_COMPILER " ++ allFlags ++ " all"
             when (docspecEnabled && csDocspec cs) $
                 sh_cs' docspecRange cabalDocspec
