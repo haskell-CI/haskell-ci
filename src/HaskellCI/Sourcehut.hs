@@ -10,39 +10,21 @@ module HaskellCI.Sourcehut (
 
 import HaskellCI.Prelude
 
-import           Data.Bifunctor (first)
 import qualified Data.Map.Strict                 as M
 import qualified Data.Set                        as S
-import qualified Distribution.Fields.Pretty      as C
-import qualified Distribution.Package            as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.GenericPackageDescription as C
 import qualified Distribution.Types.PackageDescription as C
-import qualified Distribution.Types.VersionRange as C
 import qualified Distribution.Utils.ShortText    as C
-import qualified Distribution.Version            as C
 import System.FilePath.Posix (takeFileName)
 
 import Cabal.Project
-import HaskellCI.Auxiliary
 import HaskellCI.Compiler
 import HaskellCI.Config
-import HaskellCI.Config.ConstraintSet
-import HaskellCI.Config.Doctest
-import HaskellCI.Config.Folds
-import HaskellCI.Config.HLint
-import HaskellCI.Config.Installed
-import HaskellCI.Config.Jobs
-import HaskellCI.Config.PackageScope
-import HaskellCI.Config.Validity
-import HaskellCI.HeadHackage
 import HaskellCI.Jobs
 import HaskellCI.List
-import HaskellCI.MonadErr
 import HaskellCI.Package
 import HaskellCI.Sh
-import HaskellCI.ShVersionRange
-import HaskellCI.Tools
 import HaskellCI.Sourcehut.Yaml
 import HaskellCI.VersionInfo
 
@@ -103,7 +85,7 @@ makeSourcehut
     -> Project URI Void Package
     -> JobVersions
     -> Either HsCiError Sourcehut
-makeSourcehut argv config@Config{..} SourcehutOptions{..} prj JobVersions{linuxVersions} =
+makeSourcehut _argv Config{..} SourcehutOptions{..} prj JobVersions{linuxVersions} =
     Sourcehut <$>
       if sourcehutOptParallel
       then parallelManifests

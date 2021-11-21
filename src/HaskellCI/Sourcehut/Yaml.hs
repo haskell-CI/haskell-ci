@@ -6,11 +6,9 @@ module HaskellCI.Sourcehut.Yaml where
 
 import HaskellCI.Prelude
 
-import qualified Data.Aeson         as Aeson
 import qualified Data.Map.Strict as M
 
 import HaskellCI.Config.Ubuntu
-import HaskellCI.List
 import HaskellCI.Sh
 import HaskellCI.YamlSyntax
 
