@@ -5,6 +5,7 @@ import Prelude ()
 import Prelude.Compat
 
 import HaskellCI hiding (main)
+import HaskellCI.Sourcehut (SourcehutOptions(..))
 
 import Control.Arrow              (first)
 import Data.Algorithm.Diff        (PolyDiff (..), getGroupedDiff)
@@ -17,6 +18,8 @@ import Test.Tasty.Golden.Advanced (goldenTest)
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified System.Console.ANSI   as ANSI
+
+import qualified Data.Map as Map
 
 main :: IO ()
 main = do
@@ -44,13 +47,25 @@ main = do
 -- @
 fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = testGroup fp
-    [ fixtureGoldenTest' "travis" travisFromConfigFile
-    , fixtureGoldenTest' "github" githubFromConfigFile
-    , fixtureGoldenTest' "bash"   bashFromConfigFile
+    [ fixtureGoldenTest' "travis"             "travis"    travisFromConfigFile
+    , fixtureGoldenTest' "github"             "github"    githubFromConfigFile
+    , fixtureGoldenTest' "bash"               "bash"      bashFromConfigFile
+    , fixtureGoldenTest' "sourcehut"          "sourcehut" (sourcehutFromConfigFile' False)
+    , fixtureGoldenTest' "sourcehut-parallel" "sourcehut" (sourcehutFromConfigFile' True)
     ]
   where
-    -- name acts as extension also
-    fixtureGoldenTest' name generate = cabalGoldenTest name outputRef $ do
+    sourcehutFromConfigFile' parallel argv opts projectfp =
+        BS.concat <$> fmap addSourcehutHeader <$> Map.toList <$>
+        sourcehutFromConfigFile argv opts SourcehutOptions
+        { sourcehutOptPath = projectfp
+        , sourcehutOptSource = Just "https://example.org"
+        , sourcehutOptParallel = parallel
+        }
+
+    addSourcehutHeader :: (FilePath, BS.ByteString) -> BS.ByteString
+    addSourcehutHeader (n, m) = BS8.pack ("# manifest name: " <> n <> "\n") <> m
+
+    fixtureGoldenTest' name command generate = cabalGoldenTest name outputRef $ do
         (argv, opts') <- makeFlags
         let opts = opts'
               { optInputType      = Just InputTypeProject
@@ -70,7 +85,7 @@ fixtureGoldenTest fp = testGroup fp
         makeFlags :: IO ([String], Options)
         makeFlags = do
             argv <- readArgv
-            let argv' = argv ++ [name, projectfp]
+            let argv' = argv ++ [command, projectfp]
             (_fp, opts) <- parseOptions argv'
             return (argv', opts)
 

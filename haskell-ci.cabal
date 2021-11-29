@@ -199,6 +199,7 @@ test-suite golden
     , base-compat
     , bytestring
     , Cabal
+    , containers
     , directory
     , filepath
     , haskell-ci-internal

@@ -24,6 +24,7 @@ module HaskellCI (
     bashFromConfigFile,
     travisFromConfigFile,
     githubFromConfigFile,
+    sourcehutFromConfigFile,
     ) where
 
 import HaskellCI.Prelude
