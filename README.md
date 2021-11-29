@@ -345,9 +345,4 @@ Random Remarks
 Real-world Examples
 -------------------
 
- - [lens](https://github.com/ekmett/lens) [![Build Status](https://travis-ci.org/ekmett/lens.png?branch=master)](https://travis-ci.org/ekmett/lens)
- - [Cabal](https://github.com/haskell/cabal) [![Build Status](https://travis-ci.org/haskell/cabal.png?branch=master)](https://travis-ci.org/haskell/cabal)
- - [deepseq-generics](https://github.com/hvr/deepseq-generics) [![Build Status](https://travis-ci.org/hvr/deepseq-generics.png?branch=master)](https://travis-ci.org/hvr/deepseq-generics)
- - [filepath](https://github.com/ghc/packages-filepath)  [![Build Status](https://travis-ci.org/ghc/packages-filepath.png)](https://travis-ci.org/ghc/packages-filepath)
- - [arbtt](https://github.com/nomeata/darcs-mirror-arbtt)  [![Build Status](https://travis-ci.org/nomeata/darcs-mirror-arbtt.png)](https://travis-ci.org/nomeata/darcs-mirror-arbtt)
- - [circle-packing](https://github.com/nomeata/darcs-mirror-circle-packing)  [![Build Status](https://travis-ci.org/nomeata/darcs-mirror-circle-packing.png)](https://travis-ci.org/nomeata/darcs-mirror-circle-packing)
+ - [lens](https://github.com/ekmett/lens)
