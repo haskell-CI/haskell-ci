@@ -10,6 +10,7 @@ module HaskellCI.Sourcehut (
 
 import HaskellCI.Prelude
 
+import Data.Containers.ListUtils (nubOrd)
 import qualified Data.Map.Strict                 as M
 import qualified Data.Set                        as S
 import qualified Distribution.Pretty             as C
@@ -121,7 +122,7 @@ makeSourcehut _argv config@Config {..} SourcehutOptions {..} prj jobs@JobVersion
             , srhtManifestArtifacts = []
             , srhtManifestSources = [sourcehutOptSource]
             , srhtManifestTasks = prepare : tasks
-            , srhtManifestTriggers = SourcehutTriggerEmail <$> getEmails prj
+            , srhtManifestTriggers = SourcehutTriggerEmail <$> nubOrd (getEmails prj)
             , srhtManifestEnvironment = mempty
             }
 
