@@ -15,10 +15,12 @@ import qualified Data.Set                        as S
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.GenericPackageDescription as C
 import qualified Distribution.Types.PackageDescription as C
+import qualified Distribution.Types.VersionRange as C
 import qualified Distribution.Utils.ShortText    as C
 import System.FilePath.Posix (takeFileName)
 
 import Cabal.Project
+import HaskellCI.Auxiliary
 import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Jobs
@@ -85,7 +87,7 @@ makeSourcehut
     -> Project URI Void Package
     -> JobVersions
     -> Either HsCiError Sourcehut
-makeSourcehut _argv Config{..} SourcehutOptions{..} prj JobVersions{linuxVersions} =
+makeSourcehut _argv config@Config{..} SourcehutOptions{..} prj jobs@JobVersions{linuxVersions} =
     Sourcehut <$>
       if sourcehutOptParallel
       then parallelManifests
@@ -105,7 +107,7 @@ makeSourcehut _argv Config{..} SourcehutOptions{..} prj JobVersions{linuxVersion
       tasks <- concat <$> traverse mkTasksForGhc (S.toList jobs)
       return SourcehutManifest
         { srhtManifestImage = cfgUbuntu
-        , srhtManifestPackages = "gcc" : "cabal-install-3.4" : (dispGhcVersion <$> S.toList jobs)
+        , srhtManifestPackages = ("gcc" : "cabal-install-3.4" : (dispGhcVersion <$> S.toList jobs)) ++ toList cfgApt
         , srhtManifestRepositories = M.singleton
             "hvr-ghc"
             ("http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main ff3aeacef6f88286")
@@ -130,8 +132,9 @@ makeSourcehut _argv Config{..} SourcehutOptions{..} prj JobVersions{linuxVersion
         sh "cabal build all"
       sourcehutRun "test" job clonePath $
         sh "cabal test all --enable-tests"
-      sourcehutRun "haddock" job clonePath $
+      when (hasLibrary && not (equivVersionRanges C.noVersion cfgHaddock)) $ sourcehutRun "haddock" job clonePath $
         sh "cabal haddock all"
+    Auxiliary {..} = auxiliary config prj jobs
 
 removeSuffix :: String -> String -> String
 removeSuffix suffix orig =

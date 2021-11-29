@@ -154,7 +154,11 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
     sourcehutP = fmap CommandSourcehut $ SourcehutOptions
         <$> O.strArgument (O.metavar "CABAL.FILE" <> O.action "file" <> O.help "Either <pkg.cabal> or cabal.project")
         <*> optional (O.strOption (O.long "source" <> O.metavar "URI" <> O.help "The source to test (default: from git remote)"))
-        <*> O.switch      (O.long "sourcehut-parallel" <> O.help "In Sourcehut, use many manifests to run jobs in parallel")
+        <*> O.switch      (O.long "sourcehut-parallel" <> O.help (
+            "In Sourcehut, use many manifests to run jobs in parallel. " <>
+            "Disabled by default because in the sr.ht instance a maximum of " <>
+            "4 parallel jobs are allowed."
+            ))
 
 -------------------------------------------------------------------------------
 -- Parsing helpers
