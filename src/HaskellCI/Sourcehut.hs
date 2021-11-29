@@ -87,27 +87,34 @@ makeSourcehut
     -> Project URI Void Package
     -> JobVersions
     -> Either HsCiError Sourcehut
-makeSourcehut _argv config@Config{..} SourcehutOptions{..} prj jobs@JobVersions{linuxVersions} =
+makeSourcehut _argv config@Config {..} SourcehutOptions {..} prj jobs@JobVersions {..} =
     Sourcehut <$>
       if sourcehutOptParallel
       then parallelManifests
       else M.singleton "all" <$> sequentialManifest
   where
+    Auxiliary {..} = auxiliary config prj jobs
+
     parallelManifests :: Either HsCiError (M.Map String SourcehutManifest)
     parallelManifests = fmap (M.mapKeys dispGhcVersionShort) $
       sequence $ M.fromSet (mkManifest . S.singleton) linuxVersions
+
     sequentialManifest :: Either HsCiError SourcehutManifest
     sequentialManifest = mkManifest linuxVersions
+
     mkManifest :: Set CompilerVersion -> Either HsCiError SourcehutManifest
-    mkManifest jobs = do
+    mkManifest compilers = do
       prepare <- fmap (SourcehutTask "all-prepare") $ runSh $ do
         sh "export PATH=$PATH:/opt/cabal/bin"
         tell_env "PATH" "$PATH:/opt/cabal/bin"
         sh "cabal update"
-      tasks <- concat <$> traverse mkTasksForGhc (S.toList jobs)
+      tasks <- concat <$> traverse mkTasksForGhc (S.toList compilers)
       return SourcehutManifest
         { srhtManifestImage = cfgUbuntu
-        , srhtManifestPackages = ("gcc" : "cabal-install-3.4" : (dispGhcVersion <$> S.toList jobs)) ++ toList cfgApt
+        , srhtManifestPackages =
+            toList cfgApt ++
+            ( "gcc" : "cabal-install-3.4" :
+              (dispGhcVersion <$> S.toList compilers))
         , srhtManifestRepositories = M.singleton
             "hvr-ghc"
             ("http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main ff3aeacef6f88286")
@@ -117,7 +124,10 @@ makeSourcehut _argv config@Config{..} SourcehutOptions{..} prj jobs@JobVersions{
         , srhtManifestTriggers = SourcehutTriggerEmail <$> getEmails prj
         , srhtManifestEnvironment = mempty
         }
+
+    clonePath :: FilePath
     clonePath = removeSuffix ".git" $ takeFileName sourcehutOptSource
+
     -- MAYBE reader for job and clonePath
     mkTasksForGhc :: CompilerVersion -> Either HsCiError [SourcehutTask]
     mkTasksForGhc job = sequence $ buildList $ do
@@ -134,7 +144,6 @@ makeSourcehut _argv config@Config{..} SourcehutOptions{..} prj jobs@JobVersions{
         sh "cabal test all --enable-tests"
       when (hasLibrary && not (equivVersionRanges C.noVersion cfgHaddock)) $ sourcehutRun "haddock" job clonePath $
         sh "cabal haddock all"
-    Auxiliary {..} = auxiliary config prj jobs
 
 removeSuffix :: String -> String -> String
 removeSuffix suffix orig =
