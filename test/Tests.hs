@@ -32,6 +32,7 @@ main = do
         , fixtureGoldenTest "psql"
         , fixtureGoldenTest "travis-patch"
         , fixtureGoldenTest "enabled-jobs"
+        , fixtureGoldenTest "sourcehut-parallel"
         , testGroup "copy-fields"
             [ fixtureGoldenTest "copy-fields-all"
             , fixtureGoldenTest "copy-fields-some"
