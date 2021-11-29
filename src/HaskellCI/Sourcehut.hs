@@ -3,7 +3,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 module HaskellCI.Sourcehut (
-    SourcehutOptions(..),
     makeSourcehut,
     sourcehutHeader,
     ) where
@@ -13,6 +12,7 @@ import HaskellCI.Prelude
 import Data.Containers.ListUtils (nubOrd)
 import qualified Data.Map.Strict                 as M
 import qualified Data.Set                        as S
+import qualified Data.Text                       as T
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.GenericPackageDescription as C
 import qualified Distribution.Types.PackageDescription as C
@@ -24,6 +24,7 @@ import Cabal.Project
 import HaskellCI.Auxiliary
 import HaskellCI.Compiler
 import HaskellCI.Config
+import HaskellCI.GitConfig
 import HaskellCI.Jobs
 import HaskellCI.List
 import HaskellCI.Package
@@ -31,16 +32,6 @@ import HaskellCI.Sh
 import HaskellCI.Sourcehut.Yaml
 import HaskellCI.VersionInfo
 
--------------------------------------------------------------------------------
--- Sourcehut options
--------------------------------------------------------------------------------
-
-data SourcehutOptions src = SourcehutOptions
-    { sourcehutOptPath :: FilePath
-    , sourcehutOptSource :: src
-    , sourcehutOptParallel :: Bool
-    }
-  deriving Show
 
 -------------------------------------------------------------------------------
 -- Sourcehut header
@@ -84,13 +75,34 @@ Sourcehut–specific notes:
 makeSourcehut
     :: [String]
     -> Config
-    -> SourcehutOptions String
+    -> GitConfig
     -> Project URI Void Package
     -> JobVersions
     -> Either HsCiError Sourcehut
-makeSourcehut _argv config@Config {..} SourcehutOptions {..} prj jobs@JobVersions {..} =
+makeSourcehut _argv config@Config {..} gitconfig prj jobs = do
+    let gitRemote = case M.toList (gitCfgRemotes gitconfig) of
+            [(_,url)] -> Just url
+            -- In case of multiple remotes, pick origin
+            -- MAYBE just pick the first instead?
+            rs -> case filter (("origin" ==) . fst) rs of
+              (_,url) : _ -> Just url
+              [] -> Nothing
+    source <- case cfgSourcehutSource of
+        Just url -> return url
+        Nothing -> case gitRemote of
+          Just url -> return $ T.unpack url
+          Nothing -> Left $ ValidationError "multiple/no remotes found and --sourcehut-source was not used"
+    makeSourcehut' config source prj jobs
+
+makeSourcehut'
+    :: Config
+    -> String
+    -> Project URI Void Package
+    -> JobVersions
+    -> Either HsCiError Sourcehut
+makeSourcehut' config@Config {..} source prj jobs@JobVersions {..} =
     Sourcehut <$>
-        if sourcehutOptParallel
+        if cfgSourcehutParallel
         then parallelManifests
         else M.singleton "all" <$> sequentialManifest
   where
@@ -120,14 +132,14 @@ makeSourcehut _argv config@Config {..} SourcehutOptions {..} prj jobs@JobVersion
                   "hvr-ghc"
                   ("http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main ff3aeacef6f88286")
             , srhtManifestArtifacts = []
-            , srhtManifestSources = [sourcehutOptSource]
+            , srhtManifestSources = [source]
             , srhtManifestTasks = prepare : tasks
             , srhtManifestTriggers = SourcehutTriggerEmail <$> nubOrd (getEmails prj)
             , srhtManifestEnvironment = mempty
             }
 
     clonePath :: FilePath
-    clonePath = removeSuffix ".git" $ takeFileName sourcehutOptSource
+    clonePath = removeSuffix ".git" $ takeFileName $ source
 
     -- MAYBE reader for job and clonePath
     mkTasksForGhc :: CompilerVersion -> Either HsCiError [SourcehutTask]

@@ -5,7 +5,6 @@ module HaskellCI.Cli where
 
 import HaskellCI.Prelude
 
-import Control.Applicative   (optional)
 import System.Exit           (exitFailure)
 import System.FilePath.Posix (takeFileName)
 import System.IO             (hPutStrLn, stderr)
@@ -14,7 +13,6 @@ import qualified Options.Applicative as O
 
 import HaskellCI.Config
 import HaskellCI.OptparseGrammar
-import HaskellCI.Sourcehut (SourcehutOptions(..))
 import HaskellCI.VersionInfo
 
 -------------------------------------------------------------------------------
@@ -25,7 +23,7 @@ data Command
     = CommandTravis FilePath
     | CommandBash FilePath
     | CommandGitHub FilePath
-    | CommandSourcehut (SourcehutOptions (Maybe String))
+    | CommandSourcehut FilePath
     | CommandRegenerate
     | CommandListGHC
     | CommandDumpConfig
@@ -151,14 +149,8 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
     githubP = CommandGitHub
         <$> O.strArgument (O.metavar "CABAL.FILE" <> O.action "file" <> O.help "Either <pkg.cabal> or cabal.project")
 
-    sourcehutP = fmap CommandSourcehut $ SourcehutOptions
+    sourcehutP = CommandSourcehut
         <$> O.strArgument (O.metavar "CABAL.FILE" <> O.action "file" <> O.help "Either <pkg.cabal> or cabal.project")
-        <*> optional (O.strOption (O.long "source" <> O.metavar "URI" <> O.help "The source to test (default: from git remote)"))
-        <*> O.switch      (O.long "sourcehut-parallel" <> O.help (
-            "In Sourcehut, use many manifests to run jobs in parallel. " <>
-            "Disabled by default because in the sr.ht instance a maximum of " <>
-            "4 parallel jobs are allowed."
-            ))
 
 -------------------------------------------------------------------------------
 -- Parsing helpers
@@ -176,19 +168,8 @@ parseOptions argv = case res of
     res = O.execParserPure (O.prefs O.subparserInline) cliParserInfo argv
 
     fromCmd :: Command -> IO FilePath
-    fromCmd (CommandTravis fp) = return fp
-    fromCmd (CommandBash fp)   = return fp
-    fromCmd (CommandGitHub fp) = return fp
-    fromCmd (CommandSourcehut srhtOpts) = return $ sourcehutOptPath srhtOpts
-    fromCmd cmd                = fail $ "Command without filepath: " ++ show cmd
-
--- TODO find a way to merge this with the above... or use global options only
-parseOptionsSrht :: [String] -> IO (SourcehutOptions (Maybe String), Options)
-parseOptionsSrht argv = case res of
-    O.Success (CommandSourcehut cmd, opts) -> return (cmd, opts)
-    O.Success _ -> fail "parseOptionsSrht on non-sourcehut command"
-    O.Failure f -> case O.renderFailure f "haskell-ci" of
-        (help, _) -> hPutStrLn stderr help >> exitFailure
-    O.CompletionInvoked _ -> exitFailure -- unexpected
-  where
-    res = O.execParserPure (O.prefs O.subparserInline) cliParserInfo argv
+    fromCmd (CommandTravis fp)    = return fp
+    fromCmd (CommandBash fp)      = return fp
+    fromCmd (CommandGitHub fp)    = return fp
+    fromCmd (CommandSourcehut fp) = return fp
+    fromCmd cmd                   = fail $ "Command without filepath: " ++ show cmd

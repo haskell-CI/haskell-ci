@@ -5,7 +5,6 @@ import Prelude ()
 import Prelude.Compat
 
 import HaskellCI hiding (main)
-import HaskellCI.Sourcehut (SourcehutOptions(..))
 
 import Control.Arrow              (first)
 import Data.Algorithm.Diff        (PolyDiff (..), getGroupedDiff)
@@ -47,29 +46,25 @@ main = do
 -- @
 fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = testGroup fp
-    [ fixtureGoldenTest' "travis"             "travis"    travisFromConfigFile
-    , fixtureGoldenTest' "github"             "github"    githubFromConfigFile
-    , fixtureGoldenTest' "bash"               "bash"      bashFromConfigFile
-    , fixtureGoldenTest' "sourcehut"          "sourcehut" (sourcehutFromConfigFile' False)
-    , fixtureGoldenTest' "sourcehut-parallel" "sourcehut" (sourcehutFromConfigFile' True)
+    [ fixtureGoldenTest' "travis"    travisFromConfigFile
+    , fixtureGoldenTest' "github"    githubFromConfigFile
+    , fixtureGoldenTest' "bash"      bashFromConfigFile
+    , fixtureGoldenTest' "sourcehut" sourcehutFromConfigFile'
     ]
   where
-    sourcehutFromConfigFile' parallel argv opts projectfp =
+    sourcehutFromConfigFile' argv opts projectfp =
         BS.concat <$> fmap addSourcehutHeader <$> Map.toList <$>
-        sourcehutFromConfigFile argv opts SourcehutOptions
-        { sourcehutOptPath = projectfp
-        , sourcehutOptSource = Just "https://example.org"
-        , sourcehutOptParallel = parallel
-        }
+        sourcehutFromConfigFile argv opts projectfp
 
     addSourcehutHeader :: (FilePath, BS.ByteString) -> BS.ByteString
     addSourcehutHeader (n, m) = BS8.pack ("# manifest name: " <> n <> "\n") <> m
 
-    fixtureGoldenTest' name command generate = cabalGoldenTest name outputRef $ do
+    -- name acts as extension also
+    fixtureGoldenTest' name generate = cabalGoldenTest name outputRef $ do
         (argv, opts') <- makeFlags
         let opts = opts'
-              { optInputType      = Just InputTypeProject
-              , optConfigMorphism = (\cfg -> cfg { cfgInsertVersion = False}) . optConfigMorphism opts'
+              { optInputType       = Just InputTypeProject
+              , optConfigMorphism  = (\cfg -> cfg { cfgInsertVersion = False}) . optConfigMorphism opts'
               }
         let genConfig = generate argv opts projectfp
         first (fmap (lines . fromUTF8BS)) <$> runDiagnosticsT genConfig
@@ -85,7 +80,7 @@ fixtureGoldenTest fp = testGroup fp
         makeFlags :: IO ([String], Options)
         makeFlags = do
             argv <- readArgv
-            let argv' = argv ++ [command, projectfp]
+            let argv' = argv ++ [name, projectfp] ++ ["--sourcehut-source", "https://example.org"]
             (_fp, opts) <- parseOptions argv'
             return (argv', opts)
 

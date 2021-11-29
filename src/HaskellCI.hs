@@ -51,7 +51,6 @@ import qualified Data.ByteString       as BS
 import qualified Data.List.NonEmpty    as NE
 import qualified Data.Map              as Map
 import qualified Data.Set              as S
-import qualified Data.Text             as TS
 import qualified Data.Traversable      as T
 import qualified Distribution.Compiler as Compiler
 import qualified Distribution.Package  as Pkg
@@ -103,10 +102,10 @@ main = do
             regenerateTravis opts
             regenerateSourcehut opts
 
-        CommandBash   f -> doBash argv0 f opts
-        CommandGitHub f -> doGitHub argv0 f opts
-        CommandTravis f -> doTravis argv0 f opts
-        CommandSourcehut srhtOpts -> doSourcehut argv0 srhtOpts opts
+        CommandBash      f -> doBash argv0 f opts
+        CommandGitHub    f -> doGitHub argv0 f opts
+        CommandTravis    f -> doTravis argv0 f opts
+        CommandSourcehut f -> doSourcehut argv0 f opts
 
         CommandVersionInfo -> do
             putStrLn $ "haskell-ci " ++ haskellCIVerStr ++ " with dependencies"
@@ -385,9 +384,9 @@ regenerateGitHub opts = do
 defaultSourcehutPath :: FilePath
 defaultSourcehutPath = ".builds"
 
-doSourcehut :: [String] -> SourcehutOptions (Maybe String) -> Options -> IO ()
-doSourcehut args srhtOpts opts = do
-    contents <- sourcehutFromConfigFile args opts srhtOpts
+doSourcehut :: [String] -> FilePath -> Options -> IO ()
+doSourcehut args path opts = do
+    contents <- sourcehutFromConfigFile args opts path
     case optOutput opts of
         Nothing              -> do
             createDir defaultSourcehutPath
@@ -407,11 +406,11 @@ sourcehutFromConfigFile
     :: forall m. (MonadIO m, MonadDiagnostics m, MonadMask m)
     => [String]
     -> Options
-    -> SourcehutOptions (Maybe String)
+    -> FilePath
     -> m (M.Map FilePath ByteString)
-sourcehutFromConfigFile args opts srhtOpts@SourcehutOptions{sourcehutOptPath} = do
+sourcehutFromConfigFile args opts path = do
     gitconfig <- liftIO readGitConfig
-    cabalFiles <- getCabalFiles (optInputType' opts sourcehutOptPath) sourcehutOptPath
+    cabalFiles <- getCabalFiles (optInputType' opts path) path
     config' <- findConfigFile (optConfig opts)
     let config = optConfigMorphism opts config'
     pkgs <- T.mapM (configFromCabalFile config) cabalFiles
@@ -423,7 +422,7 @@ sourcehutFromConfigFile args opts srhtOpts@SourcehutOptions{sourcehutOptPath} = 
     let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
              | otherwise         = prj
 
-    ls <- genSourcehutFromConfigs args config gitconfig srhtOpts prj' ghcs
+    ls <- genSourcehutFromConfigs args config gitconfig prj' ghcs
     return ls -- TODO patchSourcehut config ls
 
 genSourcehutFromConfigs
@@ -431,26 +430,12 @@ genSourcehutFromConfigs
     => [String]
     -> Config
     -> GitConfig
-    -> SourcehutOptions (Maybe String)
     -> Project URI Void Package
     -> Set CompilerVersion
     -> m (M.Map FilePath ByteString)
-genSourcehutFromConfigs argv config gitconfig srhtOpts@SourcehutOptions{sourcehutOptSource} prj vs = do
+genSourcehutFromConfigs argv config gitconfig prj vs = do
     let jobVersions = makeJobVersions config vs
-        gitRemote = case M.toList (gitCfgRemotes gitconfig) of
-            [(_,url)] -> Just url
-            -- In case of multiple remotes, pick origin
-            -- MAYBE just pick the first instead?
-            rs -> case filter (("origin" ==) . fst) rs of
-              (_,url) : _ -> Just url
-              [] -> Nothing
-    sourcehutOptSource' <- case sourcehutOptSource of
-        Just url -> return url
-        Nothing -> case gitRemote of
-          Just url -> return $ TS.unpack url
-          Nothing -> putStrLnErr "multiple/no remotes found and --sourcehut-source was not used"
-    let srhtOpts' = srhtOpts {sourcehutOptSource = sourcehutOptSource'}
-    case makeSourcehut argv config srhtOpts' prj jobVersions of
+    case makeSourcehut argv config gitconfig prj jobVersions of
         Left err     -> putStrLnErr $ displayException err
         Right sourcehut -> do
             describeJobs "Sourcehut config" (cfgTestedWith config) jobVersions (prjPackages prj)
@@ -479,8 +464,8 @@ regenerateSourcehut opts = do
 
             -- Warn about outdated .yml files. to be safe, we don't delete them all.
             putStrLnWarn "Outdated .yml files will not be deleted"
-            (srhtOpts, opts') <- parseOptionsSrht argv
-            doSourcehut argv srhtOpts ( opts' <> opts)
+            (f, opts') <- parseOptions argv
+            doSourcehut argv f ( optionsWithOutputFile fp <> opts' <> opts)
   where
     noSourcehutScript :: IO ()
     noSourcehutScript = putStrLn $ "No " ++ defaultSourcehutPath ++ "/*.yml or .build.yml, skipping Sourcehut config regeneration"
