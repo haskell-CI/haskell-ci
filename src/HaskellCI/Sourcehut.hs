@@ -9,7 +9,6 @@ module HaskellCI.Sourcehut (
 
 import HaskellCI.Prelude
 
-import Data.Containers.ListUtils (nubOrd)
 import qualified Data.Map.Strict                 as M
 import qualified Data.Set                        as S
 import qualified Data.Text                       as T
@@ -18,6 +17,7 @@ import qualified Distribution.Types.GenericPackageDescription as C
 import qualified Distribution.Types.PackageDescription as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Distribution.Utils.ShortText    as C
+import qualified Distribution.Simple.Utils       as C
 import System.FilePath.Posix (takeFileName)
 
 import Cabal.Project
@@ -134,7 +134,7 @@ makeSourcehut' config@Config {..} source prj jobs@JobVersions {..} =
             , srhtManifestArtifacts = []
             , srhtManifestSources = [source]
             , srhtManifestTasks = prepare : tasks
-            , srhtManifestTriggers = SourcehutTriggerEmail <$> nubOrd (getEmails prj)
+            , srhtManifestTriggers = SourcehutTriggerEmail <$> C.ordNub (getEmails prj)
             , srhtManifestEnvironment = mempty
             }
 
