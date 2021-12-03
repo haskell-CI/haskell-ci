@@ -334,7 +334,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         when doctestEnabled $ githubRun "install doctest" $ do
             let range = Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange
-            sh_if range "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.17'"
+            sh_if range "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 doctest --constraint='doctest ^>=0.20'"
             sh_if range "doctest --version"
 
         let hlintVersionConstraint
