@@ -102,4 +102,6 @@ GHC-7.0.1 &mdash; GHC-9.2.1 are supported.
 Real-world Examples
 -------------------
 
+ - [aeson](https://github.com/haskell/aeson)
  - [lens](https://github.com/ekmett/lens)
+ - [unordered-containers](https://github.com/haskell-unordered-containers/unordered-containers)
