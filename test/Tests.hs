@@ -81,7 +81,9 @@ fixtureGoldenTest fp = testGroup fp
         makeFlags :: IO ([String], Options)
         makeFlags = do
             argv <- readArgv
-            let argv' = argv ++ [name, projectfp] ++ ["--sourcehut-source", "https://example.org"]
+            let argv' = argv ++ [name, projectfp] ++
+                  [ arg | arg <- ["--sourcehut-source", "https://example.org"]
+                  , name == "sourcehut" ]
             (_fp, opts) <- parseOptions argv'
             return (argv', opts)
 

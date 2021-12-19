@@ -2,7 +2,7 @@
 # *INFO* Generating Bash script for testing for GHC versions: 8.0.1 8.0.2 8.2.1 8.2.2 8.4.1 8.4.2 8.4.3 8.4.4 8.6.1 8.6.2 8.6.3 8.6.4 8.6.5 8.8.1 8.8.2 8.8.3 8.8.4 8.10.1 8.10.2 8.10.3 8.10.4 8.10.5 8.10.6 8.10.7 9.0.1 9.0.2 9.2.1 9.2.2 9.2.3 9.4.1 ghcjs-8.4
 #!/bin/bash
 # shellcheck disable=SC2086,SC2016,SC2046
-# REGENDATA ["--enabled-jobs=>=8","bash","enabled-jobs.project","--sourcehut-source","https://example.org"]
+# REGENDATA ["--enabled-jobs=>=8","bash","enabled-jobs.project"]
 
 set -o pipefail
 
