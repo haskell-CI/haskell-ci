@@ -421,8 +421,8 @@ sourcehutFromConfigFile args opts path = do
     let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
              | otherwise         = prj
 
-    ls <- genSourcehutFromConfigs args config gitconfig prj' ghcs
-    return ls -- TODO patchSourcehut config ls
+    genSourcehutFromConfigs args config gitconfig prj' ghcs
+    -- TODO ls <- genSourcehutFromConfigs ...; patchSourcehut config ls
 
 genSourcehutFromConfigs
     :: (Monad m, MonadIO m, MonadDiagnostics m)
