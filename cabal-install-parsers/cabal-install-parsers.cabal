@@ -21,7 +21,7 @@ maintainer:         hvr@gnu.org, oleg.grenrus@iki.fi
 category:           Development
 build-type:         Simple
 tested-with:
-  GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.4 || ==8.10.7 || ==9.0.1
+  GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.4 || ==8.10.7 || ==9.0.1 || ==9.2.1
 
 extra-source-files:
   Changelog.md
@@ -65,7 +65,7 @@ library
     , parsec        ^>=3.1.13.0
     , pretty        ^>=1.1.3.3
     , text          ^>=1.2.3.0
-    , time          ^>=1.8.0.2 || ^>=1.9.3
+    , time          ^>=1.8.0.2 || ^>=1.9.3 || ^>=1.11.1.1
     , transformers  ^>=0.5.2.0
 
   -- extra dependencies
