@@ -98,6 +98,8 @@ instance (Eq uri, Eq opt, Eq pkg) => Eq (Project uri opt pkg) where
         eqOn f = f x == f y
 
 -- | Doesn't show 'prjOtherFields'
+--
+-- @since 0.4.4
 instance (Show uri, Show opt, Show pkg) => Show (Project uri opt pkg) where
     showsPrec p prj =
         showParen (p > 10)
