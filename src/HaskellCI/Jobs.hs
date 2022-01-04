@@ -1,6 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 -- | Which jobs to generate. Also helper for diagnostics output.
-module HaskellCI.Jobs where
+module HaskellCI.Jobs (
+    JobVersions (..),
+    describeJobs,
+    makeJobVersions,
+) where
 
 import HaskellCI.Prelude
 
@@ -28,15 +32,19 @@ describeJobs typ twj JobVersions {..} pkgs = do
     putStrLnInfo $ "Generating " ++ typ ++ " for testing for GHC versions: " ++ ghcVersions
     case twj of
         TestedWithUniform -> pure ()
-        TestedWithAny     -> for_ pkgs $ \pkg -> do
-            -- this omits HEAD version.
-            let vr = pkgJobs pkg
-            let vs = showVersions vr
-            putStrLnInfo $ pkgName pkg ++ " " ++ ": " ++ vs
+        TestedWithAny     -> traverse_ putStrLnInfo $ table'
+            [ pkgName pkg : "": map (showPkgVersion (pkgJobs pkg)) (S.toList allVersions)
+            | pkg <- pkgs
+            ]
 
     unless (null macosVersions) $  do
         putStrLnInfo $ "Also macos jobs for: " ++ ghcmacosVersions
   where
+    showPkgVersion :: Set CompilerVersion -> CompilerVersion -> String
+    showPkgVersion vs v
+        | S.member v vs = dispGhcVersionShort v
+        | otherwise     = ""
+
     showVersions :: Set CompilerVersion -> String
     showVersions = unwords . map dispGhcVersionShort . S.toList
 
@@ -68,4 +76,23 @@ makeJobVersions Config {..} versions' = JobVersions {..} where
     linuxRange = Range cfgLinuxJobs
     macosRange = RangeGHC /\ Range cfgMacosJobs
 
+-- https://oleg.fi/gists/posts/2019-04-28-tabular.html
+table' :: [[String]] -> [String]
+table' cells = rows
+  where
+    cols      :: Int
+    rowWidths :: [Int]
+    rows      :: [String]
 
+    (cols, rowWidths, rows) = foldr go (0, repeat 0, []) cells
+
+    go :: [String] -> (Int, [Int], [String]) -> (Int, [Int], [String])
+    go xs (c, w, yss) =
+        ( max c (length xs)
+        , zipWith max w (map length xs ++ repeat 0)
+        , unwords (take cols (zipWith fill xs rowWidths))
+          : yss
+        )
+
+    fill :: String -> Int -> String
+    fill s n = s ++ replicate (n - length s) ' '
