@@ -1,3 +1,11 @@
+## 0.14 - 2022-01-05
+
+- Add GHC-9.0 releases and GHC-9.2.1
+- Add ghcup setup method. It is used by default for GHC versions not in hvr-ppa.
+- GHA: Specify GHC memory limit
+- GHA: timeout-minutes configuration option
+- Update cabal-docspec versions used
+
 ## 0.12.1 - 2021-03-20
 
 - Use HLint-3.3
