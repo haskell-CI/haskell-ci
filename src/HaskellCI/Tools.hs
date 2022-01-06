@@ -55,7 +55,7 @@ doctestArgs gpd = nub $
 libraryModuleArgs :: C.Library -> [String]
 libraryModuleArgs l
     | null dirsOrMods = []
-    | otherwise       = exts ++ dirsOrMods
+    | otherwise       = lang ++ exts ++ dirsOrMods
   where
     bi = l ^. L.buildInfo
 
@@ -63,12 +63,14 @@ libraryModuleArgs l
         | null (C.hsSourceDirs bi) = map C.prettyShow (C.exposedModules l)
         | otherwise                = map C.getSymbolicPath $ C.hsSourceDirs bi
 
+    lang = maybe [] (pure . ("-X" ++) . C.prettyShow) (C.defaultLanguage bi)
+
     exts = map (("-X" ++) . C.prettyShow) (C.defaultExtensions bi)
 
 executableModuleArgs :: C.Executable -> [String]
 executableModuleArgs e
     | null dirsOrMods = []
-    | otherwise       = exts ++ dirsOrMods
+    | otherwise       = lang ++ exts ++ dirsOrMods
   where
     bi = e ^. L.buildInfo
 
@@ -76,6 +78,8 @@ executableModuleArgs e
         -- note: we don't try to find main_is location, if hsSourceDirs is empty.
         | null (C.hsSourceDirs bi) = map C.prettyShow (C.otherModules bi)
         | otherwise                = map C.getSymbolicPath $ C.hsSourceDirs bi
+
+    lang = maybe [] (pure . ("-X" ++) . C.prettyShow) (C.defaultLanguage bi)
 
     exts = map (("-X" ++) . C.prettyShow) (C.defaultExtensions bi)
 
