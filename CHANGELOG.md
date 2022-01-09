@@ -1,3 +1,7 @@
+## 0.14.1 - 2021-01-09
+
+- Pass `default-language` to `doctest`
+
 ## 0.14 - 2022-01-05
 
 - Add GHC-9.0 releases and GHC-9.2.1
