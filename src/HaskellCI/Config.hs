@@ -142,7 +142,11 @@ configGrammar = Config
     <*> C.optionalField       "jobs"                                                          (field @"cfgJobs")
         ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
     <*> C.optionalFieldDef    "distribution"                                                  (field @"cfgUbuntu") Bionic
-        ^^^ metahelp "DIST" "distribution version (xenial, bionic)"
+        ^^^ metahelp "DIST" (concat
+              [ "distribution version ("
+              , intercalate ", " $ map showUbuntu [minBound..maxBound]
+              , ")"
+              ])
     <*> C.optionalFieldDef    "jobs-selection"                                                (field @"cfgTestedWith") TestedWithUniform
         ^^^ metahelp "uniform|any" "Jobs selection across packages"
     <*> rangeField            "enabled"                                                       (field @"cfgEnabledJobs") anyVersion

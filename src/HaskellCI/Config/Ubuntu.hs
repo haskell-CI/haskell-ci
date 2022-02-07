@@ -7,7 +7,7 @@ import qualified Distribution.Pretty as C
 import qualified Text.PrettyPrint    as PP
 
 data Ubuntu = Xenial | Bionic | Focal
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance C.Parsec Ubuntu where
     parsec = do
