@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf        #-}
 {-# LANGUAGE NamedFieldPuns    #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
@@ -18,6 +19,7 @@ import qualified Distribution.Fields.Pretty                   as C
 import qualified Distribution.Pretty                          as C
 import qualified Distribution.Types.GenericPackageDescription as C
 import qualified Distribution.Types.VersionRange              as C
+import qualified Network.URI                                  as URI
 import qualified Text.PrettyPrint                             as PP
 
 import Cabal.Optimization
@@ -26,8 +28,8 @@ import Cabal.SourceRepo
 import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.CopyFields
-import HaskellCI.Config.Doctest
 import HaskellCI.Config.Docspec
+import HaskellCI.Config.Doctest
 import HaskellCI.Jobs
 import HaskellCI.List
 import HaskellCI.Package
@@ -41,7 +43,7 @@ data Auxiliary = Auxiliary
     , docspecEnabled          :: Bool
     , hasTests                :: CompilerRange
     , hasLibrary              :: Bool
-    , extraCabalProjectFields :: [C.PrettyField ()]
+    , extraCabalProjectFields :: FilePath -> [C.PrettyField ()]
     , testShowDetails         :: String
     }
 
@@ -69,11 +71,13 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
 
     hasLibrary = any (\Pkg{pkgGpd} -> isJust $ C.condLibrary pkgGpd) pkgs
 
-    extraCabalProjectFields :: [C.PrettyField ()]
-    extraCabalProjectFields = buildList $ do
+    extraCabalProjectFields :: FilePath -> [C.PrettyField ()]
+    extraCabalProjectFields rootdir = buildList $ do
         -- generate package fields for URI packages.
         for_ uris $ \uri ->
-            item $ C.PrettyField () "packages" $ PP.text $ uriToString id uri ""
+            item $ C.PrettyField () "packages" $ PP.text $ if
+                | URI.uriScheme uri == "file:" -> rootdir ++ URI.uriPath uri
+                | otherwise                    -> uriToString id uri ""
 
         -- copy fields from original cabal.project
         case cfgCopyFields of

@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.14.1
+version:            0.14.2
 synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@haskell-ci@) for
@@ -157,7 +157,7 @@ library haskell-ci-internal
     , attoparsec                     ^>=0.14.1
     , base-compat                    ^>=0.11 || ^>=0.12
     , base16-bytestring              ^>=1.0.1.0
-    , cabal-install-parsers          ^>=0.4.4
+    , cabal-install-parsers          ^>=0.4.5
     , cryptohash-sha256              ^>=0.11.101.0
     , exceptions                     ^>=0.10.0
     , generic-lens-lite              ^>=0.1

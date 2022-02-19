@@ -1,3 +1,7 @@
+## 0.4.5
+
+- Resolve `.tar.gz` package files to `file:` URI-locations
+
 ## 0.4.4
 
 - Try to fix glob behavior on Windows

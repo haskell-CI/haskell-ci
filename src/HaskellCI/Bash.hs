@@ -104,7 +104,7 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
                     ]
 
             -- extra cabal.project fields
-            cat "cabal.project" $ C.showFields' (const []) (const id) 2 extraCabalProjectFields
+            cat "cabal.project" $ C.showFields' (const []) (const id) 2 $ extraCabalProjectFields ""
 
             -- also write cabal.project.local file with
             -- @
