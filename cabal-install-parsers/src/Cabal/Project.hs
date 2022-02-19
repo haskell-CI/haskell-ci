@@ -34,15 +34,16 @@ import Data.Either                (partitionEithers)
 import Data.Foldable              (toList)
 import Data.Function              ((&))
 import Data.Functor               (void)
-import Data.List                  (foldl')
+import Data.List                  (foldl', isSuffixOf)
 import Data.List.NonEmpty         (NonEmpty)
+import Data.Maybe                 (mapMaybe)
 import Data.Traversable           (for)
 import Data.Void                  (Void)
 import Distribution.Compat.Lens   (LensLike', over)
 import GHC.Generics               (Generic)
-import Network.URI                (URI, parseURI)
+import Network.URI                (URI (URI), parseURI)
 import System.Directory           (doesDirectoryExist, doesFileExist)
-import System.FilePath            (isAbsolute, splitDirectories, splitDrive, takeDirectory, takeExtension, (</>))
+import System.FilePath            (isAbsolute, normalise, splitDirectories, splitDrive, takeDirectory, (</>))
 
 import qualified Data.ByteString                 as BS
 import qualified Data.Map.Strict                 as M
@@ -284,49 +285,58 @@ resolveProject
     -> IO (Either ResolveError (Project URI Void FilePath))  -- ^ resolved project
 resolveProject filePath prj = runExceptT $ do
     prj' <- bitraverse findOptProjectPackage findProjectPackage prj
-    let (uris, pkgs) = partitionEithers $ concat $ prjPackages prj'
+    let (uris,  pkgs)  = partitionEithers $ concat $ prjPackages prj'
+    let (uris', pkgs') = partitionEithers $ concat $ prjOptPackages prj'
     return prj'
-        { prjPackages    = pkgs ++ concat (prjOptPackages prj')
+        { prjPackages    = pkgs ++ pkgs'
         , prjOptPackages = []
-        , prjUriPackages = uris
+        , prjUriPackages = uris ++ uris'
         }
   where
     rootdir = takeDirectory filePath
+    addroot p = normalise (rootdir </> p)
 
     findProjectPackage :: String -> ExceptT ResolveError IO [Either URI FilePath]
     findProjectPackage pkglocstr = do
-        mfp <- fmap3 Right (checkisFileGlobPackage pkglocstr) `mplusMaybeT`
-               fmap3 Right (checkIsSingleFilePackage pkglocstr) `mplusMaybeT`
-               fmap2 (\uri -> [Left uri]) (return $ parseURI pkglocstr)
-        maybe (throwE $ BadPackageLocation pkglocstr) return mfp
-
-    fmap2 f = fmap (fmap f)
-    fmap3 f = fmap (fmap (fmap f))
-
-    findOptProjectPackage pkglocstr = do
         mfp <- checkisFileGlobPackage pkglocstr `mplusMaybeT`
-               checkIsSingleFilePackage pkglocstr
-        maybe (return []) return mfp
+               checkIsSingleFilePackage pkglocstr `mplusMaybeT`
+               return (maybe [] (singleton . Left) (parseURI pkglocstr))
+        case mfp of
+            [] -> throwE $ BadPackageLocation pkglocstr
+            _  -> return mfp
 
+    singleton x = [x]
+
+    findOptProjectPackage :: String -> ExceptT ResolveError IO [Either URI FilePath]
+    findOptProjectPackage pkglocstr =
+        checkisFileGlobPackage pkglocstr `mplusMaybeT`
+        checkIsSingleFilePackage pkglocstr
+
+    checkIsSingleFilePackage :: String -> ExceptT ResolveError IO [Either URI FilePath]
     checkIsSingleFilePackage pkglocstr = do
-        let abspath = rootdir </> pkglocstr
+        let abspath = addroot pkglocstr
         isFile <- liftIO $ doesFileExist abspath
         isDir  <- liftIO $ doesDirectoryExist abspath
-        if | isFile && takeExtension pkglocstr == ".cabal" -> return (Just [abspath])
-           | isDir -> checkGlob (globStarDotCabal pkglocstr)
-           | otherwise -> return Nothing
+        if | isFile, Just p <- checkFile abspath -> return [p]
+           | isDir                               -> checkGlob (globStarDotCabal pkglocstr)
+           | otherwise                           -> return []
 
     -- if it looks like glob, glob
+    checkisFileGlobPackage :: String -> ExceptT ResolveError IO [Either URI FilePath]
     checkisFileGlobPackage pkglocstr = case C.eitherParsec pkglocstr of
         Right g -> checkGlob g
-        Left _  -> return Nothing
+        Left _  -> return []
 
-    checkGlob :: FilePathGlob -> ExceptT ResolveError IO (Maybe [FilePath])
+    checkGlob :: FilePathGlob -> ExceptT ResolveError IO [Either URI FilePath]
     checkGlob glob = do
         files <- liftIO $ matchFileGlob rootdir glob
-        let files' = filter ((== ".cabal") . takeExtension) files
-        -- if nothing is matched, skip.
-        if null files' then return Nothing else return (Just files')
+        return $ mapMaybe checkFile files
+
+    checkFile :: FilePath -> Maybe (Either URI FilePath)
+    checkFile abspath
+        | ".cabal"  `isSuffixOf` abspath = Just $ Right abspath
+        | ".tar.gz" `isSuffixOf` abspath = Just $ Left $ URI "file:" Nothing abspath "" ""
+        | otherwise                      = Nothing
 
     -- A glob to find all the cabal files in a directory.
     --
@@ -342,12 +352,12 @@ resolveProject filePath prj = runExceptT $ do
       where
         (root, dirComponents) = fmap splitDirectories (splitDrive dir)
 
-    mplusMaybeT :: Monad m => m (Maybe a) -> m (Maybe a) -> m (Maybe a)
+    mplusMaybeT :: Monad m => m [a] -> m [a] -> m [a]
     mplusMaybeT ma mb = do
         mx <- ma
         case mx of
-            Nothing -> mb
-            Just x  -> return (Just x)
+            [] -> mb
+            xs -> return xs
 
 -------------------------------------------------------------------------------
 -- Read package files

@@ -601,7 +601,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 sh "echo 'package *' >> cabal.project"
                 sh "echo '  ghc-options: -Werror=missing-methods' >> cabal.project"
 
-        cat "cabal.project" $ lines $ C.showFields' (const []) (const id) 2 extraCabalProjectFields
+        cat "cabal.project" $ lines $ C.showFields' (const []) (const id) 2 $ extraCabalProjectFields ""
 
         -- If using head.hackage, allow building with newer versions of GHC boot libraries.
         -- Note that we put this in a cabal.project file, not ~/.cabal/config, in order to avoid

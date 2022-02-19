@@ -405,7 +405,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     ]
 
             -- extra cabal.project fields
-            cat "cabal.project" $ C.showFields' (const []) (const id) 2 extraCabalProjectFields
+            cat "cabal.project" $ C.showFields' (const []) (const id) 2 $ extraCabalProjectFields "$GITHUB_WORKSPACE/source/"
 
             -- If using head.hackage, allow building with newer versions of GHC boot libraries.
             -- Note that we put this in a cabal.project file, not ~/.cabal/config, in order to avoid

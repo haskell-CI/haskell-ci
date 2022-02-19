@@ -1,6 +1,7 @@
-## 0.14.1 - 2021-01-09
+## 0.14.2 - 2021-02-19
 
 - Pass `default-language` to `doctest`
+- Support local `.tar.gz` tarballs in `packages:`.
 
 ## 0.14 - 2022-01-05
 

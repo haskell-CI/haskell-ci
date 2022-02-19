@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               cabal-install-parsers
-version:            0.4.4
+version:            0.4.5
 synopsis:           Utilities to work with cabal-install files
 description:
   @cabal-install-parsers@ provides parsers for @cabal-install@ files:
