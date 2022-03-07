@@ -1,4 +1,9 @@
-## 0.14.2 - 2021-02-19
+## 0.14.3 - 2022-03-07
+
+- Add GHC-9.2.2
+- Use ghcup-0.1.17.5
+
+## 0.14.2 - 2022-02-19
 
 - Pass `default-language` to `doctest`
 - Support local `.tar.gz` tarballs in `packages:`.
