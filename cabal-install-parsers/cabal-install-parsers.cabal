@@ -21,7 +21,7 @@ maintainer:         hvr@gnu.org, oleg.grenrus@iki.fi
 category:           Development
 build-type:         Simple
 tested-with:
-  GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.4 || ==8.10.7 || ==9.0.2 || ==9.2.1
+  GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.4 || ==8.10.7 || ==9.0.2 || ==9.2.2
 
 extra-source-files:
   Changelog.md
