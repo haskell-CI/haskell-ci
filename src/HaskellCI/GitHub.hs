@@ -558,7 +558,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 sh_if range "${CABAL} -vnormal check"
 
         -- haddock
-        when (hasLibrary && not (equivVersionRanges C.noVersion cfgHaddock)) $ githubRun "haddock" $ do
+        when (not (equivVersionRanges C.noVersion cfgHaddock)) $ githubRun "haddock" $ do
             let range = RangeGHC /\ Range cfgHaddock
             sh_if range "$CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all"
 
@@ -590,7 +590,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 sh_cs' docspecRange cabalDocspec
             when (csRunTests cs) $
                 sh_cs' hasTests $ "$CABAL v2-test $ARG_COMPILER " ++ allFlags ++ " all"
-            when (hasLibrary && csHaddock cs) $
+            when (csHaddock cs) $
                 sh_cs $ "$CABAL v2-haddock $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
     -- assembling everything
