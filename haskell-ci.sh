@@ -537,7 +537,7 @@ change_dir "$BUILDDIR"
 
 # haddock
 put_info "haddock"
-run_cmd $CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
+run_cmd $CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
 
 # unconstrained build
 put_info "unconstrained build"
@@ -550,7 +550,7 @@ run_cmd rm -f cabal.project.local
 put_info "constraint set deepseq-1.4"
 run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' --dependencies-only -j all
 run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all
-run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all
+run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all
 
 
 # Done

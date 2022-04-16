@@ -375,9 +375,9 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 "(cd " ++ pkgNameDirVariable pkgName ++ " && ${CABAL} -vnormal check)"
 
         -- haddock
-        when (hasLibrary && not (equivVersionRanges C.noVersion cfgHaddock)) $
+        when (not (equivVersionRanges C.noVersion cfgHaddock)) $
             foldedSh FoldHaddock "haddock..." cfgFolds $
-                shForJob (RangeGHC /\ Range cfgHaddock) $ cabal $ "v2-haddock $WITHCOMPILER " ++ withHaddock ++ " ${TEST} ${BENCH} all"
+                shForJob (RangeGHC /\ Range cfgHaddock) $ cabal $ "v2-haddock --haddock-all $WITHCOMPILER " ++ withHaddock ++ " ${TEST} ${BENCH} all"
 
         -- unconstained build
         -- Have to build last, as we remove cabal.project.local
@@ -406,8 +406,8 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                     shForCs $ cabal $ "v2-build $WITHCOMPILER " ++ allFlags ++ " all"
                     when (csRunTests cs) $
                         shForCs' hasTests $ cabal $ "v2-test $WITHCOMPILER " ++ allFlags ++ " all --test-show-details=direct"
-                    when (hasLibrary && csHaddock cs) $
-                        shForCs $ cabal $ "v2-haddock $WITHCOMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
+                    when (csHaddock cs) $
+                        shForCs $ cabal $ "v2-haddock --haddock-all $WITHCOMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
         -- At the end, we allow some raw travis scripts
         unless (null cfgRawTravis) $ do

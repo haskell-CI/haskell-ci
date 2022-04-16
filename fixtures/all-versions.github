@@ -443,7 +443,7 @@ jobs:
           ${CABAL} -vnormal check
       - name: haddock
         run: |
-          if [ $((! GHCJSARITH)) -ne 0 ] ; then $CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all ; fi
+          if [ $((! GHCJSARITH)) -ne 0 ] ; then $CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all ; fi
       - name: unconstrained build
         run: |
           rm -f cabal.project.local

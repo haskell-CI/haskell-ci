@@ -297,7 +297,7 @@ jobs:
           ${CABAL} -vnormal check
       - name: haddock
         run: |
-          $CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
+          $CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
       - name: unconstrained build
         run: |
           rm -f cabal.project.local
@@ -309,4 +309,4 @@ jobs:
         run: |
           if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' --dependencies-only -j2 all ; fi
           if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
-          if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
+          if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
