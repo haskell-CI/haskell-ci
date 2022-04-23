@@ -161,7 +161,7 @@ instance (NFData c, NFData b, NFData a) => NFData (Project c b a) where
 -- Initial  parsing
 -------------------------------------------------------------------------------
 
--- | High level conviniene function to read and elaborate @cabal.project@ files
+-- | High level convenience function to read and elaborate @cabal.project@ files
 --
 -- May throw 'IOException' when file doesn't exist, 'ParseError'
 -- on parse errors, or 'ResolveError' on package resolution error.
