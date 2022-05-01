@@ -200,7 +200,7 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
         -- haddock
         when (not (equivVersionRanges C.noVersion cfgHaddock)) $ step "haddock" $ do
             let range = RangeGHC /\ Range cfgHaddock
-            run_cmd_if range "$CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all"
+            run_cmd_if range "$CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all"
 
         -- unconstrained build
         unless (equivVersionRanges C.noVersion cfgUnconstrainted) $ step "unconstrained build" $ do
@@ -227,7 +227,7 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
                 when (csRunTests cs) $
                     run_cmd_cs' hasTests $ "$CABAL v2-test $ARG_COMPILER " ++ allFlags ++ " all"
                 when (csHaddock cs) $
-                    run_cmd_cs $ "$CABAL v2-haddock $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
+                    run_cmd_cs $ "$CABAL v2-haddock --haddock-all $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
     return defaultZ
         { zJobs =

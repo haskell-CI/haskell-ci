@@ -560,7 +560,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
         -- haddock
         when (not (equivVersionRanges C.noVersion cfgHaddock)) $ githubRun "haddock" $ do
             let range = RangeGHC /\ Range cfgHaddock
-            sh_if range "$CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all"
+            sh_if range "$CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all"
 
         -- unconstrained build
         unless (equivVersionRanges C.noVersion cfgUnconstrainted) $ githubRun "unconstrained build" $ do
@@ -591,7 +591,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             when (csRunTests cs) $
                 sh_cs' hasTests $ "$CABAL v2-test $ARG_COMPILER " ++ allFlags ++ " all"
             when (csHaddock cs) $
-                sh_cs $ "$CABAL v2-haddock $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
+                sh_cs $ "$CABAL v2-haddock --haddock-all $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
     -- assembling everything
     return GitHub
