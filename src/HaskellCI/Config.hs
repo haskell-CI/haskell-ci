@@ -256,7 +256,7 @@ parseConfigFile :: [C.Field C.Position] -> C.ParseResult Config
 parseConfigFile fields0 = do
     config <- C.parseFieldGrammar C.cabalSpecLatest fields configGrammar
     config' <- traverse parseSection $ concat sections
-    return (foldl' (&) config config')
+    return $ postprocess $ foldl' (&) config config'
   where
     (fields, sections) = C.partitionFields fields0
 
@@ -273,6 +273,12 @@ parseConfigFile fields0 = do
         | otherwise = do
             C.parseWarning pos C.PWTUnknownSection $ "Unknown section " ++ fromUTF8BS name
             return id
+
+    postprocess :: Config -> Config
+    postprocess cfg
+        -- on yammy the only install option is ghcup
+        | cfgUbuntu cfg >= Jammy = cfg { cfgGhcupJobs = anyVersion }
+        | otherwise              = cfg
 
 -------------------------------------------------------------------------------
 -- Env

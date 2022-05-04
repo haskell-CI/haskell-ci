@@ -604,7 +604,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 { ghjName            = actionName ++ " - Linux - ${{ matrix.compiler }}"
                   -- NB: The Ubuntu version used in `runs-on` isn't
                   -- particularly important since we use a Docker container.
-                , ghjRunsOn          = "ubuntu-18.04"
+                , ghjRunsOn          = "ubuntu-20.04"
                 , ghjNeeds           = []
                 , ghjSteps           = steps
                 , ghjIf              = Nothing

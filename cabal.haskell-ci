@@ -3,7 +3,7 @@
 
 -- Supported: xenial, bionic, focal.
 -- Bionic is a default.
-distribution: focal
+distribution: jammy
 
 jobs: 2:2
 
