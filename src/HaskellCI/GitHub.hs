@@ -302,6 +302,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             toolsConfigHash = take 8 $ BS8.unpack $ Base16.encode $ SHA256.hashlazy $ Binary.runPut $ do
                 Binary.put cfgDoctest
                 Binary.put cfgHLint
+                Binary.put cfgGhcupJobs -- GHC location affects doctest, e.g
 
         when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUses "cache (tools)" "actions/cache@v2"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
@@ -604,7 +605,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 { ghjName            = actionName ++ " - Linux - ${{ matrix.compiler }}"
                   -- NB: The Ubuntu version used in `runs-on` isn't
                   -- particularly important since we use a Docker container.
-                , ghjRunsOn          = "ubuntu-18.04"
+                , ghjRunsOn          = "ubuntu-20.04"
                 , ghjNeeds           = []
                 , ghjSteps           = steps
                 , ghjIf              = Nothing
