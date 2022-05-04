@@ -45,11 +45,6 @@ jobs:
             compilerVersion: 8.10.7
             setup-method: ghcup
             allow-failure: false
-          - compiler: ghc-8.10.4
-            compilerKind: ghc
-            compilerVersion: 8.10.4
-            setup-method: ghcup
-            allow-failure: false
           - compiler: ghc-8.8.4
             compilerKind: ghc
             compilerVersion: 8.8.4
