@@ -653,9 +653,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     setup hvrppa ghcup
         | allGHCUP     = traverse_ liftSh ghcup
         | not anyGHCUP = traverse_ liftSh hvrppa
-        -- 2192: ${{ ...}} will match (ShellCheck think it doesn't)
-        -- 2129: individual redirects
-        | otherwise    = sh' [2193, 2129] $ unlines $
+        -- SC2192: ${{ ...}} will match (ShellCheck think it doesn't)
+        -- SC2129: individual redirects
+        -- SC2296: Parameter expansions can't start with {. Double check syntax. -- ${{ }} in YAML templating.
+        | otherwise    = sh' [2193, 2129, 2296] $ unlines $
             [ "if [ \"${{ matrix.setup-method }}\" = ghcup ]; then"
             ] ++
             [ "  " ++ shToString s
