@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.15.20220504
+version:            0.15.20220525
 synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@haskell-ci@) for
@@ -167,14 +167,14 @@ library haskell-ci-internal
     , ini                            ^>=0.4.1
     , lattices                       ^>=2
     , network-uri                    ^>=2.6.1.0
-    , optparse-applicative           ^>=0.16.1.0
+    , optparse-applicative           ^>=0.17.0.0
     , temporary                      ^>=1.3
     , unordered-containers           ^>=0.2.10.0
     , zinza                          ^>=0.2
 
   -- ShellCheck. Would need newer transformers for older GHC
   if flag(shellcheck)
-    build-depends: ShellCheck ==0.7.2
+    build-depends: ShellCheck ==0.8.0
 
 executable haskell-ci
   main-is:          Main.hs
