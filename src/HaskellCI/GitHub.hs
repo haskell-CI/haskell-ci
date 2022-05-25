@@ -177,6 +177,11 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
             ghcup <- runSh $ do
                 installGhcup
+                unless (S.null headGhcVers) $ sh $ unwords $
+                    [ "if $HEADHACKAGE; then"
+                    , "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
+                    , "fi"
+                    ]
                 sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\""
                 installGhcupCabal
                 unless (null cfgApt) $ do
@@ -616,7 +621,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , ghjTimeout         = max 10 cfgTimeoutMinutes
                 , ghjMatrix          =
                     [ GitHubMatrixEntry
-                        { ghmeCompiler     = compiler
+                        { ghmeCompiler     = translateCompilerVersion $ compiler
                         , ghmeAllowFailure =
                                previewGHC cfgHeadHackage compiler
                             || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
