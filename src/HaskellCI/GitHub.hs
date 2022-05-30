@@ -623,8 +623,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     [ GitHubMatrixEntry
                         { ghmeCompiler     = translateCompilerVersion $ compiler
                         , ghmeAllowFailure =
-                               previewGHC cfgHeadHackage compiler
-                            || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
+                               maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
                         , ghmeSetupMethod = if isGHCUP compiler then GHCUP else HVRPPA
                         }
                     | compiler <- reverse $ toList linuxVersions
