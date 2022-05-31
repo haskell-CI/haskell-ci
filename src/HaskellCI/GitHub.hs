@@ -271,7 +271,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             -- (locally you want to add it to cabal.project)
             unless (S.null headGhcVers) $ sh $ concat $
                 [ "if $HEADHACKAGE; then\n"
-                , catCmd "$CABAL_CONFIG" $ unlines headHackageRepoStanza
+                , catCmd "$CABAL_CONFIG" $ unlines $ headHackageRepoStanza cfgHeadHackageOverride
                 , "\nfi"
                 ]
 

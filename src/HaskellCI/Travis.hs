@@ -178,7 +178,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
         unless (S.null headGhcVers) $ sh $ unlines $
             [ "if $HEADHACKAGE; then"
             ] ++
-            lines (catCmd Double "$CABALHOME/config" headHackageRepoStanza) ++
+            lines (catCmd Double "$CABALHOME/config" $ headHackageRepoStanza cfgHeadHackageOverride) ++
             [ "fi"
             ]
 
