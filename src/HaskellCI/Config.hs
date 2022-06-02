@@ -66,6 +66,7 @@ data Config = Config
     , cfgNoTestsNoBench      :: !VersionRange
     , cfgUnconstrainted      :: !VersionRange
     , cfgHeadHackage         :: !VersionRange
+    , cfgHeadHackageOverride :: !Bool
     , cfgGhcjsTests          :: !Bool
     , cfgGhcjsTools          :: ![C.PackageName]
     , cfgTestOutputDirect    :: !Bool
@@ -177,6 +178,8 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Make unconstrained build"
     <*> rangeField            "head-hackage"                                                  (field @"cfgHeadHackage") defaultHeadHackage
         ^^^ metahelp "RANGE" "Use head.hackage repository. Also marks as allow-failures"
+    <*> C.booleanFieldDef     "head-hackage-override"                                         (field @"cfgHeadHackageOverride") True
+        ^^^ help "Use :override for head.hackage repository"
     <*> C.booleanFieldDef     "ghcjs-tests"                                                   (field @"cfgGhcjsTests") False
         ^^^ help "Run tests with GHCJS (experimental, relies on cabal-plan finding test-suites)"
     <*> C.monoidalFieldAla    "ghcjs-tools"               (C.alaList C.FSep)                  (field @"cfgGhcjsTools")
