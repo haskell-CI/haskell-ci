@@ -508,7 +508,7 @@ change_dir "$BUILDDIR"
 
 # haddock
 put_info "haddock"
-run_cmd $CABAL v2-haddock $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
+run_cmd $CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
 
 # unconstrained build
 put_info "unconstrained build"
