@@ -118,18 +118,36 @@ makeSourcehut' config@Config {..} source prj jobs@JobVersions {..} =
     mkManifest :: Set CompilerVersion -> Either HsCiError SourcehutManifest
     mkManifest compilers = do
         prepare <- fmap (SourcehutTask "all-prepare") $ runSh $ do
-            sh "export PATH=$PATH:/opt/cabal/bin"
-            tell_env "PATH" "$PATH:/opt/cabal/bin"
+            when (cfgGhcupCabal || any isGHCUP compilers) $ do
+              installGhcup
+              sh "export PATH=$PATH:$HOME/.ghcup/bin"
+              tell_env "PATH" "$PATH:$HOME/.ghcup/bin"
+            if cfgGhcupCabal then installGhcupCabal else do
+                sh "export PATH=$PATH:/opt/cabal/bin"
+                tell_env "PATH" "$PATH:/opt/cabal/bin"
+            for_ (S.filter isGHCUP compilers) $ \compiler -> do
+                sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"" ++ dispGhcVersion compiler ++ "\""
+            unless (all isGHCUP compilers) $ do
+                sh "export PATH=$PATH:/opt/ghc/bin"
+                tell_env "PATH" "$PATH:/opt/ghc/bin"
             sh "cabal update"
         tasks <- concat <$> traverse mkTasksForGhc (S.toList compilers)
+        let aptCompilers = S.filter (not . isGHCUP) compilers
+            aptCabal =
+                [ "cabal-install-" ++ dispCabalVersion cfgCabalInstallVersion
+                | not cfgGhcupCabal ]
         return SourcehutManifest
             { srhtManifestImage = cfgUbuntu
             , srhtManifestPackages =
+                  "gcc" :
+                  -- if all GHCs are installed by ghcup, gmp won't be pulled in
+                  -- by ghc, so we install it explicitly
+                  "libgmp-dev" :
                   toList cfgApt ++
-                  ( "gcc" : "cabal-install-3.4" :
-                      (dispGhcVersion <$> S.toList compilers))
-            , srhtManifestRepositories = M.singleton
-                  "hvr-ghc"
+                  aptCabal ++
+                  (dispGhcVersion <$> S.toList aptCompilers)
+            , srhtManifestRepositories = if S.null aptCompilers && cfgGhcupCabal
+                  then M.empty else M.singleton "hvr-ghc"
                   ("http://ppa.launchpad.net/hvr/ghc/ubuntu " ++ C.prettyShow cfgUbuntu ++ " main ff3aeacef6f88286")
             , srhtManifestArtifacts = []
             , srhtManifestSources = [source]
@@ -145,7 +163,7 @@ makeSourcehut' config@Config {..} source prj jobs@JobVersions {..} =
     mkTasksForGhc :: CompilerVersion -> Either HsCiError [SourcehutTask]
     mkTasksForGhc job = sequence $ buildList $ do
         sourcehutRun "prepare" job clonePath $
-            sh $ "cabal configure -w /opt/ghc/bin/" ++ dispGhcVersion job
+            sh $ "cabal configure -w " ++ dispGhcVersion job
         sourcehutRun "check" job clonePath $
             sh "cabal check"
         when cfgInstallDeps $ sourcehutRun "dependencies" job clonePath $ do
@@ -157,6 +175,21 @@ makeSourcehut' config@Config {..} source prj jobs@JobVersions {..} =
             sh "cabal test all --enable-tests"
         when (hasLibrary && not (equivVersionRanges C.noVersion cfgHaddock)) $ sourcehutRun "haddock" job clonePath $
             sh "cabal haddock all"
+
+    installGhcup :: ShM ()
+    installGhcup = do
+        let ghcupVer = C.prettyShow cfgGhcupVersion
+        sh $ "mkdir -p \"$HOME/.ghcup/bin\""
+        sh $ "curl -sL https://downloads.haskell.org/ghcup/" ++ ghcupVer ++ "/x86_64-linux-ghcup-" ++ ghcupVer ++ " > \"$HOME/.ghcup/bin/ghcup\""
+        sh $ "chmod a+x \"$HOME/.ghcup/bin/ghcup\""
+
+    installGhcupCabal :: ShM ()
+    installGhcupCabal =
+        sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ dispCabalVersion cfgCabalInstallVersion
+
+    -- job to be setup with ghcup
+    isGHCUP :: CompilerVersion -> Bool
+    isGHCUP v = compilerWithinRange v (RangeGHC /\ Range cfgGhcupJobs)
 
 removeSuffix :: String -> String -> String
 removeSuffix suffix orig =

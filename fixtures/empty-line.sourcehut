@@ -16,8 +16,7 @@
 image: ubuntu/bionic
 packages:
   - gcc
-  - cabal-install-3.4
-  - ghc-head
+  - libgmp-dev
   - ghc-7.8.1
   - ghc-7.8.2
   - ghc-7.8.3
@@ -46,21 +45,28 @@ packages:
   - ghc-8.10.2
   - ghc-8.10.3
   - ghc-8.10.4
-  - ghc-8.10.5
-  - ghc-8.10.6
-  - ghc-8.10.7
 repositories:
   hvr-ghc: http://ppa.launchpad.net/hvr/ghc/ubuntu bionic main ff3aeacef6f88286
 sources:
   - https://example.org
 tasks:
   - all-prepare: |
-      export PATH=$PATH:/opt/cabal/bin
-      echo "export PATH=$PATH:/opt/cabal/bin" >> ~/.buildenv
+      mkdir -p "$HOME/.ghcup/bin"
+      curl -sL https://downloads.haskell.org/ghcup/0.1.17.8/x86_64-linux-ghcup-0.1.17.8 > "$HOME/.ghcup/bin/ghcup"
+      chmod a+x "$HOME/.ghcup/bin/ghcup"
+      export PATH=$PATH:$HOME/.ghcup/bin
+      echo "export PATH=$PATH:$HOME/.ghcup/bin" >> ~/.buildenv
+      "$HOME/.ghcup/bin/ghcup" install cabal 3.6
+      "$HOME/.ghcup/bin/ghcup" install ghc "ghc-head"
+      "$HOME/.ghcup/bin/ghcup" install ghc "ghc-8.10.5"
+      "$HOME/.ghcup/bin/ghcup" install ghc "ghc-8.10.6"
+      "$HOME/.ghcup/bin/ghcup" install ghc "ghc-8.10.7"
+      export PATH=$PATH:/opt/ghc/bin
+      echo "export PATH=$PATH:/opt/ghc/bin" >> ~/.buildenv
       cabal update
   - ghc-head-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-head
+      cabal configure -w ghc-head
   - ghc-head-check: |
       cd example.org
       cabal check
@@ -79,7 +85,7 @@ tasks:
       cabal haddock all
   - 7_8_1-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-7.8.1
+      cabal configure -w ghc-7.8.1
   - 7_8_1-check: |
       cd example.org
       cabal check
@@ -98,7 +104,7 @@ tasks:
       cabal haddock all
   - 7_8_2-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-7.8.2
+      cabal configure -w ghc-7.8.2
   - 7_8_2-check: |
       cd example.org
       cabal check
@@ -117,7 +123,7 @@ tasks:
       cabal haddock all
   - 7_8_3-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-7.8.3
+      cabal configure -w ghc-7.8.3
   - 7_8_3-check: |
       cd example.org
       cabal check
@@ -136,7 +142,7 @@ tasks:
       cabal haddock all
   - 7_8_4-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-7.8.4
+      cabal configure -w ghc-7.8.4
   - 7_8_4-check: |
       cd example.org
       cabal check
@@ -155,7 +161,7 @@ tasks:
       cabal haddock all
   - 7_10_1-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-7.10.1
+      cabal configure -w ghc-7.10.1
   - 7_10_1-check: |
       cd example.org
       cabal check
@@ -174,7 +180,7 @@ tasks:
       cabal haddock all
   - 7_10_2-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-7.10.2
+      cabal configure -w ghc-7.10.2
   - 7_10_2-check: |
       cd example.org
       cabal check
@@ -193,7 +199,7 @@ tasks:
       cabal haddock all
   - 7_10_3-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-7.10.3
+      cabal configure -w ghc-7.10.3
   - 7_10_3-check: |
       cd example.org
       cabal check
@@ -212,7 +218,7 @@ tasks:
       cabal haddock all
   - 8_0_1-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.0.1
+      cabal configure -w ghc-8.0.1
   - 8_0_1-check: |
       cd example.org
       cabal check
@@ -231,7 +237,7 @@ tasks:
       cabal haddock all
   - 8_0_2-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.0.2
+      cabal configure -w ghc-8.0.2
   - 8_0_2-check: |
       cd example.org
       cabal check
@@ -250,7 +256,7 @@ tasks:
       cabal haddock all
   - 8_2_1-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.2.1
+      cabal configure -w ghc-8.2.1
   - 8_2_1-check: |
       cd example.org
       cabal check
@@ -269,7 +275,7 @@ tasks:
       cabal haddock all
   - 8_2_2-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.2.2
+      cabal configure -w ghc-8.2.2
   - 8_2_2-check: |
       cd example.org
       cabal check
@@ -288,7 +294,7 @@ tasks:
       cabal haddock all
   - 8_4_1-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.4.1
+      cabal configure -w ghc-8.4.1
   - 8_4_1-check: |
       cd example.org
       cabal check
@@ -307,7 +313,7 @@ tasks:
       cabal haddock all
   - 8_4_2-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.4.2
+      cabal configure -w ghc-8.4.2
   - 8_4_2-check: |
       cd example.org
       cabal check
@@ -326,7 +332,7 @@ tasks:
       cabal haddock all
   - 8_4_3-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.4.3
+      cabal configure -w ghc-8.4.3
   - 8_4_3-check: |
       cd example.org
       cabal check
@@ -345,7 +351,7 @@ tasks:
       cabal haddock all
   - 8_4_4-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.4.4
+      cabal configure -w ghc-8.4.4
   - 8_4_4-check: |
       cd example.org
       cabal check
@@ -364,7 +370,7 @@ tasks:
       cabal haddock all
   - 8_6_1-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.6.1
+      cabal configure -w ghc-8.6.1
   - 8_6_1-check: |
       cd example.org
       cabal check
@@ -383,7 +389,7 @@ tasks:
       cabal haddock all
   - 8_6_2-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.6.2
+      cabal configure -w ghc-8.6.2
   - 8_6_2-check: |
       cd example.org
       cabal check
@@ -402,7 +408,7 @@ tasks:
       cabal haddock all
   - 8_6_3-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.6.3
+      cabal configure -w ghc-8.6.3
   - 8_6_3-check: |
       cd example.org
       cabal check
@@ -421,7 +427,7 @@ tasks:
       cabal haddock all
   - 8_6_4-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.6.4
+      cabal configure -w ghc-8.6.4
   - 8_6_4-check: |
       cd example.org
       cabal check
@@ -440,7 +446,7 @@ tasks:
       cabal haddock all
   - 8_6_5-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.6.5
+      cabal configure -w ghc-8.6.5
   - 8_6_5-check: |
       cd example.org
       cabal check
@@ -459,7 +465,7 @@ tasks:
       cabal haddock all
   - 8_8_1-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.8.1
+      cabal configure -w ghc-8.8.1
   - 8_8_1-check: |
       cd example.org
       cabal check
@@ -478,7 +484,7 @@ tasks:
       cabal haddock all
   - 8_8_2-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.8.2
+      cabal configure -w ghc-8.8.2
   - 8_8_2-check: |
       cd example.org
       cabal check
@@ -497,7 +503,7 @@ tasks:
       cabal haddock all
   - 8_8_3-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.8.3
+      cabal configure -w ghc-8.8.3
   - 8_8_3-check: |
       cd example.org
       cabal check
@@ -516,7 +522,7 @@ tasks:
       cabal haddock all
   - 8_8_4-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.8.4
+      cabal configure -w ghc-8.8.4
   - 8_8_4-check: |
       cd example.org
       cabal check
@@ -535,7 +541,7 @@ tasks:
       cabal haddock all
   - 8_10_1-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.10.1
+      cabal configure -w ghc-8.10.1
   - 8_10_1-check: |
       cd example.org
       cabal check
@@ -554,7 +560,7 @@ tasks:
       cabal haddock all
   - 8_10_2-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.10.2
+      cabal configure -w ghc-8.10.2
   - 8_10_2-check: |
       cd example.org
       cabal check
@@ -573,7 +579,7 @@ tasks:
       cabal haddock all
   - 8_10_3-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.10.3
+      cabal configure -w ghc-8.10.3
   - 8_10_3-check: |
       cd example.org
       cabal check
@@ -592,7 +598,7 @@ tasks:
       cabal haddock all
   - 8_10_4-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.10.4
+      cabal configure -w ghc-8.10.4
   - 8_10_4-check: |
       cd example.org
       cabal check
@@ -611,7 +617,7 @@ tasks:
       cabal haddock all
   - 8_10_5-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.10.5
+      cabal configure -w ghc-8.10.5
   - 8_10_5-check: |
       cd example.org
       cabal check
@@ -630,7 +636,7 @@ tasks:
       cabal haddock all
   - 8_10_6-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.10.6
+      cabal configure -w ghc-8.10.6
   - 8_10_6-check: |
       cd example.org
       cabal check
@@ -649,7 +655,7 @@ tasks:
       cabal haddock all
   - 8_10_7-prepare: |
       cd example.org
-      cabal configure -w /opt/ghc/bin/ghc-8.10.7
+      cabal configure -w ghc-8.10.7
   - 8_10_7-check: |
       cd example.org
       cabal check
