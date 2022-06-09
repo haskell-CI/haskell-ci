@@ -155,7 +155,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
                 installGhcupCabal :: ShM ()
                 installGhcupCabal =
-                    sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer
+                    sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer ++ " || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
 
             hvrppa <- runSh $ do
                 sh "apt-add-repository -y 'ppa:hvr/ghc'"
@@ -182,7 +182,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     , "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
                     , "fi"
                     ]
-                sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\""
+                sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
                 installGhcupCabal
                 unless (null cfgApt) $ do
                     sh "apt-get update"
