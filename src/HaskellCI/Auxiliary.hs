@@ -45,6 +45,7 @@ data Auxiliary = Auxiliary
     , hasLibrary              :: Bool
     , extraCabalProjectFields :: FilePath -> [C.PrettyField ()]
     , testShowDetails         :: String
+    , anyJobUsesHeadHackage   :: Bool
     }
 
 auxiliary :: Config -> Project URI Void Package -> JobVersions -> Auxiliary
@@ -118,6 +119,13 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
             for_ (prjSourceRepos prj) $ \repo ->
                 item $ C.PrettySection () "source-repository-package" [] $
                     C.prettyFieldGrammar C.cabalSpecLatest sourceRepositoryPackageGrammar (srpHoist toList repo)
+
+    -- GHC versions which need head.hackage
+    headGhcVers :: Set CompilerVersion
+    headGhcVers = S.filter (previewGHC cfgHeadHackage) allVersions
+
+    anyJobUsesHeadHackage :: Bool
+    anyJobUsesHeadHackage = not $ null $ allVersions `S.intersection` headGhcVers
 
 pkgNameDirVariable' :: String -> String
 pkgNameDirVariable' n = "PKGDIR_" ++ map f n where
