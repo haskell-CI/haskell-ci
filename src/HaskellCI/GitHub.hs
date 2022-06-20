@@ -177,11 +177,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
             ghcup <- runSh $ do
                 installGhcup
-                unless (S.null headGhcVers) $ sh $ unwords $
-                    [ "if $HEADHACKAGE; then"
-                    , "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
-                    , "fi"
-                    ]
+
+                -- if any job uses prereleases, add release channel unconditionally. (HEADHACKAGE variable is set later)
+                when anyJobUsesHeadHackage $ sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
+
                 sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
                 installGhcupCabal
                 unless (null cfgApt) $ do
@@ -269,7 +268,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
             -- Add head.hackage repository to ~/.cabal/config
             -- (locally you want to add it to cabal.project)
-            unless (S.null headGhcVers) $ sh $ concat $
+            when anyJobUsesHeadHackage $ sh $ concat $
                 [ "if $HEADHACKAGE; then\n"
                 , catCmd "$CABAL_CONFIG" $ unlines $ headHackageRepoStanza cfgHeadHackageOverride
                 , "\nfi"
@@ -416,7 +415,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             -- If using head.hackage, allow building with newer versions of GHC boot libraries.
             -- Note that we put this in a cabal.project file, not ~/.cabal/config, in order to avoid
             -- https://github.com/haskell/cabal/issues/7291.
-            unless (S.null headGhcVers) $ sh $ concat $
+            when anyJobUsesHeadHackage $ sh $ concat $
                 [ "if $HEADHACKAGE; then\n"
                 , "echo \"allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\\1,/g')\" >> cabal.project\n"
                 , "fi"
@@ -678,10 +677,6 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     -- job to be setup with ghcup
     isGHCUP :: CompilerVersion -> Bool
     isGHCUP v = compilerWithinRange v (RangeGHC /\ Range cfgGhcupJobs)
-
-    -- GHC versions which need head.hackage
-    headGhcVers :: Set CompilerVersion
-    headGhcVers = S.filter (previewGHC cfgHeadHackage) allVersions
 
     -- step primitives
     githubRun' :: String -> Map.Map String String ->  ShM () -> ListBuilder (Either HsCiError GitHubStep) ()

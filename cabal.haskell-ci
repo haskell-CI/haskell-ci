@@ -12,7 +12,7 @@ jobs: 2:2
 -- linux-jobs: >=8.10
 
 -- Add GHC head job
-ghc-head: True
+ghc-head: False
 
 -- travis Caching
 -- cache: True
