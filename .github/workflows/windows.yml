@@ -41,7 +41,7 @@ jobs:
       - name: apt
         run: |
           mkdir -p "$HOME/.ghcup/bin"
-          curl -sL https://downloads.haskell.org/ghcup/0.1.17.8/x86_64-linux-ghcup-0.1.17.8 > "$HOME/.ghcup/bin/ghcup"
+          curl -sL https://downloads.haskell.org/ghcup/0.1.17.8/x86_64-mingw64-ghcup-0.1.17.8-p1.exe > "$HOME/.ghcup/bin/ghcup.exe"
           chmod a+x "$HOME/.ghcup/bin/ghcup"
           "$HOME/.ghcup/bin/ghcup" install ghc "$HCVER" || (cat "$HOME"/.ghcup/logs/*.* && false)
           "$HOME/.ghcup/bin/ghcup" install cabal 3.6.2.0 || (cat "$HOME"/.ghcup/logs/*.* && false)
