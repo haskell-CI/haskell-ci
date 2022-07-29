@@ -308,7 +308,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 Binary.put cfgHLint
                 Binary.put cfgGhcupJobs -- GHC location affects doctest, e.g
 
-        when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUses "cache (tools)" "actions/cache@v2"
+        when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUses "cache (tools)" "actions/cache@v3"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
             , ("path", "~/.haskell-ci-tools")
             ]
@@ -366,7 +366,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 forHLint $ "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
                 forHLint "hlint --version"
 
-        githubUses "checkout" "actions/checkout@v2" $ buildList $ do
+        githubUses "checkout" "actions/checkout@v3" $ buildList $ do
             item ("path", "source")
             when cfgSubmodules $
                 item ("submodules", "true")
@@ -457,7 +457,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         -- This a hack. https://github.com/actions/cache/issues/109
         -- Hashing Java - Maven style.
-        githubUses "cache" "actions/cache@v2"
+        githubUses "cache" "actions/cache@v3"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
             , ("restore-keys", "${{ runner.os }}-${{ matrix.compiler }}-")
             , ("path", "~/.cabal/store")
@@ -809,7 +809,7 @@ ircJob actionName mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
                     | otherwise = "!=" in
 
         GitHubStep ("IRC " ++ result ++ " notification (" ++ serverChannelName ++ ")") $ Right $
-        GitHubUses "Gottox/irc-message-action@v1.1"
+        GitHubUses "Gottox/irc-message-action@v2"
                    (Just $ "needs." ++ mainJobName ++ ".result " ++ eqCheck ++ " 'success'") $
         Map.fromList $ buildList $ do
             item ("server",   serverName)
