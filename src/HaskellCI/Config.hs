@@ -110,7 +110,7 @@ defaultCabalInstallVersion :: Maybe Version
 defaultCabalInstallVersion = Just (C.mkVersion [3,6])
 
 defaultGhcupVersion :: Version
-defaultGhcupVersion = C.mkVersion [0,1,17,8]
+defaultGhcupVersion = C.mkVersion [0,1,18,0]
 
 emptyConfig :: Config
 emptyConfig = case runEG configGrammar of
