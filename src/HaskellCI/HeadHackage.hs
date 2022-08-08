@@ -5,7 +5,7 @@ import HaskellCI.Prelude
 import qualified Distribution.Version as C
 
 defaultHeadHackage :: VersionRange
-defaultHeadHackage = C.orLaterVersion (C.mkVersion [9,3])
+defaultHeadHackage = C.orLaterVersion (C.mkVersion [9,5])
 
 headHackageRepoStanza :: Bool -> [String]
 headHackageRepoStanza override =
