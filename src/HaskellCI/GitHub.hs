@@ -300,7 +300,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 sh_if RangeGHCJS "echo $GHCJS"
 
         githubRun "update cabal index" $ do
-            sh "$CABAL v2-update -v"
+            -- https://github.com/haskell/cabal/issues/8352
+            sh "$CABAL v2-update -v $ARG_COMPILER"
 
         let toolsConfigHash :: String
             toolsConfigHash = take 8 $ BS8.unpack $ Base16.encode $ SHA256.hashlazy $ Binary.runPut $ do
@@ -642,6 +643,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     cabalVer     = dispCabalVersion cfgCabalInstallVersion
     cabalFullVer = dispCabalVersion $ cfgCabalInstallVersion <&> \ver ->
         case C.versionNumbers ver of
+            [3,8] -> C.mkVersion [3,8,1,0]
             [3,6] -> C.mkVersion [3,6,2,0]
             [x,y] -> C.mkVersion [x,y,0,0]
             _     -> ver
