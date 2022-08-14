@@ -609,7 +609,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 { ghjName            = actionName ++ " - Linux - ${{ matrix.compiler }}"
                   -- NB: The Ubuntu version used in `runs-on` isn't
                   -- particularly important since we use a Docker container.
-                , ghjRunsOn          = "ubuntu-20.04"
+                , ghjRunsOn          = ghcRunsOnVer
                 , ghjNeeds           = []
                 , ghjSteps           = steps
                 , ghjIf              = Nothing
@@ -765,7 +765,7 @@ postgresService = GitHubService
 ircJob :: String -> String -> String -> Config -> GitConfig -> ListBuilder (String, GitHubJob) ()
 ircJob actionName mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
     { ghjName            = actionName ++ " (IRC notification)"
-    , ghjRunsOn          = "ubuntu-18.04"
+    , ghjRunsOn          = ghcRunsOnVer
     , ghjNeeds           = [mainJobName]
     , ghjIf              = jobCondition
     , ghjContainer       = Nothing
@@ -872,3 +872,10 @@ parseGitHubRepo t =
         repo <- Atto.takeWhile (/= '.')
         _ <- optional (Atto.string ".git")
         return repo
+
+-- NB: The Ubuntu version used in `runs-on` isn't particularly important since
+-- we use a Docker container. We do make an attempt to keep it relatively up to
+-- date to ensure that it runs on a version of Ubuntu that GitHub Actions
+-- runners support.
+ghcRunsOnVer :: String
+ghcRunsOnVer = "ubuntu-20.04"
