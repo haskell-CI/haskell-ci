@@ -23,17 +23,21 @@ module HaskellCI (
     bashFromConfigFile,
     travisFromConfigFile,
     githubFromConfigFile,
+    sourcehutFromConfigFile,
     ) where
 
 import HaskellCI.Prelude
 
 import Control.Exception     (try)
-import Data.List             (nubBy, sort, sortBy, (\\))
-import System.Directory      (createDirectoryIfMissing, doesFileExist, setCurrentDirectory)
+import Data.List             (nubBy, sort, sortBy, (\\), isSuffixOf)
+import qualified Data.Map.Strict as M
+import System.Directory      (createDirectoryIfMissing, doesFileExist, setCurrentDirectory, getDirectoryContents)
 import System.Environment    (getArgs)
 import System.Exit           (ExitCode (..), exitFailure)
+import System.FilePath       ((</>))
 import System.FilePath.Posix (takeDirectory)
 import System.IO             (hClose, hPutStrLn, stderr)
+import System.IO.Error       (catchIOError, isDoesNotExistError)
 import System.IO.Temp        (withSystemTempFile)
 import System.Process        (readProcessWithExitCode)
 
@@ -64,6 +68,8 @@ import HaskellCI.GitHub
 import HaskellCI.HeadHackage
 import HaskellCI.Jobs
 import HaskellCI.Package
+import HaskellCI.Sourcehut
+import HaskellCI.Sourcehut.Yaml (sourcehutManifests)
 import HaskellCI.TestedWith
 import HaskellCI.Travis
 import HaskellCI.VersionInfo
@@ -93,10 +99,12 @@ main = do
             regenerateBash opts
             regenerateGitHub opts
             regenerateTravis opts
+            regenerateSourcehut opts
 
-        CommandBash   f -> doBash argv0 f opts
-        CommandGitHub f -> doGitHub argv0 f opts
-        CommandTravis f -> doTravis argv0 f opts
+        CommandBash      f -> doBash argv0 f opts
+        CommandGitHub    f -> doGitHub argv0 f opts
+        CommandTravis    f -> doTravis argv0 f opts
+        CommandSourcehut f -> doSourcehut argv0 f opts
 
         CommandVersionInfo -> do
             putStrLn $ "haskell-ci " ++ haskellCIVerStr ++ " with dependencies"
@@ -367,6 +375,104 @@ regenerateGitHub opts = do
 
     noGitHubScript :: IO ()
     noGitHubScript = putStrLn $ "No " ++ fp ++ ", skipping GitHub config regeneration"
+
+-------------------------------------------------------------------------------
+-- Sourcehut
+-------------------------------------------------------------------------------
+
+defaultSourcehutPath :: FilePath
+defaultSourcehutPath = ".builds"
+
+doSourcehut :: [String] -> FilePath -> Options -> IO ()
+doSourcehut args path opts = do
+    contents <- sourcehutFromConfigFile args opts path
+    case optOutput opts of
+        Nothing              -> do
+            createDir defaultSourcehutPath
+            for_ (M.toList contents) $ \(fn, content) ->
+              BS.writeFile (defaultSourcehutPath </> (fn ++ ".yml")) content
+        Just OutputStdout    -> case M.toList contents of
+          [(_,content)] -> BS.putStr content
+          _ -> fail "Cannot print multiple files to standard output"
+        Just (OutputFile fp) -> do
+            createDir fp
+            for_ (M.toList contents) $ \(fn, content) ->
+              BS.writeFile (fp </> (fn ++ ".yml")) content
+  where
+    createDir p = createDirectoryIfMissing True p
+
+sourcehutFromConfigFile
+    :: forall m. (MonadIO m, MonadDiagnostics m, MonadMask m)
+    => [String]
+    -> Options
+    -> FilePath
+    -> m (M.Map FilePath ByteString)
+sourcehutFromConfigFile args opts path = do
+    gitconfig <- liftIO readGitConfig
+    cabalFiles <- getCabalFiles (optInputType' opts path) path
+    config' <- findConfigFile (optConfig opts)
+    let config = optConfigMorphism opts config'
+    pkgs <- T.mapM (configFromCabalFile config) cabalFiles
+    (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
+        Right x     -> return x
+        Left []     -> putStrLnErr "panic: checkVersions failed without errors"
+        Left (e:es) -> putStrLnErrs (e :| es)
+
+    let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
+             | otherwise         = prj
+
+    genSourcehutFromConfigs args config gitconfig prj' ghcs
+    -- TODO ls <- genSourcehutFromConfigs ...; patchSourcehut config ls
+
+genSourcehutFromConfigs
+    :: (Monad m, MonadIO m, MonadDiagnostics m)
+    => [String]
+    -> Config
+    -> GitConfig
+    -> Project URI Void Package
+    -> Set CompilerVersion
+    -> m (M.Map FilePath ByteString)
+genSourcehutFromConfigs argv config gitconfig prj vs = do
+    let jobVersions = makeJobVersions config vs
+    case makeSourcehut argv config gitconfig prj jobVersions of
+        Left err     -> putStrLnErr $ displayException err
+        Right sourcehut -> do
+            describeJobs "Sourcehut config" (cfgTestedWith config) jobVersions (prjPackages prj)
+            return $ toUTF8BS . prettyYaml id . reann (sourcehutHeader (cfgInsertVersion config) argv ++) . toYaml
+                <$> sourcehutManifests sourcehut
+
+regenerateSourcehut :: Options -> IO ()
+regenerateSourcehut opts = do
+    -- change the directory
+    for_ (optCwd opts) setCurrentDirectory
+
+    yamls <- filter (isSuffixOf ".yml") <$> getDirectoryContents' defaultSourcehutPath
+    let fp = case yamls of [] -> ".build.yml"; f : _ -> defaultSourcehutPath </> f
+    -- read, and then change to the directory
+    withContents fp noSourcehutScript $ \contents -> case findRegendataArgv contents of
+        Nothing     -> do
+            hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ fp
+            exitFailure
+
+        Just (mversion, argv) -> do
+            -- warn if we regenerate using older haskell-ci
+            for_ mversion $ \version -> for_ (simpleParsec haskellCIVerStr) $ \haskellCIVer ->
+                when (haskellCIVer < version) $ do
+                    hPutStrLn stderr $ "Regenerating using older haskell-ci-" ++ haskellCIVerStr
+                    hPutStrLn stderr $ "File generated using haskell-ci-" ++ prettyShow version
+
+            -- Warn about outdated .yml files. to be safe, we don't delete them all.
+            putStrLnWarn "Outdated .yml files will not be deleted"
+            (f, opts') <- parseOptions argv
+            doSourcehut argv f ( optionsWithOutputFile fp <> opts' <> opts)
+  where
+    noSourcehutScript :: IO ()
+    noSourcehutScript = putStrLn $ "No " ++ defaultSourcehutPath ++ "/*.yml or .build.yml, skipping Sourcehut config regeneration"
+    getDirectoryContents' :: FilePath -> IO [FilePath]
+    getDirectoryContents' fp =
+      getDirectoryContents fp
+      `catchIOError`
+      \e -> if isDoesNotExistError e then return [] else ioError e
 
 -------------------------------------------------------------------------------
 -- Config file

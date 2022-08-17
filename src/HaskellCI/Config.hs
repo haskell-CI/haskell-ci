@@ -103,6 +103,8 @@ data Config = Config
     , cfgRawTravis           :: !String
     , cfgGitHubActionName    :: !(Maybe String)
     , cfgTimeoutMinutes      :: !Natural
+    , cfgSourcehutSource     :: !(Maybe String)
+    , cfgSourcehutParallel   :: !Bool
     }
   deriving (Generic)
 
@@ -247,6 +249,12 @@ configGrammar = Config
         ^^^ help "The name of GitHub Action"
     <*> C.optionalFieldDef    "timeout-minutes"                                              (field @"cfgTimeoutMinutes") 60
         ^^^ metahelp "MINUTES" "The maximum number of minutes to let a job run"
+    <*> C.freeTextField "sourcehut-source"                                                    (field @"cfgSourcehutSource")
+        ^^^ metahelp "URI" "The source to test (default: from git remote)"
+    <*> C.booleanFieldDef "sourcehut-parallel"                                                (field @"cfgSourcehutParallel") False
+        ^^^ help "In Sourcehut, use many manifests to run jobs in parallel. \
+                 \Disabled by default because in the sr.ht instance a maximum of \
+                 \4 parallel jobs are allowed."
 
 -------------------------------------------------------------------------------
 -- Reading

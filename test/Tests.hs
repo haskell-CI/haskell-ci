@@ -18,6 +18,8 @@ import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified System.Console.ANSI   as ANSI
 
+import qualified Data.Map as Map
+
 main :: IO ()
 main = do
     setCurrentDirectory "fixtures/"
@@ -30,6 +32,7 @@ main = do
         , fixtureGoldenTest "psql"
         , fixtureGoldenTest "travis-patch"
         , fixtureGoldenTest "enabled-jobs"
+        , fixtureGoldenTest "sourcehut-parallel"
         , testGroup "copy-fields"
             [ fixtureGoldenTest "copy-fields-all"
             , fixtureGoldenTest "copy-fields-some"
@@ -44,17 +47,25 @@ main = do
 -- @
 fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = testGroup fp
-    [ fixtureGoldenTest' "travis" travisFromConfigFile
-    , fixtureGoldenTest' "github" githubFromConfigFile
-    , fixtureGoldenTest' "bash"   bashFromConfigFile
+    [ fixtureGoldenTest' "travis"    travisFromConfigFile
+    , fixtureGoldenTest' "github"    githubFromConfigFile
+    , fixtureGoldenTest' "bash"      bashFromConfigFile
+    , fixtureGoldenTest' "sourcehut" sourcehutFromConfigFile'
     ]
   where
+    sourcehutFromConfigFile' argv opts projectfp =
+        BS.concat <$> fmap addSourcehutHeader <$> Map.toList <$>
+        sourcehutFromConfigFile argv opts projectfp
+
+    addSourcehutHeader :: (FilePath, BS.ByteString) -> BS.ByteString
+    addSourcehutHeader (n, m) = BS8.pack ("# manifest name: " <> n <> "\n") <> m
+
     -- name acts as extension also
     fixtureGoldenTest' name generate = cabalGoldenTest name outputRef $ do
         (argv, opts') <- makeFlags
         let opts = opts'
-              { optInputType      = Just InputTypeProject
-              , optConfigMorphism = (\cfg -> cfg { cfgInsertVersion = False}) . optConfigMorphism opts'
+              { optInputType       = Just InputTypeProject
+              , optConfigMorphism  = (\cfg -> cfg { cfgInsertVersion = False}) . optConfigMorphism opts'
               }
         let genConfig = generate argv opts projectfp
         first (fmap (lines . fromUTF8BS)) <$> runDiagnosticsT genConfig
@@ -70,7 +81,9 @@ fixtureGoldenTest fp = testGroup fp
         makeFlags :: IO ([String], Options)
         makeFlags = do
             argv <- readArgv
-            let argv' = argv ++ [name, projectfp]
+            let argv' = argv ++ [name, projectfp] ++
+                  [ arg | arg <- ["--sourcehut-source", "https://example.org"]
+                  , name == "sourcehut" ]
             (_fp, opts) <- parseOptions argv'
             return (argv', opts)
 

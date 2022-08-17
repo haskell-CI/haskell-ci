@@ -107,6 +107,8 @@ library haskell-ci-internal
     HaskellCI.Prelude
     HaskellCI.Sh
     HaskellCI.ShVersionRange
+    HaskellCI.Sourcehut
+    HaskellCI.Sourcehut.Yaml
     HaskellCI.TestedWith
     HaskellCI.Tools
     HaskellCI.Travis
@@ -197,6 +199,7 @@ test-suite golden
     , base-compat
     , bytestring
     , Cabal
+    , containers
     , directory
     , filepath
     , haskell-ci-internal
