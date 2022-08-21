@@ -9,9 +9,8 @@ module HaskellCI.OptparseGrammar (
 
 import HaskellCI.Prelude
 
-import Control.Applicative       (many)
-import Data.Foldable             (asum)
-import Distribution.Simple.Utils (fromUTF8BS)
+import Control.Applicative (many)
+import Data.Foldable       (asum)
 
 import qualified Distribution.Compat.Lens    as C
 import qualified Distribution.Compat.Newtype as C

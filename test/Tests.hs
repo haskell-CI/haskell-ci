@@ -8,7 +8,7 @@ import HaskellCI hiding (main)
 
 import Control.Arrow              (first)
 import Data.Algorithm.Diff        (PolyDiff (..), getGroupedDiff)
-import Distribution.Simple.Utils  (fromUTF8BS)
+import Distribution.Utils.Generic (fromUTF8BS)
 import System.Directory           (setCurrentDirectory)
 import System.FilePath            (addExtension)
 import Test.Tasty                 (TestName, TestTree, defaultMain, testGroup)

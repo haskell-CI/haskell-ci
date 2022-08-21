@@ -10,15 +10,15 @@ module Cabal.Parse (
     renderParseError,
     ) where
 
-import Control.DeepSeq           (NFData (..))
-import Control.Exception         (Exception (..))
-import Data.ByteString           (ByteString)
-import Data.Foldable             (for_)
-import Data.List.NonEmpty        (NonEmpty)
-import Data.Typeable             (Typeable)
-import Distribution.Simple.Utils (fromUTF8BS)
-import GHC.Generics              (Generic)
-import System.FilePath           (normalise)
+import Control.DeepSeq            (NFData (..))
+import Control.Exception          (Exception (..))
+import Data.ByteString            (ByteString)
+import Data.Foldable              (for_)
+import Data.List.NonEmpty         (NonEmpty)
+import Data.Typeable              (Typeable)
+import Distribution.Utils.Generic (fromUTF8BS)
+import GHC.Generics               (Generic)
+import System.FilePath            (normalise)
 
 import qualified Data.ByteString.Char8          as BS8
 import qualified Distribution.Fields            as C

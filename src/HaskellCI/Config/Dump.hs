@@ -3,8 +3,6 @@ module HaskellCI.Config.Dump where
 
 import HaskellCI.Prelude
 
-import Distribution.Simple.Utils (fromUTF8BS)
-
 import qualified Distribution.Compat.Newtype as C
 import qualified Distribution.FieldGrammar   as C
 import qualified Distribution.Pretty         as C

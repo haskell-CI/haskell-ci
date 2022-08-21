@@ -44,9 +44,10 @@ import Text.Read               as X (readMaybe)
 import Data.Generics.Lens.Lite  as X (field)
 import Distribution.Compat.Lens as X (over, toListOf, (&), (.~), (^.))
 
-import Distribution.Parsec  as X (simpleParsec)
-import Distribution.Pretty  as X (prettyShow)
-import Distribution.Version as X (Version, VersionRange, anyVersion, mkVersion, noVersion)
+import Distribution.Parsec        as X (simpleParsec)
+import Distribution.Pretty        as X (prettyShow)
+import Distribution.Utils.Generic as X (fromUTF8BS, toUTF8BS)
+import Distribution.Version       as X (Version, VersionRange, anyVersion, mkVersion, noVersion)
 
 import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.Parsec             as C

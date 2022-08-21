@@ -152,6 +152,7 @@ instance (NFData c, NFData b, NFData a) => NFData (Project c b a) where
         rnfList f (x:xs) = f x `seq` rnfList f xs
 
         rnfPrettyField :: NFData x => C.PrettyField x -> ()
+        rnfPrettyField C.PrettyEmpty = ()
         rnfPrettyField (C.PrettyField ann fn d) =
             rnf ann `seq` rnf fn `seq` rnf d
         rnfPrettyField (C.PrettySection ann fn ds fs) =
