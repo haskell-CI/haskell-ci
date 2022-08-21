@@ -8,8 +8,6 @@ module HaskellCI.Config where
 
 import HaskellCI.Prelude
 
-import Distribution.Simple.Utils (fromUTF8BS)
-
 import qualified Data.ByteString                 as BS
 import qualified Data.Map                        as M
 import qualified Data.Set                        as S

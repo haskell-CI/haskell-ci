@@ -38,7 +38,6 @@ import System.IO.Temp        (withSystemTempFile)
 import System.Process        (readProcessWithExitCode)
 
 import Distribution.PackageDescription (GenericPackageDescription, package, packageDescription, testedWith)
-import Distribution.Simple.Utils       (fromUTF8BS, toUTF8BS)
 import Distribution.Text
 import Distribution.Version
 

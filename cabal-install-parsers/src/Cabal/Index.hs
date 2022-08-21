@@ -40,7 +40,7 @@ module Cabal.Index (
 import Prelude hiding (pi)
 
 import Control.Exception (Exception, IOException, bracket, evaluate, handle, throwIO)
-import Data.Bits         (shiftL, (.|.), shiftR, (.&.))
+import Data.Bits         (shiftL, shiftR, (.&.), (.|.))
 import Data.ByteString   (ByteString)
 import Data.Int          (Int64)
 import Data.Map.Strict   (Map)
@@ -68,7 +68,7 @@ import qualified Distribution.Package                as C
 import qualified Distribution.Parsec                 as C
 import qualified Distribution.Parsec.FieldLineStream as C
 import qualified Distribution.Pretty                 as C
-import qualified Distribution.Simple.Utils           as C
+import qualified Distribution.Utils.Generic          as C
 import qualified Distribution.Version                as C
 import qualified Lukko
 import qualified System.Directory                    as D

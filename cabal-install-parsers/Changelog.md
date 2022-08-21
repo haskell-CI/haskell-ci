@@ -1,3 +1,10 @@
+## 0.5
+
+- Move to use `Cabal-syntax` package
+  It's possible to have a build-plan with (old) `Cabal`,
+  and new `cabal-install` syntax, which may cause
+  `...Version` is not `...Version` like errors.
+
 ## 0.4.5
 
 - Resolve `.tar.gz` package files to `file:` URI-locations

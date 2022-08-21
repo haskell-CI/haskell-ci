@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               cabal-install-parsers
-version:            0.4.5
+version:            0.5
 synopsis:           Utilities to work with cabal-install files
 description:
   @cabal-install-parsers@ provides parsers for @cabal-install@ files:
@@ -57,20 +57,20 @@ library
     , base          >=4.10     && <4.17
     , binary        ^>=0.8.5
     , bytestring    ^>=0.10.8.1 || ^>=0.11.1.0
-    , Cabal         ^>=3.6.0.0
+    , Cabal-syntax  ^>=3.8.1.0
     , containers    ^>=0.5.7.1 || ^>=0.6.0.1
     , deepseq       ^>=1.4.2.0
     , directory     ^>=1.3.0.0
     , filepath      ^>=1.4.1.1
     , parsec        ^>=3.1.13.0
     , pretty        ^>=1.1.3.3
-    , text          ^>=1.2.3.0
-    , time          ^>=1.8.0.2 || ^>=1.9.3 || ^>=1.11.1.1
+    , text          ^>=1.2.3.0 || ^>=2.0.1
+    , time          ^>=1.8.0.2 || ^>=1.9.3 || ^>=1.11.1.1 || ^>=1.12.2
     , transformers  ^>=0.5.2.0
 
   -- extra dependencies
   build-depends:
-    , aeson              ^>=1.4.6.0 || ^>=1.5.0.0 || ^>=2.0.0.0
+    , aeson              ^>=2.1.0.0
     , base16-bytestring  ^>=1.0.0.0
     , binary-instances   ^>=1
     , cryptohash-sha256  ^>=0.11.101.0
@@ -92,14 +92,14 @@ test-suite cabal-parsers-index
     , base
     , base16-bytestring
     , bytestring
-    , Cabal
+    , Cabal-syntax
     , cabal-install-parsers
     , containers
     , tar
 
   -- dependencies needing explicit constraints
   build-depends:
-    , tasty        ^>=1.2.3 || ^>=1.3.1 || ^>=1.4
+    , tasty        ^>=1.4
     , tasty-hunit  ^>=0.10.0.2
 
 test-suite cabal-parsers-golden
@@ -112,7 +112,7 @@ test-suite cabal-parsers-golden
   build-depends:
     , base
     , bytestring
-    , Cabal
+    , Cabal-syntax
     , cabal-install-parsers
     , containers
     , directory
@@ -122,7 +122,7 @@ test-suite cabal-parsers-golden
   -- dependencies needing explicit constraints
   build-depends:
     , ansi-terminal  >=0.10    && <0.12
-    , tasty          ^>=1.2.3 || ^>=1.3.1 || ^>=1.4
+    , tasty          ^>=1.4
     , tasty-golden   ^>=2.3.1.1
     , tree-diff      ^>=0.2
 
@@ -136,11 +136,11 @@ benchmark cabal-parsers-bench
   build-depends:
     , base
     , bytestring
-    , Cabal
+    , Cabal-syntax
     , cabal-install-parsers
     , containers
     , directory
     , filepath
 
   -- dependencies needing explicit constraints
-  build-depends:    criterion ^>=1.5.6.1
+  build-depends:    criterion ^>=1.6.0.0

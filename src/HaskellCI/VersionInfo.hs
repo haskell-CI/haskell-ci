@@ -19,7 +19,7 @@ dependencies = Map.fromList
     , ("base",                   VERSION_base)
     , ("base-compat",            VERSION_base_compat)
     , ("bytestring",             VERSION_bytestring)
-    , ("Cabal",                  VERSION_Cabal)
+    , ("Cabal-syntax",           VERSION_Cabal_syntax)
     , ("cabal-install-parsers",  VERSION_cabal_install_parsers)
     , ("containers",             VERSION_containers)
     , ("deepseq",                VERSION_deepseq)
