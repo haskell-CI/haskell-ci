@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.15.20220821
+version:            0.15.20220822
 synopsis:           Cabal package script generator for Travis-CI
 description:
   Script generator (@haskell-ci@) for
@@ -84,6 +84,7 @@ library haskell-ci-internal
     HaskellCI.Cli
     HaskellCI.Compiler
     HaskellCI.Config
+    HaskellCI.Config.Components
     HaskellCI.Config.ConstraintSet
     HaskellCI.Config.CopyFields
     HaskellCI.Config.Docspec
