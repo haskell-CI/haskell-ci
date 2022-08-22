@@ -27,6 +27,7 @@ import Cabal.Project
 import Cabal.SourceRepo
 import HaskellCI.Compiler
 import HaskellCI.Config
+import HaskellCI.Config.Components
 import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Docspec
 import HaskellCI.Config.Doctest
@@ -46,6 +47,8 @@ data Auxiliary = Auxiliary
     , extraCabalProjectFields :: FilePath -> [C.PrettyField ()]
     , testShowDetails         :: String
     , anyJobUsesHeadHackage   :: Bool
+    , runHaddock              :: Bool
+    , haddockFlags            :: String
     }
 
 auxiliary :: Config -> Project URI Void Package -> JobVersions -> Auxiliary
@@ -71,6 +74,15 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
         ]
 
     hasLibrary = any (\Pkg{pkgGpd} -> isJust $ C.condLibrary pkgGpd) pkgs
+
+    runHaddock = not (equivVersionRanges C.noVersion cfgHaddock)
+        && case cfgHaddockComponents of
+            ComponentsAll  -> True
+            ComponentsLibs -> hasLibrary
+
+    haddockFlags = case cfgHaddockComponents of
+        ComponentsAll  -> " --haddock-all"
+        ComponentsLibs -> ""
 
     extraCabalProjectFields :: FilePath -> [C.PrettyField ()]
     extraCabalProjectFields rootdir = buildList $ do

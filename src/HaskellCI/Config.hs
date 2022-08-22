@@ -23,6 +23,7 @@ import qualified Distribution.Types.Version      as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
 
+import HaskellCI.Config.Components
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Docspec
@@ -61,6 +62,7 @@ data Config = Config
     , cfgRunTests            :: !VersionRange
     , cfgBenchmarks          :: !VersionRange
     , cfgHaddock             :: !VersionRange
+    , cfgHaddockComponents   :: !Components
     , cfgNoTestsNoBench      :: !VersionRange
     , cfgUnconstrainted      :: !VersionRange
     , cfgHeadHackage         :: !VersionRange
@@ -129,6 +131,7 @@ configGrammar
        , c (Identity CopyFields)
        , c (Identity Version)
        , c (Identity Natural)
+       , c (Identity Components)
        , c Env, c Folds, c CopyFields, c HeadVersion
        , c (C.List C.FSep (Identity Installed) Installed)
        , Applicative (g DoctestConfig)
@@ -170,6 +173,8 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Build benchmarks"
     <*> rangeField           "haddock"                                                        (field @"cfgHaddock") anyVersion
         ^^^ metahelp "RANGE" "Haddock step"
+    <*> C.optionalFieldDef   "haddock-components"                                             (field @"cfgHaddockComponents") ComponentsAll
+        ^^^ metahelp "all|libs" "Haddock components"
     <*> rangeField           "no-tests-no-benchmarks"                                         (field @"cfgNoTestsNoBench") anyVersion
         ^^^ metahelp "RANGE" "Build without tests and benchmarks"
     <*> rangeField            "unconstrained"                                                 (field @"cfgUnconstrainted") anyVersion
