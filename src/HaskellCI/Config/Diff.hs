@@ -7,7 +7,6 @@ module HaskellCI.Config.Diff where
 
 import HaskellCI.Prelude
 
-import Distribution.Simple.Utils (fromUTF8BS)
 import Distribution.Fields.Field (FieldName)
 import Distribution.Utils.ShortText (fromShortText)
 
