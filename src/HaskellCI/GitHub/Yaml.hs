@@ -49,6 +49,7 @@ data GitHubMatrixEntry = GitHubMatrixEntry
     { ghmeCompiler     :: CompilerVersion
     , ghmeAllowFailure :: Bool
     , ghmeSetupMethod  :: SetupMethod
+    , ghmePostgresVersion :: String
     }
   deriving (Show)
 
@@ -140,7 +141,7 @@ instance ToYaml GitHubMatrixEntry where
         , "compilerVersion" ~> fromString (compilerVersion ghmeCompiler)
         , "setup-method"    ~> toYaml ghmeSetupMethod
         , "allow-failure"   ~> toYaml ghmeAllowFailure
-        ]
+        , "postgres-version"~> fromString ghmePostgresVersion]
 
 instance ToYaml GitHubStep where
     toYaml GitHubStep {..} = ykeyValuesFilt [] $
