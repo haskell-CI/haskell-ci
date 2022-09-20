@@ -375,7 +375,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 "(cd " ++ pkgNameDirVariable pkgName ++ " && ${CABAL} -vnormal check)"
 
         -- haddock
-        when (not (equivVersionRanges C.noVersion cfgHaddock)) $
+        unless (equivVersionRanges C.noVersion cfgHaddock) $
             foldedSh FoldHaddock "haddock..." cfgFolds $
                 shForJob (RangeGHC /\ Range cfgHaddock) $ cabal $ "v2-haddock --haddock-all $WITHCOMPILER " ++ withHaddock ++ " ${TEST} ${BENCH} all"
 
