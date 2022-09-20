@@ -88,9 +88,9 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
     extraCabalProjectFields rootdir = buildList $ do
         -- generate package fields for URI packages.
         for_ uris $ \uri ->
-            item $ C.PrettyField () "packages" $ PP.text $ if
-                | URI.uriScheme uri == "file:" -> rootdir ++ URI.uriPath uri
-                | otherwise                    -> uriToString id uri ""
+            item $ C.PrettyField () "packages" $ PP.text $ case URI.uriScheme uri of
+                "file:" -> rootdir ++ URI.uriPath uri
+                _       -> uriToString id uri ""
 
         -- copy fields from original cabal.project
         case cfgCopyFields of

@@ -198,7 +198,7 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
             change_dir "$BUILDDIR"
 
         -- haddock
-        when (not (equivVersionRanges C.noVersion cfgHaddock)) $ step "haddock" $ do
+        unless (equivVersionRanges C.noVersion cfgHaddock) $ step "haddock" $ do
             let range = RangeGHC /\ Range cfgHaddock
             run_cmd_if range "$CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all"
 
