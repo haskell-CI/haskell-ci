@@ -139,4 +139,17 @@ $ nix develop
 This will give you an environment with an appropriate compiler and cabal to
 work on haskell-ci.
 
+### Care and feeding of the Nix flake
+
+There's a lockfile at `flake.lock` containing all the inputs including the
+nixpkgs set.
+
+You can update the nixpkgs version like so:
+
+```
+$ nix flake lock --update-input nixpkgs
+```
+
+Then test building the flake to see if anything went awry.
+
 [nix-install]: https://nixos.org/download.html#download-nix
