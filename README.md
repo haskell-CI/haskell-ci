@@ -8,31 +8,52 @@ There is also legacy Travis-CI configuration generator, which is unmaintained.
 or [`ghcup`](https://www.haskell.org/ghcup/) to install GHC
 and `cabal-install`.
 
-GHC-7.0.1 &mdash; GHC-9.2.1 are supported.
+GHC-7.0.1 &mdash; GHC-9.2.4 are supported.
 
 ### Quick-start instructions
 
-* Step 1: Clone and install this project in/from any directory
+haskell-ci can be installed either with Cabal or with Nix, depending on your
+preference:
 
-    ```bash
-    $ git clone https://github.com/haskell-CI/haskell-ci.git
-    $ cd haskell-ci
-    $ cabal new-install haskell-ci:exe:haskell-ci
-    ```
+#### Installation: Cabal
 
-  or
+Either install from a Git clone:
 
-    ```bash
-    cabal new-install haskell-ci
-    ```
+```bash
+$ git clone https://github.com/haskell-CI/haskell-ci.git
+$ cd haskell-ci
+$ cabal new-install haskell-ci:exe:haskell-ci
+```
 
-* Step 2: Change directories to your project:
+or from Hackage:
+
+```bash
+cabal new-install haskell-ci
+```
+
+#### Installation: Nix
+
+Either get haskell-ci from nixpkgs (may be older):
+
+```
+$ nix run nixpkgs#haskell-ci -- --help
+```
+
+or use the flake to build it from source:
+
+```
+$ nix run github:haskell-ci/haskell-ci -- --help
+```
+
+#### Setup on your project
+
+* Step 1: Change directories to your project:
 
     ```bash
     $ cd path/to/your-project
     ```
 
-* Step 3: Edit your project's `*.cabal` file to add a `Tested-With` line, such as this one:
+* Step 2: Edit your project's `*.cabal` file to add a `Tested-With` line, such as this one:
 
     ```bash
     $ cat your-project.cabal
@@ -43,7 +64,7 @@ GHC-7.0.1 &mdash; GHC-9.2.1 are supported.
     
     Add as many or as few GHC versions to test as you want.
 
-* Step 4: Generate a workflow file for your project:
+* Step 3: Generate a workflow file for your project:
 
     ```bash
     $ # You run the following command from your project's directory, even
@@ -61,7 +82,7 @@ GHC-7.0.1 &mdash; GHC-9.2.1 are supported.
     `*.cabal` files and generates a configuration that tests each compiler
     version you listed in parallel.
 
-* Step 5: Create a branch with your new CI configuration file and push your branch:
+* Step 4: Create a branch with your new CI configuration file and push your branch:
 
     ```bash
     $ git checkout master            # Check out `master`
@@ -72,7 +93,7 @@ GHC-7.0.1 &mdash; GHC-9.2.1 are supported.
     $ git push -u origin new-ci      # Push your branch upstream
     ```
     
-* Step 6: Fix the build
+* Step 5: Fix the build
 
     If you're lucky, your repository will build for every compiler version
     you listed.  If that's the case, then just merge your changes into `master`:
