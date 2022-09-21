@@ -126,3 +126,17 @@ Real-world Examples
  - [aeson](https://github.com/haskell/aeson)
  - [lens](https://github.com/ekmett/lens)
  - [unordered-containers](https://github.com/haskell-unordered-containers/unordered-containers)
+
+## Contributing
+
+There is a Nix flake to easily get the exact environment required, which you
+can use like so, once you've [installed the Nix package manager][nix-install]:
+
+```
+$ nix develop
+```
+
+This will give you an environment with an appropriate compiler and cabal to
+work on haskell-ci.
+
+[nix-install]: https://nixos.org/download.html#download-nix
