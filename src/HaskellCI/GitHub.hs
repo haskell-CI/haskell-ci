@@ -755,7 +755,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
 postgresService :: GitHubService
 postgresService = GitHubService
-    { ghServImage   = "postgres:10"
+    { ghServImage   = "postgres:14"
     , ghServOptions = Just "--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5"
     , ghServEnv     = Map.fromList
           [ ("POSTGRES_PASSWORD", "postgres")
