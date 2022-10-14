@@ -190,7 +190,7 @@ previewGHC
     -> CompilerVersion
     -> Bool
 previewGHC _vr GHCHead   = True
-previewGHC  vr (GHC v)   = withinRange v vr || odd (snd (ghcMajVer v)) || maybe False (v >=) (fmap fst ghcAlpha)
+previewGHC  vr (GHC v)   = withinRange v vr || odd (snd (ghcMajVer v)) || maybe False (\(v', _) -> v >= v') ghcAlpha
 previewGHC _vr (GHCJS _) = False
 
 ghcMajVer :: Version -> (Int,Int)
