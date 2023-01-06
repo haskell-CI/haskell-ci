@@ -308,10 +308,11 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 Binary.put cfgHLint
                 Binary.put cfgGhcupJobs -- GHC location affects doctest, e.g
 
-        when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUses "cache (tools)" "actions/cache@v2"
-            [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
-            , ("path", "~/.haskell-ci-tools")
-            ]
+        when (doctestEnabled || cfgHLintEnabled cfgHLint) $ item $ return $ GitHubStep "cache (tools)" $ Right $
+            GitHubUses "actions/cache@v2" (Just "${{ !env.ACT }}") $ Map.fromList
+                [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
+                , ("path", "~/.haskell-ci-tools")
+                ]
 
         githubRun "install cabal-plan" $ do
             sh "mkdir -p $HOME/.cabal/bin"
@@ -457,11 +458,12 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         -- This a hack. https://github.com/actions/cache/issues/109
         -- Hashing Java - Maven style.
-        githubUses "cache" "actions/cache@v2"
-            [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
-            , ("restore-keys", "${{ runner.os }}-${{ matrix.compiler }}-")
-            , ("path", "~/.cabal/store")
-            ]
+        item $ return $ GitHubStep "cache" $ Right $
+            GitHubUses "actions/cache@v2" (Just "${{ !env.ACT }}") $ Map.fromList
+                [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
+                , ("restore-keys", "${{ runner.os }}-${{ matrix.compiler }}-")
+                , ("path", "~/.cabal/store")
+                ]
 
         -- install dependencies
         when cfgInstallDeps $ githubRun "install dependencies" $ do
