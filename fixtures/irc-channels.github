@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
     steps:
       - name: IRC success notification (irc.libera.chat#mychannel)
-        uses: Gottox/irc-message-action@v1.1
+        uses: Gottox/irc-message-action@v2
         if: needs.linux.result == 'success'
         with:
           channel: "#mychannel"
@@ -37,7 +37,7 @@ jobs:
           nickname: github-actions
           server: irc.libera.chat
       - name: IRC failure notification (irc.libera.chat#mychannel)
-        uses: Gottox/irc-message-action@v1.1
+        uses: Gottox/irc-message-action@v2
         if: needs.linux.result != 'success'
         with:
           channel: "#mychannel"
@@ -312,7 +312,7 @@ jobs:
           chmod a+x $HOME/.cabal/bin/cabal-plan
           cabal-plan --version
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: source
       - name: initial cabal.project for sdist
@@ -348,7 +348,7 @@ jobs:
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dry-run all
           cabal-plan
       - name: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
