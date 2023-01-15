@@ -141,6 +141,7 @@ knownGhcVersions = fmap mkVersion
     , [9,0,1],  [9,0,2]
     , [9,2,1],  [9,2,2],  [9,2,3], [9,2,4], [9,2,5]
     , [9,4,1],  [9,4,2],  [9,4,3], [9,4,4]
+    , [9,6,1]
     ]
 
 knownGhcjsVersions :: [Version]
@@ -182,7 +183,7 @@ dispCabalVersion :: Maybe Version -> String
 dispCabalVersion = maybe "head" C.prettyShow
 
 ghcAlpha :: Maybe (Version, Version)
-ghcAlpha = Nothing
+ghcAlpha = Just (mkVersion [9,6,1], mkVersion [9,6,0,20230111])
 
 -- | Alphas, RCs and HEAD.
 previewGHC
