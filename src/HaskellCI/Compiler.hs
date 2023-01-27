@@ -23,6 +23,7 @@ module HaskellCI.Compiler (
     dispCabalVersion,
     -- * Cabal version
     correspondingCabalVersion,
+    previewCabal,
     -- * Misc
     ghcMajVer,
     translateCompilerVersion,
@@ -158,6 +159,7 @@ allCompilerVersions = S.insert GHCHead $ S.fromList $
 -- Combinators
 -------------------------------------------------------------------------------
 
+-- Used by travis only?
 correspondingCabalVersion
     :: Maybe Version    -- ^ Preferred Cabal Version
     -> CompilerVersion  -- ^ GHC Version
@@ -193,6 +195,14 @@ previewGHC
 previewGHC _vr GHCHead   = True
 previewGHC  vr (GHC v)   = withinRange v vr || odd (snd (ghcMajVer v)) || maybe False (\(v', _) -> v >= v') ghcAlpha
 previewGHC _vr (GHCJS _) = False
+
+previewCabal
+    :: Maybe Version
+    -> Bool
+previewCabal Nothing = True
+previewCabal (Just v) = case versionNumbers v of
+    _:y:_ -> odd y
+    _     -> False
 
 ghcMajVer :: Version -> (Int,Int)
 ghcMajVer v

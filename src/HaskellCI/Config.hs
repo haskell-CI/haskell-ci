@@ -107,7 +107,7 @@ data Config = Config
   deriving (Generic)
 
 defaultCabalInstallVersion :: Maybe Version
-defaultCabalInstallVersion = Just (C.mkVersion [3,6])
+defaultCabalInstallVersion = Just (C.mkVersion [3,9])
 
 defaultGhcupVersion :: Version
 defaultGhcupVersion = C.mkVersion [0,1,18,0]
