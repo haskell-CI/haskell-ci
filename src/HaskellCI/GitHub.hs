@@ -179,7 +179,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 installGhcup
 
                 -- if any job uses prereleases, add release channel unconditionally. (HEADHACKAGE variable is set later)
-                when anyJobUsesHeadHackage $ sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
+                when (anyJobUsesHeadHackage || previewCabal cfgCabalInstallVersion) $
+                  sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
 
                 sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
                 installGhcupCabal
@@ -570,7 +571,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
         -- haddock
         when runHaddock $ githubRun "haddock" $ do
             let range = RangeGHC /\ Range cfgHaddock
-            sh_if range $ "$CABAL v2-haddock" ++ haddockFlags ++ " $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all"
+            -- disable-documentation disables docs in deps: https://github.com/haskell/cabal/issues/7462
+            sh_if range $ "$CABAL v2-haddock --disable-documentation" ++ haddockFlags ++ " $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all"
 
         -- unconstrained build
         unless (equivVersionRanges C.noVersion cfgUnconstrainted) $ githubRun "unconstrained build" $ do
@@ -601,7 +603,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             when (csRunTests cs) $
                 sh_cs' hasTests $ "$CABAL v2-test $ARG_COMPILER " ++ allFlags ++ " all"
             when (csHaddock cs) $
-                sh_cs $ "$CABAL v2-haddock" ++ haddockFlags ++ " $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
+                sh_cs $ "$CABAL v2-haddock --disable-documentation" ++ haddockFlags ++ " $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
         githubUsesIf "save cache" "actions/cache/save@v3" "always()"
           [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
@@ -652,6 +654,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     cabalVer     = dispCabalVersion cfgCabalInstallVersion
     cabalFullVer = dispCabalVersion $ cfgCabalInstallVersion <&> \ver ->
         case C.versionNumbers ver of
+            [3,9] -> C.mkVersion [3,9,0,0]
             [3,6] -> C.mkVersion [3,6,2,0]
             [x,y] -> C.mkVersion [x,y,0,0]
             _     -> ver
