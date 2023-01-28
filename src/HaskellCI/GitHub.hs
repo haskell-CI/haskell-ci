@@ -153,6 +153,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     sh $ "curl -sL https://downloads.haskell.org/ghcup/" ++ ghcupVer ++ "/x86_64-linux-ghcup-" ++ ghcupVer ++ " > \"$HOME/.ghcup/bin/ghcup\""
                     sh $ "chmod a+x \"$HOME/.ghcup/bin/ghcup\""
 
+                    -- if any job uses prereleases, add release channel unconditionally. (HEADHACKAGE variable is set later)
+                    when (anyJobUsesHeadHackage || previewCabal cfgCabalInstallVersion) $
+                      sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
+
                 installGhcupCabal :: ShM ()
                 installGhcupCabal =
                     sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer ++ " || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
@@ -177,10 +181,6 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
             ghcup <- runSh $ do
                 installGhcup
-
-                -- if any job uses prereleases, add release channel unconditionally. (HEADHACKAGE variable is set later)
-                when (anyJobUsesHeadHackage || previewCabal cfgCabalInstallVersion) $
-                  sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
 
                 sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
                 installGhcupCabal
