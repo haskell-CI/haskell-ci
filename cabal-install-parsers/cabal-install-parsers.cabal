@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               cabal-install-parsers
-version:            0.5
+version:            0.6
 synopsis:           Utilities to work with cabal-install files
 description:
   @cabal-install-parsers@ provides parsers for @cabal-install@ files:
@@ -15,18 +15,29 @@ description:
 homepage:           https://haskell-ci.rtfd.org/
 bug-reports:        https://github.com/haskell-CI/haskell-ci/issues
 license:            GPL-2.0-or-later AND BSD-3-Clause
-license-files:      LICENSE LICENSE.GPLv2 LICENSE.GPLv3
+license-files:
+  LICENSE
+  LICENSE.GPLv2
+  LICENSE.GPLv3
+
 author:             Herbert Valerio Riedel, Oleg Grenrus
 maintainer:         hvr@gnu.org, oleg.grenrus@iki.fi
 category:           Development
 build-type:         Simple
 tested-with:
-  GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.5 || ==9.4.4
+  GHC ==8.2.2
+   || ==8.4.4
+   || ==8.6.5
+   || ==8.8.4
+   || ==8.10.7
+   || ==9.0.2
+   || ==9.2.5
+   || ==9.4.4
 
 extra-source-files:
   Changelog.md
-  fixtures/*.project
   fixtures/*.golden
+  fixtures/*.project
 
 source-repository head
   type:     git
@@ -54,18 +65,18 @@ library
 
   -- GHC-boot libraries
   build-depends:
-    , base          >=4.10     && <4.18
+    , base          >=4.10      && <4.18
     , binary        ^>=0.8.5
     , bytestring    ^>=0.10.8.1 || ^>=0.11.1.0
     , Cabal-syntax  ^>=3.8.1.0
-    , containers    ^>=0.5.7.1 || ^>=0.6.0.1
+    , containers    ^>=0.5.7.1  || ^>=0.6.0.1
     , deepseq       ^>=1.4.2.0
     , directory     ^>=1.3.0.0
     , filepath      ^>=1.4.1.1
     , parsec        ^>=3.1.13.0
     , pretty        ^>=1.1.3.3
-    , text          ^>=1.2.3.0 || ^>=2.0.1
-    , time          ^>=1.8.0.2 || ^>=1.9.3 || ^>=1.11.1.1 || ^>=1.12.2
+    , text          ^>=1.2.3.0  || ^>=2.0.1
+    , time          ^>=1.8.0.2  || ^>=1.9.3    || ^>=1.11.1.1 || ^>=1.12.2
     , transformers  ^>=0.5.2.0
 
   -- extra dependencies
@@ -92,8 +103,8 @@ test-suite cabal-parsers-index
     , base
     , base16-bytestring
     , bytestring
-    , Cabal-syntax
     , cabal-install-parsers
+    , Cabal-syntax
     , containers
     , tar
 
@@ -112,8 +123,8 @@ test-suite cabal-parsers-golden
   build-depends:
     , base
     , bytestring
-    , Cabal-syntax
     , cabal-install-parsers
+    , Cabal-syntax
     , containers
     , directory
     , filepath
@@ -121,10 +132,10 @@ test-suite cabal-parsers-golden
 
   -- dependencies needing explicit constraints
   build-depends:
-    , ansi-terminal  >=0.10    && <0.12
+    , ansi-terminal  >=0.10     && <0.12
     , tasty          ^>=1.4
     , tasty-golden   ^>=2.3.1.1
-    , tree-diff      >=0.2     && <0.4
+    , tree-diff      >=0.2      && <0.4
 
 benchmark cabal-parsers-bench
   default-language: Haskell2010
@@ -136,8 +147,8 @@ benchmark cabal-parsers-bench
   build-depends:
     , base
     , bytestring
-    , Cabal-syntax
     , cabal-install-parsers
+    , Cabal-syntax
     , containers
     , directory
     , filepath

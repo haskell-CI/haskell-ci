@@ -57,12 +57,18 @@ main = defaultMain $ testGroup "Cabal.Index"
                     -- revision and cabal hash check will start failing
                     -- tarball hash shouldn't ever change.
                     assertEqual "revision" 1 (riRevision ri)
+                    assertEqual "cabal size"
+                        7251
+                        (riCabalSize ri)
                     assertEqual "cabal hash"
                         (unsafeMkSHA256 "a6f5eddcff9526c786a1b77bdfade54b42f67c066b379bbc4b55ffb291e6c7d6")
-                        (riCabal ri)
+                        (riCabalHash ri)
+                    assertEqual "tarball size"
+                        279980
+                        (riTarballSize ri)
                     assertEqual "tarball hash"
                         (unsafeMkSHA256 "17c67cdaca651e18f310b21b2b12bac6bcec5188c3ac0e4b64cc60c94d7e4d2e")
-                        (riTarball ri)
+                        (riTarballHash ri)
 
                     -- check contents
                     withFile indexPath ReadMode $ \hdl -> do

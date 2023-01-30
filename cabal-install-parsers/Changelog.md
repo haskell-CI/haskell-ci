@@ -1,3 +1,7 @@
+## 0.6
+
+- Add sizes of tarball and cabal files to `Cabal.Index.ReleaseInfo` data structure.
+
 ## 0.5
 
 - Move to use `Cabal-syntax` package
