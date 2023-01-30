@@ -10,7 +10,7 @@ module Cabal.Index (
     cachedHackageMetadata,
     -- ** Exceptions thrown
     MetadataParseError (..),
-    InvalidHash (..),
+    InvalidData (..),
     InvalidIndexFile (..),
     NoHackageRepository (..),
     -- * Metadata types
@@ -35,7 +35,7 @@ module Cabal.Index (
     foldIndex,
     IndexEntry (..),
     IndexFileType (..),
-    ) where
+) where
 
 import Prelude hiding (pi)
 
@@ -354,10 +354,12 @@ piPreferredVersions pi =
 
 -- | Package's release information.
 data ReleaseInfo = ReleaseInfo
-    { riRevision  :: !Word32              -- ^ revision number
-    , riTarOffset :: !Tar.TarEntryOffset  -- ^ offset into tar file
-    , riCabal     :: !SHA256              -- ^ hash of the last revision of @.cabal@ file
-    , riTarball   :: !SHA256              -- ^ hash of the @.tar.gz@ file.
+    { riRevision    :: !Word32              -- ^ revision number
+    , riTarOffset   :: !Tar.TarEntryOffset  -- ^ offset into tar file
+    , riCabalHash   :: !SHA256              -- ^ hash of the last revision of @.cabal@ file
+    , riCabalSize   :: !Word64              -- ^ size of the last revision of @.cabal@ file
+    , riTarballHash :: !SHA256              -- ^ hash of the @.tar.gz@ file
+    , riTarballSize :: !Word64              -- ^ size of the @.tar.gz@ file
     }
   deriving (Eq, Show, Generic)
 
@@ -389,20 +391,30 @@ indexMetadata indexFilepath mindexState = do
                 digest :: SHA256
                 digest = sha256 contents
 
+                size :: Word64
+                size = fromIntegral $ BS.length contents
+
                 offset :: Tar.TarEntryOffset
                 offset = entryTarOffset indexEntry
 
                 f :: Maybe TmpPackageInfo -> Maybe TmpPackageInfo
                 f Nothing = Just TmpPackageInfo
-                    { tmpPiVersions  = Map.singleton ver (TmpReleaseInfo 0 offset (Just digest) Nothing)
+                    { tmpPiVersions  = Map.singleton ver TmpReleaseInfo 
+                        { tmpRiRevision    = 0
+                        , tmpRiTarOffset   = offset
+                        , tmpRiCabalHash   = Just digest
+                        , tmpRiCabalSize   = Just size
+                        , tmpRiTarballHash = Nothing
+                        , tmpRiTarballSize = Nothing
+                        }
                     , tmpPiPreferred = C.anyVersion
                     }
                 f (Just pi) = Just pi { tmpPiVersions = Map.alter g ver (tmpPiVersions pi) }
 
                 g :: Maybe TmpReleaseInfo -> Maybe TmpReleaseInfo
-                g Nothing                                 = Just $ TmpReleaseInfo 0        offset (Just digest) Nothing
-                g (Just (TmpReleaseInfo _r _o Nothing t)) = Just $ TmpReleaseInfo 0        offset (Just digest) t
-                g (Just (TmpReleaseInfo  r _o _c      t)) = Just $ TmpReleaseInfo (succ r) offset (Just digest) t
+                g Nothing                                       = Just $ TmpReleaseInfo 0        offset (Just digest) (Just size) Nothing Nothing
+                g (Just (TmpReleaseInfo _r _o Nothing _ th ts)) = Just $ TmpReleaseInfo 0        offset (Just digest) (Just size) th      ts
+                g (Just (TmpReleaseInfo  r _o _c      _ th ts)) = Just $ TmpReleaseInfo (succ r) offset (Just digest) (Just size) th      ts
 
             PackageJson pn ver -> case A.eitherDecodeStrict contents of
                     Left err -> throwIO $ MetadataParseError (entryPath indexEntry) err
@@ -413,14 +425,14 @@ indexMetadata indexFilepath mindexState = do
                       where
                         f :: Target -> Maybe TmpPackageInfo -> Maybe TmpPackageInfo
                         f t Nothing   = Just TmpPackageInfo
-                            { tmpPiVersions  = Map.singleton ver (TmpReleaseInfo 0 0 Nothing (Just (hashSHA256 (targetHashes t))))
+                            { tmpPiVersions  = Map.singleton ver $ TmpReleaseInfo 0 0 Nothing Nothing (Just (hashSHA256 (targetHashes t))) (Just (targetLength t))
                             , tmpPiPreferred = C.anyVersion
                             }
                         f t (Just pi) = Just pi { tmpPiVersions = Map.alter (g t) ver (tmpPiVersions pi) }
 
                         g :: Target -> Maybe TmpReleaseInfo -> Maybe TmpReleaseInfo
-                        g t Nothing                         = Just $ TmpReleaseInfo 0 0 Nothing (Just (hashSHA256 (targetHashes t)))
-                        g t (Just (TmpReleaseInfo r o c _)) = Just $ TmpReleaseInfo r o c       (Just (hashSHA256 (targetHashes t)))
+                        g t Nothing                               = Just $ TmpReleaseInfo 0 0 Nothing Nothing (Just (hashSHA256 (targetHashes t))) (Just (targetLength t))
+                        g t (Just (TmpReleaseInfo r o ch cs _ _)) = Just $ TmpReleaseInfo r o ch      cs      (Just (hashSHA256 (targetHashes t))) (Just (targetLength t))
 
             PreferredVersions pn
                     | BS.null contents -> return m
@@ -446,13 +458,17 @@ indexMetadata indexFilepath mindexState = do
 postCheck :: Map C.PackageName TmpPackageInfo -> IO (Map C.PackageName PackageInfo)
 postCheck meta = ifor meta $ \pn pi -> do
     versions <- ifor (tmpPiVersions pi) $ \ver ri -> do
-        cabal   <- maybe (throwIO $ InvalidHash pn ver "cabal")   return (tmpRiCabal   ri)
-        tarball <- maybe (throwIO $ InvalidHash pn ver "tarball") return (tmpRiTarball ri)
+        cabalHash   <- maybe (throwIO $ InvalidHash pn ver "cabal")   return (tmpRiCabalHash   ri)
+        cabalSize   <- maybe (throwIO $ InvalidSize pn ver "cabal")   return (tmpRiCabalSize   ri)
+        tarballHash <- maybe (throwIO $ InvalidHash pn ver "tarball") return (tmpRiTarballHash ri)
+        tarballSize <- maybe (throwIO $ InvalidSize pn ver "tarball") return (tmpRiTarballSize ri)
         return ReleaseInfo
-            { riRevision  = tmpRiRevision ri
-            , riTarOffset = tmpRiTarOffset ri
-            , riCabal     = cabal
-            , riTarball   = tarball
+            { riRevision    = tmpRiRevision ri
+            , riTarOffset   = tmpRiTarOffset ri
+            , riCabalHash   = cabalHash
+            , riCabalSize   = cabalSize
+            , riTarballHash = tarballHash
+            , riTarballSize = tarballSize
             }
 
     return PackageInfo
@@ -470,10 +486,12 @@ data MetadataParseError = MetadataParseError FilePath String
 instance Exception MetadataParseError
 
 -- | Thrown if we fail consistency check, we don't know a hash for some file.
-data InvalidHash = InvalidHash C.PackageName C.Version String
+data InvalidData
+    = InvalidHash C.PackageName C.Version String
+    | InvalidSize C.PackageName C.Version String
   deriving (Show)
 
-instance Exception InvalidHash
+instance Exception InvalidData
 
 -------------------------------------------------------------------------------
 -- Temporary types for indexMetadata
@@ -485,10 +503,12 @@ data TmpPackageInfo = TmpPackageInfo
     }
 
 data TmpReleaseInfo = TmpReleaseInfo
-    { tmpRiRevision  :: !Word32              -- ^ revision number
-    , tmpRiTarOffset :: !Tar.TarEntryOffset  -- ^ offset into tar file
-    , tmpRiCabal     :: !(Maybe SHA256)      -- ^ hash of the last revision of @.cabal@ file
-    , tmpRiTarball   :: !(Maybe SHA256)      -- ^ hash of the @.tar.gz@ file.
+    { tmpRiRevision    :: !Word32               -- ^ revision number
+    , tmpRiTarOffset   :: !Tar.TarEntryOffset   -- ^ offset into tar file
+    , tmpRiCabalHash   :: !(Maybe SHA256)       -- ^ hash of the last revision of @.cabal@ file
+    , tmpRiCabalSize   :: !(Maybe Word64)       -- ^ size of the last revision of @.cabal@ file
+    , tmpRiTarballHash :: !(Maybe SHA256)       -- ^ hash of the @.tar.gz@ file.
+    , tmpRiTarballSize :: !(Maybe Word64)       -- ^ size of the @.tar.gz@ file.
     }
 
 -------------------------------------------------------------------------------
@@ -656,14 +676,14 @@ newtype Targets = Targets (Map FilePath Target)
   deriving Show
 
 data Target = Target
-    { _targetLength :: Word
-    , targetHashes :: Hashes
+    { targetLength :: !Word64
+    , targetHashes :: !Hashes
     }
   deriving Show
 
 data Hashes = Hashes
-    { _hashMD5    :: MD5
-    , hashSHA256 :: SHA256
+    { _hashMD5   :: !MD5
+    , hashSHA256 :: !SHA256
     }
   deriving Show
 
