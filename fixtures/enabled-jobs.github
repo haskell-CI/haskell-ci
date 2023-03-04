@@ -33,9 +33,9 @@ jobs:
             compilerVersion: "8.4"
             setup-method: hvr-ppa
             allow-failure: false
-          - compiler: ghc-9.6.0.20230210
+          - compiler: ghc-9.6.0.20230302
             compilerKind: ghc
-            compilerVersion: 9.6.0.20230210
+            compilerVersion: 9.6.0.20230302
             setup-method: ghcup
             allow-failure: true
           - compiler: ghc-9.4.4
