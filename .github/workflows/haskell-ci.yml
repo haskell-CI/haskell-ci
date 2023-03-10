@@ -212,7 +212,7 @@ jobs:
           echo "packages: ${PKGDIR_cabal_install_parsers}" >> cabal.project
           cat >> cabal.project <<EOF
           package *
-            ghc-options: -Werror=missing-methods
+            ghc-options: -Werror=missing-methods -Werror=missing-fields
           EOF
           cat >> cabal.project <<EOF
           package haskell-ci
