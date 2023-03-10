@@ -412,7 +412,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     echo_if_to range "cabal.project" $ "    ghc-options: -Werror=missing-methods"
                 PackageScopeAll   -> cat "cabal.project" $ unlines
                     [ "package *"
-                    , "  ghc-options: -Werror=missing-methods"
+                    , "  ghc-options: -Werror=missing-methods -Werror=missing-fields"
                     ]
 
             -- extra cabal.project fields
