@@ -654,10 +654,11 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     cabalVer     = dispCabalVersion cfgCabalInstallVersion
     cabalFullVer = dispCabalVersion $ cfgCabalInstallVersion <&> \ver ->
         case C.versionNumbers ver of
-            [3,9] -> C.mkVersion [3,9,0,0]
-            [3,6] -> C.mkVersion [3,6,2,0]
-            [x,y] -> C.mkVersion [x,y,0,0]
-            _     -> ver
+            [3,10] -> C.mkVersion [3,10,1,0]
+            [3,9]  -> C.mkVersion [3,9,0,0]
+            [3,6]  -> C.mkVersion [3,6,2,0]
+            [x,y]  -> C.mkVersion [x,y,0,0]
+            _      -> ver
 
     Auxiliary {..} = auxiliary config prj jobs
 
