@@ -1,4 +1,4 @@
-HC ?= ghc-8.6.5
+HC ?= ghc-9.2.7
 
 build :
 	cabal v2-build -w $(HC)
