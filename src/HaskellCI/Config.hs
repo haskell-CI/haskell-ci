@@ -107,10 +107,10 @@ data Config = Config
   deriving (Generic)
 
 defaultCabalInstallVersion :: Maybe Version
-defaultCabalInstallVersion = Just (C.mkVersion [3,9])
+defaultCabalInstallVersion = Just (C.mkVersion [3,10,1,0])
 
 defaultGhcupVersion :: Version
-defaultGhcupVersion = C.mkVersion [0,1,18,0]
+defaultGhcupVersion = C.mkVersion [0,1,19,2]
 
 emptyConfig :: Config
 emptyConfig = case runEG configGrammar of
