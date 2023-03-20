@@ -26,7 +26,7 @@ data DoctestConfig = DoctestConfig
 -------------------------------------------------------------------------------
 
 defaultDoctestVersion :: VersionRange
-defaultDoctestVersion = majorBoundVersion (mkVersion [0,20,0])
+defaultDoctestVersion = majorBoundVersion (mkVersion [0,21,0])
 
 -------------------------------------------------------------------------------
 -- Grammar
