@@ -100,6 +100,8 @@ library haskell-ci-internal
     HaskellCI.Config.Validity
     HaskellCI.Diagnostics
     HaskellCI.Error
+    HaskellCI.Ghcup
+    HaskellCI.Cabal
     HaskellCI.GitConfig
     HaskellCI.GitHub
     HaskellCI.GitHub.Yaml
