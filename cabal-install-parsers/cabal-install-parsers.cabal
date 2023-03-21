@@ -89,9 +89,6 @@ library
     , network-uri        ^>=2.6.1.0
     , tar                ^>=0.5.1.1
 
-  if !impl(ghc >=8.2)
-    build-depends: bifunctors ^>=5.5.4
-
 test-suite cabal-parsers-index
   default-language: Haskell2010
   type:             exitcode-stdio-1.0
