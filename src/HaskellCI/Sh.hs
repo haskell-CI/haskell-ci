@@ -69,6 +69,16 @@ sh = sh'
     -- TODO: because HEREDOC doesn't work
     , 2129 -- SC2129: Consider using { cmd1; cmd2; } >> file instead of individual redirects
     , 2154 -- SC2154: PKGDIR_splitmix is referenced but not assigned.
+
+    , 1102
+    , 2046
+    , 2210
+{-
+SC1102: Shells disambiguate $(( differently or not at all. For $(command substitution), add space after $( . For $((arithmetics)), fix parsing errors.
+SC2046: Quote this to prevent word splitting.
+SC2210: This is a file redirection. Was it supposed to be a comparison or fd operation?
+-}
+
     ]
 
 -------------------------------------------------------------------------------
