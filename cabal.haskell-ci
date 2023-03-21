@@ -46,7 +46,7 @@ haddock: True
 
 -- By default `installed` constraints are used for packages
 -- in global db. We can modify which constraints are used.
-installed: +all -Cabal
+installed: +all -Cabal -Cabal-syntax -parsec
 
 -- Options for local packages
 local-ghc-options: -Werror

@@ -225,7 +225,7 @@ jobs:
           package bytestring
             tests: False
           EOF
-          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(Cabal|cabal-install-parsers|haskell-ci)$/; }' >> cabal.project.local
+          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(Cabal|Cabal-syntax|cabal-install-parsers|haskell-ci|parsec)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local
       - name: dump install plan

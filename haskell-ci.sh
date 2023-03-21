@@ -493,7 +493,7 @@ keep-going: False
 package bytestring
   tests: False
 EOF
-$HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(Cabal|cabal-install-parsers|haskell-ci)$/; }' >> cabal.project.local
+$HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(Cabal|Cabal-syntax|cabal-install-parsers|haskell-ci|parsec)$/; }' >> cabal.project.local
 run_cmd cat cabal.project
 run_cmd cat cabal.project.local
 
