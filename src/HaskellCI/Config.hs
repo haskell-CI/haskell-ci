@@ -19,10 +19,10 @@ import qualified Distribution.Fields             as C
 import qualified Distribution.Parsec             as C
 import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.PackageName  as C
-import qualified Distribution.Types.Version      as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Text.PrettyPrint                as PP
 
+import HaskellCI.Cabal
 import HaskellCI.Config.Components
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.CopyFields
@@ -35,6 +35,7 @@ import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
 import HaskellCI.Config.Ubuntu
+import HaskellCI.Ghcup
 import HaskellCI.HeadHackage
 import HaskellCI.Newtypes
 import HaskellCI.OptionsGrammar
@@ -105,12 +106,6 @@ data Config = Config
     , cfgTimeoutMinutes      :: !Natural
     }
   deriving (Generic)
-
-defaultCabalInstallVersion :: Maybe Version
-defaultCabalInstallVersion = Just (C.mkVersion [3,10])
-
-defaultGhcupVersion :: Version
-defaultGhcupVersion = C.mkVersion [0,1,18,0]
 
 emptyConfig :: Config
 emptyConfig = case runEG configGrammar of

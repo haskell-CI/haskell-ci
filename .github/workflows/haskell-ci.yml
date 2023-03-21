@@ -77,7 +77,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5 libnuma-dev
           mkdir -p "$HOME/.ghcup/bin"
-          curl -sL https://downloads.haskell.org/ghcup/0.1.18.0/x86_64-linux-ghcup-0.1.18.0 > "$HOME/.ghcup/bin/ghcup"
+          curl -sL https://downloads.haskell.org/ghcup/0.1.19.2/x86_64-linux-ghcup-0.1.19.2 > "$HOME/.ghcup/bin/ghcup"
           chmod a+x "$HOME/.ghcup/bin/ghcup"
           "$HOME/.ghcup/bin/ghcup" install ghc "$HCVER" || (cat "$HOME"/.ghcup/logs/*.* && false)
           "$HOME/.ghcup/bin/ghcup" install cabal 3.10.1.0 || (cat "$HOME"/.ghcup/logs/*.* && false)
@@ -150,7 +150,7 @@ jobs:
       - name: cache (tools)
         uses: actions/cache/restore@v3
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-ddfe230f
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-f01e9287
           path: ~/.haskell-ci-tools
       - name: install cabal-plan
         run: |
@@ -178,7 +178,7 @@ jobs:
         uses: actions/cache/save@v3
         if: always()
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-ddfe230f
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-f01e9287
           path: ~/.haskell-ci-tools
       - name: checkout
         uses: actions/checkout@v3
@@ -225,7 +225,7 @@ jobs:
           package bytestring
             tests: False
           EOF
-          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(Cabal|cabal-install-parsers|haskell-ci)$/; }' >> cabal.project.local
+          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(Cabal|Cabal-syntax|cabal-install-parsers|haskell-ci|parsec)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local
       - name: dump install plan
