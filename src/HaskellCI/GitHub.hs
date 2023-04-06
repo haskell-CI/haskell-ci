@@ -317,8 +317,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         githubRun "install cabal-plan" $ do
             sh "mkdir -p $HOME/.cabal/bin"
-            sh "curl -sL https://github.com/haskell-hvr/cabal-plan/releases/download/v0.6.2.0/cabal-plan-0.6.2.0-x86_64-linux.xz > cabal-plan.xz"
-            sh "echo 'de73600b1836d3f55e32d80385acc055fd97f60eaa0ab68a755302685f5d81bc  cabal-plan.xz' | sha256sum -c -"
+            sh "curl -sL https://github.com/haskell-hvr/cabal-plan/releases/download/v0.7.3.0/cabal-plan-0.7.3.0-x86_64-linux.xz > cabal-plan.xz"
+            sh "echo 'f62ccb2971567a5f638f2005ad3173dba14693a45154c1508645c52289714cb2  cabal-plan.xz' | sha256sum -c -"
             sh "xz -d < cabal-plan.xz > $HOME/.cabal/bin/cabal-plan"
             sh "rm -f cabal-plan.xz"
             sh "chmod a+x $HOME/.cabal/bin/cabal-plan"
