@@ -1,3 +1,14 @@
+## 0.16 - 2023-04-06
+
+- Add compiler up to GHC-9.6.1
+- Update tools (hlint, cabal-docspec, cabal-plan, doctest, cabal-install)
+- Use ShellCheck-0.9.0
+- Use postgresql 14
+- head.hackage overrides hackage
+- Update GHA actions
+- Save GHA cache in failing jobs also
+- Add `-Werror=missing-fields` in addition to existing `-Werror=missing-methods`
+
 ## 0.14.3 - 2022-03-07
 
 - Add GHC-9.2.2
