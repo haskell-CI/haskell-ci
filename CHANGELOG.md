@@ -1,3 +1,14 @@
+## 0.16.5 - 2023-06-13
+
+- Use optparse-applicative-0.18.1.
+  When using older optparse-applicative with prettyprinter,
+  `--help` appeared to hang.
+- Update other dependencies as well.
+
+## 0.16.4 - 2023-06-09
+
+- Add GHC-9.2.8
+
 ## 0.16.3 - 2023-05-25
 
 - Add GHC-9.6.2
