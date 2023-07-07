@@ -150,7 +150,7 @@ jobs:
       - name: cache (tools)
         uses: actions/cache/restore@v3
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-f01e9287
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-9b10daef
           path: ~/.haskell-ci-tools
       - name: install cabal-plan
         run: |
@@ -178,7 +178,7 @@ jobs:
         uses: actions/cache/save@v3
         if: always()
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-f01e9287
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-9b10daef
           path: ~/.haskell-ci-tools
       - name: checkout
         uses: actions/checkout@v3
@@ -255,7 +255,7 @@ jobs:
         run: |
           perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_haskell_ci} || false ; fi
-          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables -XTypeOperators src ; fi
+          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XNoImplicitPrelude -XScopedTypeVariables -XTypeOperators src ; fi
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_cabal_install_parsers} || false ; fi
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 src ; fi
       - name: docspec

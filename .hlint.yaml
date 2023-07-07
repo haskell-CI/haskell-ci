@@ -15,3 +15,4 @@
 - ignore: {name: "Use <$>"}
 - ignore: {name: Reduce duplication}
 - ignore: {within: HaskellCI.Bash.Template}
+- ignore: {name: Use unless}
