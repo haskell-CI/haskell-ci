@@ -1,3 +1,7 @@
+## 0.16.6 - 2023-07-07
+
+- Use HLint-3.6.1 by default
+
 ## 0.16.5 - 2023-06-13
 
 - Use optparse-applicative-0.18.1.

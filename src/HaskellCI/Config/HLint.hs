@@ -31,7 +31,7 @@ data HLintConfig = HLintConfig
 -------------------------------------------------------------------------------
 
 defaultHLintVersion :: VersionRange
-defaultHLintVersion = withinVersion (mkVersion [3,5])
+defaultHLintVersion = withinVersion (mkVersion [3,6,1])
 
 -------------------------------------------------------------------------------
 -- HLintJob
