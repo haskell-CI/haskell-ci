@@ -255,7 +255,7 @@ jobs:
         run: |
           perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_haskell_ci} || false ; fi
-          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 -XNoImplicitPrelude -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XScopedTypeVariables -XTypeOperators src ; fi
+          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XNoImplicitPrelude -XScopedTypeVariables -XTypeOperators src ; fi
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_cabal_install_parsers} || false ; fi
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 src ; fi
       - name: docspec
@@ -280,6 +280,8 @@ jobs:
           rm -f cabal.project.local
       - name: constraint set deepseq-1.4
         run: |
+          if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all --dry-run ; fi
+          if [ $((HCNUMVER < 80400)) -ne 0 ] ; then cabal-plan topo | sort ; fi
           if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' --dependencies-only -j2 all ; fi
           if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
           if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-haddock --disable-documentation --haddock-all $ARG_COMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all ; fi
