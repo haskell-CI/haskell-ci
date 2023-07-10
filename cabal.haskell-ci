@@ -5,6 +5,9 @@
 -- Bionic is a default.
 distribution: jammy
 
+-- list of extra apt packages to be installed
+-- apt: foo bar
+
 jobs: 2:2
 
 -- This is useful if you want limit jobs beyond tested-with specification,
