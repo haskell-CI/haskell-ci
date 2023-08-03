@@ -219,11 +219,12 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 else tell_env "CABAL" $ "/opt/cabal/" ++ cabalVer ++ "/bin/cabal -vnormal+nowrap"
 
             ghcup <- runSh $ do
-                let hc = "$HOME/.ghcup/bin/$HCKIND-$HCVER"
-                sh $ "HC=" ++ hc -- HC is an absolute path.
-                tell_env "HC"      "$HC"
-                tell_env "HCPKG" $ "$HOME/.ghcup/bin/$HCKIND-pkg-$HCVER"
-                tell_env "HADDOCK" "$HOME/.ghcup/bin/haddock-$HCVER"
+                sh $ "HC=$(\"$HOME/.ghcup/bin/ghcup\" whereis ghc \"$HCVER\")"
+                sh $ "HCPKG=$(echo \"$HC\" | sed 's#ghc$#ghc-pkg#')"
+                sh $ "HADDOCK=$(echo \"$HC\" | sed 's#ghc$#haddock#')"
+                tell_env "HC" "$HC"
+                tell_env "HCPKG" "$HCPKG"
+                tell_env "HADDOCK" "$HADDOCK"
                 ghcupCabalPath
 
             setup hvrppa ghcup
