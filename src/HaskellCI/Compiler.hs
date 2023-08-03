@@ -69,7 +69,7 @@ compilerKind (GHC _)   = "ghc"
 compilerKind (GHCJS _) = "ghcjs"
 
 compilerVersion :: CompilerVersion -> String
-compilerVersion GHCHead   = "head"
+compilerVersion GHCHead   = "latest-nightly" -- https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml
 compilerVersion (GHC v)   = C.prettyShow v
 compilerVersion (GHCJS v) = C.prettyShow v
 

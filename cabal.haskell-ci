@@ -15,7 +15,8 @@ jobs: 2:2
 -- linux-jobs: >=8.10
 
 -- Add GHC head job
-ghc-head: False
+-- https://www.haskell.org/ghcup/guide/#nightlies
+ghc-head: True
 
 -- travis Caching
 -- cache: True
