@@ -26,7 +26,6 @@ jobs:
       60
     container:
       image: buildpack-deps:jammy
-    continue-on-error: ${{ matrix.allow-failure }}
     strategy:
       matrix:
         include:
@@ -263,19 +262,24 @@ jobs:
           path: ~/.cabal/store
           restore-keys: ${{ runner.os }}-${{ matrix.compiler }}-
       - name: install dependencies
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j2 all
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j2 all
       - name: build w/o tests
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
       - name: build
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --write-ghc-environment-files=always
       - name: tests
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct
       - name: doctest
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_haskell_ci} || false ; fi
@@ -283,19 +287,23 @@ jobs:
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_cabal_install_parsers} || false ; fi
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 src ; fi
       - name: docspec
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all
           cabal-docspec $ARG_COMPILER --verbose --timeout 2
       - name: cabal check
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           cd ${PKGDIR_haskell_ci} || false
           ${CABAL} -vnormal check
           cd ${PKGDIR_cabal_install_parsers} || false
           ${CABAL} -vnormal check
       - name: haddock
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-haddock --disable-documentation --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
       - name: unconstrained build
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           rm -f cabal.project.local
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
@@ -303,6 +311,7 @@ jobs:
         run: |
           rm -f cabal.project.local
       - name: constraint set deepseq-1.4
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all --dry-run ; fi
           if [ $((HCNUMVER < 80400)) -ne 0 ] ; then cabal-plan topo | sort ; fi
