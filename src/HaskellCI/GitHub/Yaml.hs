@@ -7,7 +7,6 @@ import HaskellCI.Prelude
 
 import qualified Data.Map.Strict as M
 
-import HaskellCI.Compiler
 import HaskellCI.List
 import HaskellCI.Sh
 import HaskellCI.YamlSyntax
@@ -46,7 +45,7 @@ data SetupMethod = HVRPPA | GHCUP
   deriving Show
 
 data GitHubMatrixEntry = GitHubMatrixEntry
-    { ghmeCompiler     :: CompilerVersion
+    { ghmeCompiler     :: (String, String, String) -- CompilerVersion
     , ghmeAllowFailure :: Bool
     , ghmeSetupMethod  :: SetupMethod
     }
@@ -135,12 +134,14 @@ instance ToYaml SetupMethod where
 
 instance ToYaml GitHubMatrixEntry where
     toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
-        [ "compiler"        ~> fromString (dispGhcVersion ghmeCompiler)
-        , "compilerKind"    ~> fromString (compilerKind ghmeCompiler)
-        , "compilerVersion" ~> fromString (compilerVersion ghmeCompiler)
+        [ "compiler"        ~> fromString comp
+        , "compilerKind"    ~> fromString ki
+        , "compilerVersion" ~> fromString ver
         , "setup-method"    ~> toYaml ghmeSetupMethod
         , "allow-failure"   ~> toYaml ghmeAllowFailure
         ]
+       where
+        (comp, ki, ver) = ghmeCompiler
 
 instance ToYaml GitHubStep where
     toYaml GitHubStep {..} = ykeyValuesFilt [] $
