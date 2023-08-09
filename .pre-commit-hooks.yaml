@@ -1,0 +1,11 @@
+- id: regenerate
+  name: haskell-ci regenerate
+  entry: haskell-ci regenerate
+  language: haskell
+  files: '.*\.cabal'
+  pass_filenames: false
+  description: |-
+    Regenerate Haskell CI configurations with haskell-ci.  Configuration must
+    already exist.
+  minimum_pre_commit_version: '3.4.0'
+  
