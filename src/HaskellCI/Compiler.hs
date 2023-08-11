@@ -185,8 +185,8 @@ dispGhcVersionShort (GHCJS v) = "ghcjs-" ++ C.prettyShow v
 dispCabalVersion :: Maybe Version -> String
 dispCabalVersion = maybe "head" C.prettyShow
 
-ghcAlpha :: Maybe (Version, String)
-ghcAlpha = Just (mkVersion [9,8,1], "9.8.1-alpha1")
+ghcAlpha :: Maybe (Version, Version)
+ghcAlpha = Just (mkVersion [9,8,1], mkVersion [9,8,0,20230809])
 
 -- | Alphas, RCs and HEAD.
 previewGHC
@@ -213,9 +213,9 @@ ghcMajVer v
 -- | Map compiler version to one available to download.
 --
 -- This way we can map e.g. 9.4.1 to 9.4.0.20220501 i.e. a prerelease.
-translateCompilerVersion :: CompilerVersion -> (String, String, String)
+translateCompilerVersion :: CompilerVersion -> CompilerVersion
 translateCompilerVersion (GHC v)
     | Just (u, w) <- ghcAlpha
     , v == u
-    = ("ghc-" ++ w, "ghc", w)
-translateCompilerVersion v = (dispGhcVersion v, compilerKind v, compilerVersion v)
+    = GHC w
+translateCompilerVersion v = v
