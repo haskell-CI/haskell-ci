@@ -26,7 +26,6 @@ jobs:
       60
     container:
       image: buildpack-deps:jammy
-    continue-on-error: ${{ matrix.allow-failure }}
     strategy:
       matrix:
         include:
@@ -70,6 +69,11 @@ jobs:
             compilerVersion: 8.2.2
             setup-method: ghcup
             allow-failure: false
+          - compiler: ghc-head
+            compilerKind: ghc
+            compilerVersion: latest-nightly
+            setup-method: ghcup
+            allow-failure: true
       fail-fast: false
     steps:
       - name: apt
@@ -79,6 +83,8 @@ jobs:
           mkdir -p "$HOME/.ghcup/bin"
           curl -sL https://downloads.haskell.org/ghcup/0.1.19.5/x86_64-linux-ghcup-0.1.19.5 > "$HOME/.ghcup/bin/ghcup"
           chmod a+x "$HOME/.ghcup/bin/ghcup"
+          "$HOME/.ghcup/bin/ghcup" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;
+          "$HOME/.ghcup/bin/ghcup" config add-release-channel https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml;
           "$HOME/.ghcup/bin/ghcup" install ghc "$HCVER" || (cat "$HOME"/.ghcup/logs/*.* && false)
           "$HOME/.ghcup/bin/ghcup" install cabal 3.10.1.0 || (cat "$HOME"/.ghcup/logs/*.* && false)
         env:
@@ -103,7 +109,7 @@ jobs:
           echo "HCNUMVER=$HCNUMVER" >> "$GITHUB_ENV"
           echo "ARG_TESTS=--enable-tests" >> "$GITHUB_ENV"
           echo "ARG_BENCH=--enable-benchmarks" >> "$GITHUB_ENV"
-          echo "HEADHACKAGE=false" >> "$GITHUB_ENV"
+          if [ $((HCNUMVER > 90405)) -ne 0 ] ; then echo "HEADHACKAGE=true" >> "$GITHUB_ENV" ; else echo "HEADHACKAGE=false" >> "$GITHUB_ENV" ; fi
           echo "ARG_COMPILER=--$HCKIND --with-compiler=$HC" >> "$GITHUB_ENV"
           echo "GHCJSARITH=0" >> "$GITHUB_ENV"
         env:
@@ -132,6 +138,18 @@ jobs:
           repository hackage.haskell.org
             url: http://hackage.haskell.org/
           EOF
+          if $HEADHACKAGE; then
+          cat >> $CABAL_CONFIG <<EOF
+          repository head.hackage.ghc.haskell.org
+             url: https://ghc.gitlab.haskell.org/head.hackage/
+             secure: True
+             root-keys: 7541f32a4ccca4f97aea3b22f5e593ba2c0267546016b992dfadcd2fe944e55d
+                        26021a13b401500c8eb2761ca95c61f2d625bfef951b939a8124ed12ecf07329
+                        f76d08be13e9a61a377a85e2fb63f4c5435d40f8feb3e12eb05905edb8cdea89
+             key-threshold: 3
+          active-repositories: hackage.haskell.org, head.hackage.ghc.haskell.org:override
+          EOF
+          fi
           cat >> $CABAL_CONFIG <<EOF
           jobs: 2
           EOF
@@ -227,6 +245,9 @@ jobs:
           package bytestring
             tests: False
           EOF
+          if $HEADHACKAGE; then
+          echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> cabal.project
+          fi
           $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(Cabal|Cabal-syntax|cabal-install-parsers|haskell-ci|parsec)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local
@@ -241,19 +262,24 @@ jobs:
           path: ~/.cabal/store
           restore-keys: ${{ runner.os }}-${{ matrix.compiler }}-
       - name: install dependencies
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j2 all
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dependencies-only -j2 all
       - name: build w/o tests
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
       - name: build
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --write-ghc-environment-files=always
       - name: tests
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct
       - name: doctest
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_haskell_ci} || false ; fi
@@ -261,19 +287,23 @@ jobs:
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_cabal_install_parsers} || false ; fi
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 src ; fi
       - name: docspec
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all
           cabal-docspec $ARG_COMPILER --verbose --timeout 2
       - name: cabal check
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           cd ${PKGDIR_haskell_ci} || false
           ${CABAL} -vnormal check
           cd ${PKGDIR_cabal_install_parsers} || false
           ${CABAL} -vnormal check
       - name: haddock
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           $CABAL v2-haddock --disable-documentation --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all
       - name: unconstrained build
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           rm -f cabal.project.local
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
@@ -281,6 +311,7 @@ jobs:
         run: |
           rm -f cabal.project.local
       - name: constraint set deepseq-1.4
+        continue-on-error: ${{ matrix.allow-failure }}
         run: |
           if [ $((HCNUMVER < 80400)) -ne 0 ] ; then $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all --dry-run ; fi
           if [ $((HCNUMVER < 80400)) -ne 0 ] ; then cabal-plan topo | sort ; fi

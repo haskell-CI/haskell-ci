@@ -155,9 +155,10 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     sh $ "chmod a+x \"$HOME/.ghcup/bin/ghcup\""
 
                     -- if any job uses prereleases, add release channel unconditionally. (HEADHACKAGE variable is set later)
-                    when (anyJobUsesHeadHackage || previewCabal cfgCabalInstallVersion) $
+                    when (anyJobUsesHeadHackage || previewCabal cfgCabalInstallVersion) $ do
                       sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
-
+                      sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://ghc.gitlab.haskell.org/ghcup-metadata/ghcup-nightlies-0.0.7.yaml;"
+                                          
                 installGhcupCabal :: ShM ()
                 installGhcupCabal =
                     sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer ++ " || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
@@ -643,8 +644,6 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                         , ghmeSetupMethod = if isGHCUP compiler then GHCUP else HVRPPA
                         }
                     | compiler <- reverse $ toList linuxVersions
-                    , compiler /= GHCHead -- TODO: Make this work
-                                          -- https://github.com/haskell-CI/haskell-ci/issues/458
                     ]
                 })
             unless (null cfgIrcChannels) $
