@@ -505,7 +505,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
             , tmAllowFailures =
                 [ TravisAllowFailure $ dispGhcVersion compiler
                 | compiler <- toList allVersions
-                , previewGHC cfgHeadHackage compiler || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
+                , isGHCHead compiler || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
                 ]
             }
         , travisBeforeCache   = beforeCache
@@ -550,7 +550,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
 
     -- GHC versions which need head.hackage
     headGhcVers :: Set CompilerVersion
-    headGhcVers = S.filter (previewGHC cfgHeadHackage) allVersions
+    headGhcVers = S.filter (usesHeadHackage cfgHeadHackage) allVersions
 
     cabal :: String -> String
     cabal cmd = "${CABAL} " ++ cmd

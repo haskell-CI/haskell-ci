@@ -6,7 +6,10 @@ module HaskellCI.Compiler (
     maybeGHC,
     isGHCJS,
     maybeGHCJS,
-    previewGHC,
+    -- ** Predicates
+    isGHCHead,
+    usesHeadHackage,
+    isPreviewGHC,
     -- ** Selectors
     compilerKind,
     compilerVersion,
@@ -188,14 +191,23 @@ dispCabalVersion = maybe "head" C.prettyShow
 ghcAlpha :: Maybe (Version, Version)
 ghcAlpha = Just (mkVersion [9,8,1], mkVersion [9,8,0,20230929])
 
--- | Alphas, RCs and HEAD.
-previewGHC
+-- | GHC HEAD, and versions specified by head.hackage option.
+usesHeadHackage
     :: VersionRange     -- ^ head.hackage range
     -> CompilerVersion
     -> Bool
-previewGHC _vr GHCHead   = True
-previewGHC  vr (GHC v)   = withinRange v vr || odd (snd (ghcMajVer v)) || maybe False (\(v', _) -> v >= v') ghcAlpha
-previewGHC _vr (GHCJS _) = False
+usesHeadHackage _vr GHCHead   = True
+usesHeadHackage  vr (GHC v)   = withinRange v vr
+usesHeadHackage _vr (GHCJS _) = False
+
+isPreviewGHC :: CompilerVersion -> Bool
+isPreviewGHC GHCHead   = True
+isPreviewGHC (GHC v)   = maybe False (\(v', _) -> v /= v') ghcAlpha
+isPreviewGHC (GHCJS _) = False
+
+isGHCHead :: CompilerVersion -> Bool
+isGHCHead GHCHead = True
+isGHCHead _       = False
 
 previewCabal
     :: Maybe Version
