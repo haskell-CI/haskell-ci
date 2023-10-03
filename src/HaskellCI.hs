@@ -60,7 +60,6 @@ import HaskellCI.Config.Dump
 import HaskellCI.Diagnostics
 import HaskellCI.GitConfig
 import HaskellCI.GitHub
-import HaskellCI.HeadHackage
 import HaskellCI.Jobs
 import HaskellCI.Package
 import HaskellCI.TestedWith
@@ -550,7 +549,7 @@ configFromCabalFile cfg (cabalFile, gpd) = do
     lastStableGhcVers
         = nubBy ((==) `on` ghcMajVer)
         $ sortBy (flip compare)
-        $ filter (not . previewGHC defaultHeadHackage . GHC)
+        $ filter (not . isPreviewGHC . GHC)
         $ knownGhcVersions
 
     isTwoDigitGhcVersion :: VersionRange -> Maybe Version

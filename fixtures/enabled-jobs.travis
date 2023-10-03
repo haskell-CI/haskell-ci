@@ -171,8 +171,6 @@ jobs:
     - compiler: ghc-8.0.1
       addons: {"apt":{"packages":["ghc-8.0.1","cabal-install-3.10"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu bionic main"}]}}
       os: linux
-  allow_failures:
-    - compiler: ghc-9.8.1
 before_install:
   - |
     if echo $CC | grep -q ghcjs; then
