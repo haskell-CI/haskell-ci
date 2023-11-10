@@ -8,8 +8,6 @@ There is also legacy Travis-CI configuration generator, which is unmaintained.
 or [`ghcup`](https://www.haskell.org/ghcup/) to install GHC
 and `cabal-install`.
 
-GHC-7.0.1 &mdash; GHC-9.6.1 are supported.
-
 ### Quick-start instructions
 
 * Step 1: Clone and install this project in/from any directory
