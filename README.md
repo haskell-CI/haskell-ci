@@ -64,10 +64,10 @@ and `cabal-install`.
     ```bash
     $ git checkout master            # Check out `master`
     $ git pull --ff-only             # Get the latest version of `master`
-    $ git checkout -b new-ci         # Create a `new_travis` branch
+    $ git checkout -b ci-new         # Create a `new_travis` branch
     $ git add .
     $ git commit -m "New CI script"
-    $ git push -u origin new-ci      # Push your branch upstream
+    $ git push -u origin ci-new      # Push your branch upstream
     ```
     
 * Step 6: Fix the build
@@ -77,7 +77,7 @@ and `cabal-install`.
     
     ```bash
     $ git checkout master
-    $ git merge new-ci  # Update `master` with your new CI script
+    $ git merge ci-new  # Update `master` with your new CI script
     $ git push
     ```
     
