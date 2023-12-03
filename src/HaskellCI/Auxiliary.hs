@@ -10,7 +10,6 @@ module HaskellCI.Auxiliary (
 ) where
 
 import HaskellCI.Prelude
-import Prelude           (head)
 
 import qualified Data.Set                                     as S
 import qualified Distribution.CabalSpecVersion                as C
@@ -57,7 +56,7 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
   where
     pkgs = prjPackages prj
     uris = prjUriPackages prj
-    projectName = fromMaybe (pkgName $ Prelude.head pkgs) cfgProjectName
+    projectName = fromMaybe "ci" (cfgProjectName <|> pkgName <$> listToMaybe pkgs)
 
     doctestEnabled = any (maybeGHC False (`C.withinRange` cfgDoctestEnabled cfgDoctest)) linuxVersions
     docspecEnabled = any (maybeGHC False (`C.withinRange` cfgDocspecEnabled cfgDocspec)) linuxVersions

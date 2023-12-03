@@ -5,6 +5,9 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 module Cabal.Internal.Newtypes where
 
+-- hide redundant import warning
+import Prelude hiding (Applicative (..))
+
 import Control.Applicative   (Alternative (..), liftA2)
 import Data.Char             (isSpace)
 import Data.Function         (on)

@@ -1,6 +1,7 @@
 cabal-version:      2.2
 name:               cabal-install-parsers
 version:            0.6.1.1
+x-revisions:        1
 synopsis:           Utilities to work with cabal-install files
 description:
   @cabal-install-parsers@ provides parsers for @cabal-install@ files:
@@ -33,6 +34,8 @@ tested-with:
    || ==9.0.2
    || ==9.2.8
    || ==9.4.8
+   || ==9.6.3
+   || ==9.8.1
 
 extra-source-files:
   Changelog.md
@@ -65,23 +68,23 @@ library
 
   -- GHC-boot libraries
   build-depends:
-    , base          >=4.10      && <4.18
+    , base          >=4.10      && <4.20
     , binary        ^>=0.8.5
-    , bytestring    ^>=0.10.8.1 || ^>=0.11.1.0
+    , bytestring    ^>=0.10.8.1 || ^>=0.11.1.0 || ^>=0.12.0.2
     , Cabal-syntax  ^>=3.10.1.0
     , containers    ^>=0.5.7.1  || ^>=0.6.0.1
-    , deepseq       ^>=1.4.2.0
+    , deepseq       ^>=1.4.2.0  || ^>=1.5.0.0
     , directory     ^>=1.3.0.0
     , filepath      ^>=1.4.1.1
     , parsec        ^>=3.1.13.0
     , pretty        ^>=1.1.3.3
-    , text          ^>=1.2.3.0  || ^>=2.0.1
+    , text          ^>=1.2.3.0  || ^>=2.0.1    || ^>=2.1
     , time          ^>=1.8.0.2  || ^>=1.9.3    || ^>=1.11.1.1 || ^>=1.12.2
-    , transformers  ^>=0.5.2.0
+    , transformers  ^>=0.5.2.0  || ^>=0.6.1.0
 
   -- extra dependencies
   build-depends:
-    , aeson              ^>=2.1.0.0
+    , aeson              ^>=2.1.0.0    || ^>=2.2.0.0
     , base16-bytestring  ^>=1.0.0.0
     , binary-instances   ^>=1
     , cryptohash-sha256  ^>=0.11.101.0
@@ -107,7 +110,7 @@ test-suite cabal-parsers-index
 
   -- dependencies needing explicit constraints
   build-depends:
-    , tasty        ^>=1.4
+    , tasty        ^>=1.4      || ^>=1.5
     , tasty-hunit  ^>=0.10.0.2
 
 test-suite cabal-parsers-golden
@@ -129,8 +132,8 @@ test-suite cabal-parsers-golden
 
   -- dependencies needing explicit constraints
   build-depends:
-    , ansi-terminal  >=1.0     && <1.1
-    , tasty          ^>=1.4
+    , ansi-terminal  >=1.0      && <1.1
+    , tasty          ^>=1.4     || ^>=1.5
     , tasty-golden   ^>=2.3.1.1
     , tree-diff      >=0.2      && <0.4
 

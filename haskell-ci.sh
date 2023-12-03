@@ -19,7 +19,7 @@ fi
 
 CFG_CABAL_STORE_CACHE=""
 CFG_CABAL_REPO_CACHE=""
-CFG_JOBS="9.4.8 9.2.8 9.0.2 8.10.7 8.8.4 8.6.5 8.4.4 8.2.2"
+CFG_JOBS="9.8.1 9.6.3 9.4.8 9.2.8 9.0.2 8.10.7 8.8.4 8.6.5 8.4.4 8.2.2"
 CFG_CABAL_UPDATE=false
 
 SCRIPT_NAME=$(basename "$0")
@@ -482,13 +482,22 @@ package *
   ghc-options: -Werror=missing-methods
 EOF
 cat >> cabal.project <<EOF
+allow-newer: ShellCheck-0.9.0:aeson
+allow-newer: ShellCheck-0.9.0:bytestring
+allow-newer: ShellCheck-0.9.0:deepseq
+allow-newer: ShellCheck-0.9.0:Diff
+allow-newer: ShellCheck-0.9.0:fgl
+allow-newer: ShellCheck-0.9.0:mtl
+allow-newer: ShellCheck-0.9.0:text
+allow-newer: ShellCheck-0.9.0:transformers
+
 package haskell-ci
   ghc-options: -Werror
 
 package cabal-install-parsers
   ghc-options: -Werror
 
-keep-going: False
+keep-going:  False
 
 package bytestring
   tests: False

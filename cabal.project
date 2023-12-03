@@ -6,3 +6,13 @@ tests: True
 package haskell-ci
   ghc-options: -Wall
   ghc-options: -Werror
+
+-- ShellCheck doesn't allow newer versions of dependencies
+allow-newer: ShellCheck-0.9.0:aeson
+allow-newer: ShellCheck-0.9.0:bytestring
+allow-newer: ShellCheck-0.9.0:deepseq
+allow-newer: ShellCheck-0.9.0:Diff
+allow-newer: ShellCheck-0.9.0:fgl
+allow-newer: ShellCheck-0.9.0:mtl
+allow-newer: ShellCheck-0.9.0:text
+allow-newer: ShellCheck-0.9.0:transformers
