@@ -152,7 +152,7 @@ jobs:
       - name: cache (tools)
         uses: actions/cache/restore@v3
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-f01e9287
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-e27a5680
           path: ~/.haskell-ci-tools
       - name: install cabal-plan
         run: |
@@ -180,7 +180,7 @@ jobs:
         uses: actions/cache/save@v3
         if: always()
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-f01e9287
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-e27a5680
           path: ~/.haskell-ci-tools
       - name: checkout
         uses: actions/checkout@v3
