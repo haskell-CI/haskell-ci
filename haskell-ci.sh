@@ -482,22 +482,13 @@ package *
   ghc-options: -Werror=missing-methods
 EOF
 cat >> cabal.project <<EOF
-allow-newer: ShellCheck-0.9.0:aeson
-allow-newer: ShellCheck-0.9.0:bytestring
-allow-newer: ShellCheck-0.9.0:deepseq
-allow-newer: ShellCheck-0.9.0:Diff
-allow-newer: ShellCheck-0.9.0:fgl
-allow-newer: ShellCheck-0.9.0:mtl
-allow-newer: ShellCheck-0.9.0:text
-allow-newer: ShellCheck-0.9.0:transformers
-
 package haskell-ci
   ghc-options: -Werror
 
 package cabal-install-parsers
   ghc-options: -Werror
 
-keep-going:  False
+keep-going: False
 
 package bytestring
   tests: False
