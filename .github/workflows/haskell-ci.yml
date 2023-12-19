@@ -176,8 +176,8 @@ jobs:
       - name: install cabal-docspec
         run: |
           mkdir -p $HOME/.cabal/bin
-          curl -sL https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20230517/cabal-docspec-0.0.0.20230517-x86_64-linux.xz > cabal-docspec.xz
-          echo '3b31bbe463ad4d671abbc103db49628562ec48a6604cab278207b5b6acd21ed7  cabal-docspec.xz' | sha256sum -c -
+          curl -sL https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20231219/cabal-docspec-0.0.0.20231219-x86_64-linux.xz > cabal-docspec.xz
+          echo '8b60448275466bbe2b9409741b5dd07a41c541283017b95b44efe6e31379d067  cabal-docspec.xz' | sha256sum -c -
           xz -d < cabal-docspec.xz > $HOME/.cabal/bin/cabal-docspec
           rm -f cabal-docspec.xz
           chmod a+x $HOME/.cabal/bin/cabal-docspec
