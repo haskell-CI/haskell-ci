@@ -2,7 +2,7 @@
   name: haskell-ci regenerate
   entry: haskell-ci regenerate
   language: haskell
-  files: '.*\.cabal'
+  files: '(\.cabal$)|(^.github/workflows/haskell-ci.yml$)|(.travis.yml$)'
   pass_filenames: false
   description: |-
     Regenerate Haskell CI configurations with haskell-ci.  Configuration must
