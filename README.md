@@ -15,13 +15,13 @@ and `cabal-install`.
     ```bash
     $ git clone https://github.com/haskell-CI/haskell-ci.git
     $ cd haskell-ci
-    $ cabal new-install haskell-ci:exe:haskell-ci
+    $ cabal install haskell-ci:exe:haskell-ci
     ```
 
   or
 
     ```bash
-    cabal new-install haskell-ci
+    cabal install haskell-ci
     ```
 
 * Step 2: Change directories to your project:
@@ -30,12 +30,12 @@ and `cabal-install`.
     $ cd path/to/your-project
     ```
 
-* Step 3: Edit your project's `*.cabal` file to add a `Tested-With` line, such as this one:
+* Step 3: Edit your project's `*.cabal` file to add a `tested-with` line, such as this one:
 
     ```bash
     $ cat your-project.cabal
     ...
-    Tested-With: GHC ==8.6.5 || ==8.4.4 || ==8.2.2
+    tested-with: GHC ==9.6.3 || ==9.4.8 || ==9.2.8
     ...
     ```
     
@@ -59,39 +59,9 @@ and `cabal-install`.
     `*.cabal` files and generates a configuration that tests each compiler
     version you listed in parallel.
 
-* Step 5: Create a branch with your new CI configuration file and push your branch:
+* Step 5: Create a pull request with your new CI configuration.
 
-    ```bash
-    $ git checkout master            # Check out `master`
-    $ git pull --ff-only             # Get the latest version of `master`
-    $ git checkout -b new-ci         # Create a `new_travis` branch
-    $ git add .
-    $ git commit -m "New CI script"
-    $ git push -u origin new-ci      # Push your branch upstream
-    ```
-    
-* Step 6: Fix the build
-
-    If you're lucky, your repository will build for every compiler version
-    you listed.  If that's the case, then just merge your changes into `master`:
-    
-    ```bash
-    $ git checkout master
-    $ git merge new-ci  # Update `master` with your new CI script
-    $ git push
-    ```
-    
-    You can also merge your branch into `master` from Github's pull request view.
-    
-    If you're not lucky, then your new CI branch will fail for one or more
-    versions of GHC, which is okay!  Look at the build and fix any build failures
-    you find and commit the fixes to your branch:
-    
-    ```bash
-    $ # Fix any build failures you find and commit your changes
-    $ ...
-    $ git push  # Push your branch updates upstream
-    ```
+    ... or push directly to your main branch if you feel lucky.
     
     Sometimes you may need to regenerate CI script, for example, when
     adding new compiler version to `tested-with`.
