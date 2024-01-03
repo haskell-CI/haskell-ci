@@ -454,13 +454,13 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
             when cfgPostgres $ item "postgresql"
         , travisAddons        = TravisAddons
             { taApt          = TravisApt [] []
-            , taPostgres     = if cfgPostgres then Just "10" else Nothing
+            , taPostgres     = Nothing
             , taGoogleChrome = cfgGoogleChrome
             }
         , travisMatrix        = TravisMatrix
             { tmInclude = buildList $ do
-                let tellJob :: Bool -> CompilerVersion -> ListBuilder TravisJob ()
-                    tellJob osx gv = do
+                let tellJob :: Bool -> CompilerVersion -> Maybe String -> ListBuilder TravisJob ()
+                    tellJob osx gv pg = do
                         let cvs = dispCabalVersion $ correspondingCabalVersion cfgCabalInstallVersion gv
                         let gvs = dispGhcVersion gv
 
@@ -494,13 +494,17 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                                     , taSources  = hvrppa : ghcjsAptSources
                                     }
 
-                                , taPostgres     = Nothing
+                                , taPostgres     = pg
                                 , taGoogleChrome = False
                                 }
                             }
-
-                for_ (reverse $ S.toList linuxVersions) $ tellJob False
-                for_ (reverse $ S.toList macosVersions) $ tellJob True
+                let postgresVersions = if cfgPostgres 
+                                          then Just <$> cfgPostgresVersions
+                                          else [Nothing]
+                for_ (reverse $ S.toList linuxVersions) $ \v ->
+                  for_ postgresVersions $ tellJob False v
+                for_ (reverse $ S.toList macosVersions) $ \v ->
+                  for_ postgresVersions $ tellJob True v
 
             , tmAllowFailures =
                 [ TravisAllowFailure $ dispGhcVersion compiler
