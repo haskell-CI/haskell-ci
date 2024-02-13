@@ -1,3 +1,9 @@
+## 0.18 - 2024-02-13
+
+- Update Haskell dependencies (e.g. ShellCheck), support compilation wigh GHC-9.8
+- Add new GHC versions upto GHC-9.8.1 etc.
+- Update tool dependencies too
+
 ## 0.16.6 - 2023-07-10
 
 - Add `cabal-plan topo` to the constraint set steps
