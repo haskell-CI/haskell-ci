@@ -1,3 +1,7 @@
+## 0.18.1 - 2024-02-25
+
+- Add GHC-9.8.2
+
 ## 0.18 - 2024-02-13
 
 - Update Haskell dependencies (e.g. ShellCheck), support compilation wigh GHC-9.8
