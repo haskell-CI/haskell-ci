@@ -113,6 +113,13 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             [ "Using submodules on the GitHub Actions backend requires"
             , "Ubuntu 20.04 (Focal Fossa) or later."
             ]
+    when (length matrix > maxMatrixJobs) $
+        throwErr $ ValidationError $ unwords
+            [ "The matrix has"
+            , show (length matrix)
+            , "jobs, exceeding the limit of"
+            , show maxMatrixJobs ++ "."
+            ]
 
     steps <- sequence $ buildList $ do
         -- This have to be first, since the packages we install depend on
@@ -634,18 +641,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , ghjServices        = mconcat
                     [ Map.singleton "postgres" postgresService | cfgPostgres ]
                 , ghjTimeout         = max 10 cfgTimeoutMinutes
-                , ghjMatrix          =
-                    [ GitHubMatrixEntry
-                        { ghmeCompiler     = translateCompilerVersion $ compiler
-                        , ghmeAllowFailure =
-                               isGHCHead compiler
-                            || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
-                        , ghmeSetupMethod = if isGHCUP compiler then GHCUP else HVRPPA
-                        }
-                    | compiler <- reverse $ toList linuxVersions
-                    , compiler /= GHCHead -- TODO: Make this work
-                                          -- https://github.com/haskell-CI/haskell-ci/issues/458
-                    ]
+                , ghjMatrix          = matrix
                 })
             unless (null cfgIrcChannels) $
                 ircJob actionName mainJobName projectName config gitconfig
@@ -689,6 +685,33 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     -- job to be setup with ghcup
     isGHCUP :: CompilerVersion -> Bool
     isGHCUP v = compilerWithinRange v (RangeGHC /\ Range cfgGhcupJobs)
+
+    -- extra matrix fields
+    matrixExtra :: [[(String, String)]]
+    matrixExtra =
+      sequence
+      $ (\(k, vs) -> fmap (\v -> (k, v)) (toList vs))
+      <$> Map.toList cfgMatrixExtra
+
+    mkMatrixEntries :: [(String, String)] -> [GitHubMatrixEntry]
+    mkMatrixEntries extra =
+      [ GitHubMatrixEntry
+          { ghmeCompiler     = translateCompilerVersion $ compiler
+          , ghmeAllowFailure =
+                 isGHCHead compiler
+              || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
+          , ghmeSetupMethod = if isGHCUP compiler then GHCUP else HVRPPA
+          , ghmeMatrixExtra = extra
+          }
+      | compiler <- reverse $ toList linuxVersions
+      , compiler /= GHCHead -- TODO: Make this work
+                            -- https://github.com/haskell-CI/haskell-ci/issues/458
+      ]
+
+    matrix :: [GitHubMatrixEntry]
+    matrix = case matrixExtra of
+      [] -> mkMatrixEntries []
+      xs -> xs >>= mkMatrixEntries
 
     -- step primitives
     githubRun' :: String -> Map.Map String String ->  ShM () -> ListBuilder (Either HsCiError GitHubStep) ()
@@ -895,3 +918,9 @@ parseGitHubRepo t =
 -- runners support.
 ghcRunsOnVer :: String
 ghcRunsOnVer = "ubuntu-20.04"
+
+-- | GitHub has a limit of 256 jobs.
+-- See https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs#using-a-matrix-strategy
+--
+maxMatrixJobs :: Int
+maxMatrixJobs = 256

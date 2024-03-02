@@ -48,6 +48,7 @@ data SetupMethod = HVRPPA | GHCUP
 data GitHubMatrixEntry = GitHubMatrixEntry
     { ghmeCompiler     :: CompilerVersion
     , ghmeAllowFailure :: Bool
+    , ghmeMatrixExtra  :: [(String, String)]
     , ghmeSetupMethod  :: SetupMethod
     }
   deriving (Show)
@@ -134,13 +135,13 @@ instance ToYaml SetupMethod where
     toYaml GHCUP  = "ghcup"
 
 instance ToYaml GitHubMatrixEntry where
-    toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
+    toYaml GitHubMatrixEntry {..} = ykeyValuesFilt [] $
         [ "compiler"        ~> fromString (dispGhcVersion ghmeCompiler)
         , "compilerKind"    ~> fromString (compilerKind ghmeCompiler)
         , "compilerVersion" ~> fromString (compilerVersion ghmeCompiler)
         , "setup-method"    ~> toYaml ghmeSetupMethod
         , "allow-failure"   ~> toYaml ghmeAllowFailure
-        ]
+        ] ++ fmap (\(k, v) -> k ~> fromString v) ghmeMatrixExtra
 
 instance ToYaml GitHubStep where
     toYaml GitHubStep {..} = ykeyValuesFilt [] $
