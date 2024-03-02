@@ -30,6 +30,8 @@ main = do
         , fixtureGoldenTest "psql"
         , fixtureGoldenTest "travis-patch"
         , fixtureGoldenTest "enabled-jobs"
+        , fixtureGoldenTest "doctest"
+        , fixtureGoldenTest "doctest-version"
         , testGroup "copy-fields"
             [ fixtureGoldenTest "copy-fields-all"
             , fixtureGoldenTest "copy-fields-some"

@@ -10,6 +10,7 @@ import HaskellCI.Prelude
 import qualified Data.Set                        as S
 import qualified Distribution.Fields.Pretty      as C
 import qualified Distribution.Package            as C
+import qualified Distribution.Pretty             as C
 import qualified Distribution.Types.VersionRange as C
 import qualified Distribution.Version            as C
 
@@ -49,10 +50,13 @@ makeBash _argv config@Config {..} prj jobs@JobVersions {..} = do
 
     blocks <- traverse (fmap shsToList) $ buildList $ do
         -- install doctest
+        let doctestVersionConstraint
+                | C.isAnyVersion (cfgDoctestVersion cfgDoctest) = ""
+                | otherwise = " --constraint='doctest " ++ C.prettyShow (cfgDoctestVersion cfgDoctest) ++ "'"
         when doctestEnabled $ step "install doctest" $ do
             let range = Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange
             comment "install doctest"
-            run_cmd_if range "$CABAL v2-install $ARG_COMPILER --ignore-project -j doctest --constraint='doctest ^>=0.20'"
+            run_cmd_if range $ "$CABAL v2-install $ARG_COMPILER --ignore-project -j doctest" ++ doctestVersionConstraint
             run_cmd_if range "doctest --version"
 
         -- install hlint
