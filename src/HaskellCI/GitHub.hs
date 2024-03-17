@@ -156,7 +156,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
                     -- if any job uses prereleases, add release channel unconditionally. (HEADHACKAGE variable is set later)
                     when (anyJobUsesPreviewGHC || previewCabal cfgCabalInstallVersion) $
-                      sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.7.yaml;"
+                      sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.8.yaml;"
 
                 installGhcupCabal :: ShM ()
                 installGhcupCabal =
