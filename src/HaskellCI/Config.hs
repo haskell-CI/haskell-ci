@@ -82,6 +82,7 @@ data Config = Config
     , cfgFolds               :: S.Set Fold
     , cfgGhcHead             :: !Bool
     , cfgPostgres            :: !Bool
+    , cfgPostgresVersions    :: [String]
     , cfgGoogleChrome        :: !Bool
     , cfgEnv                 :: M.Map Version String
     , cfgAllowFailures       :: !VersionRange
@@ -206,6 +207,8 @@ configGrammar = Config
         ^^^ help "Add ghc-head job"
     <*> C.booleanFieldDef     "postgresql"                                                    (field @"cfgPostgres") False
         ^^^ help "Add postgresql service"
+    <*> C.monoidalFieldAla    "postgresql-versions"        (C.alaList' C.FSep C.Token')        (field @"cfgPostgresVersions")
+        ^^^ help "Postgresql versions to use"
     <*> C.booleanFieldDef     "google-chrome"                                                 (field @"cfgGoogleChrome") False
         ^^^ help "Add google-chrome service"
     <*> C.monoidalFieldAla    "env"                       Env                                 (field @"cfgEnv")

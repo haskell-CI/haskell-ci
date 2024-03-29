@@ -625,7 +625,9 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             }
         , ghJobs = Map.fromList $ buildList $ do
             item (mainJobName, GitHubJob
-                { ghjName            = actionName ++ " - Linux - ${{ matrix.compiler }}"
+                { ghjName            = actionName 
+                                       ++ " - Linux - ${{ matrix.compiler }}" 
+                                       ++ (if cfgPostgres then " - Postgres ${{ matrix.postgres-version }}" else "")
                   -- NB: The Ubuntu version used in `runs-on` isn't
                   -- particularly important since we use a Docker container.
                 , ghjRunsOn          = ghcRunsOnVer
@@ -644,16 +646,23 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                                isGHCHead compiler
                             || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
                         , ghmeSetupMethod = if isGHCUP compiler then GHCUP else HVRPPA
+                        , ghmePostgresVersion = postgresVersion
                         }
                     | compiler <- reverse $ toList linuxVersions
                     , compiler /= GHCHead -- TODO: Make this work
                                           -- https://github.com/haskell-CI/haskell-ci/issues/458
+                    , postgresVersion <- pgVersions
                     ]
                 })
             unless (null cfgIrcChannels) $
                 ircJob actionName mainJobName projectName config gitconfig
         }
   where
+    pgVersions = if cfgPostgres
+                    then if null cfgPostgresVersions 
+                            then ["10"]
+                            else cfgPostgresVersions
+                    else ["postgres-not-enabled"]
     actionName  = fromMaybe "Haskell-CI" cfgGitHubActionName
     mainJobName = "linux"
 
@@ -774,7 +783,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
 postgresService :: GitHubService
 postgresService = GitHubService
-    { ghServImage   = "postgres:14"
+
+    { ghServImage   = "postgres:${{matrix.postgres-version}}"
     , ghServOptions = Just "--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5"
     , ghServEnv     = Map.fromList
           [ ("POSTGRES_PASSWORD", "postgres")
