@@ -190,7 +190,7 @@ dispCabalVersion :: Maybe Version -> String
 dispCabalVersion = maybe "head" C.prettyShow
 
 ghcAlpha :: Maybe (Version, Version)
-ghcAlpha = Just (mkVersion [9,10,1], mkVersion [9,10,0,20240313])
+ghcAlpha = Just (mkVersion [9,10,1], mkVersion [9,10,0,20240328])
 
 -- | GHC HEAD, and versions specified by head.hackage option.
 usesHeadHackage
