@@ -88,7 +88,7 @@ main = do
         CommandDumpConfig -> do
             putStr $ unlines $ runDG configGrammar
 
-        CommandDiffConfig _Nothing __Nothing -> do
+        CommandDiffConfig -> do
             let oldConfig = emptyConfig -- default
             newConfig' <- findConfigFile (optConfig opts)
             let newConfig = optConfigMorphism opts newConfig'
