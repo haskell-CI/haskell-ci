@@ -11,58 +11,22 @@ import Distribution.Fields.Field (FieldName)
 import Distribution.Utils.ShortText (fromShortText)
 
 import qualified Distribution.Compat.Lens        as L
-import qualified Distribution.Compat.CharParsing as C
 import qualified Distribution.FieldGrammar       as C
-import qualified Distribution.Parsec             as C
 import qualified Distribution.Pretty             as C
-import qualified Text.PrettyPrint                as PP
 
 import HaskellCI.OptionsGrammar
-import HaskellCI.Config.Empty (runEG)
-
-data ShowDiffOptions = ShowAllOptions | ShowChangedOptions
-    deriving (Eq, Show, Generic, Binary)
-
-instance C.Parsec ShowDiffOptions where
-    parsec = ShowAllOptions <$ C.string "all"
-        <|> ShowChangedOptions <$ C.string "changed"
-
-instance C.Pretty ShowDiffOptions where
-    pretty ShowAllOptions = PP.text "all"
-    pretty ShowChangedOptions = PP.text "changed"
-
-data DiffConfig = DiffConfig
-    { diffShowOptions :: ShowDiffOptions
-    , diffShowOld :: Bool
-    } deriving (Show, Generic, Binary)
-
-diffConfigGrammar
-    :: ( OptionsGrammar c g
-       , Applicative (g DiffConfig)
-       , c (Identity ShowDiffOptions))
-    => g DiffConfig DiffConfig
-diffConfigGrammar = DiffConfig
-    <$> C.optionalFieldDef "diff-show-options" (field @"diffShowOptions") ShowChangedOptions
-        ^^^ help "Which fields to show"
-    <*> C.booleanFieldDef "diff-show-old" (field @"diffShowOld") False
-        ^^^ help "Show the old values for every field"
-
-defaultDiffConfig :: DiffConfig
-defaultDiffConfig = case runEG diffConfigGrammar of
-    Left xs -> error $ "Required fields: " ++ show xs
-    Right x -> x
 
 newtype DiffOptions s a =
-  DiffOptions { runDiffOptions :: (s, s) -> DiffConfig -> [String] }
+  DiffOptions { runDiffOptions :: (s, s) -> [String] }
   deriving Functor
 
 instance Applicative (DiffOptions s) where
-    pure _ = DiffOptions $ \_ _ -> []
+    pure _ = DiffOptions $ \_ -> []
     DiffOptions f <*> DiffOptions x = DiffOptions (f <> x)
 
-diffConfigs :: DiffConfig -> DiffOptions a a -> a -> a -> [String]
-diffConfigs config grammar oldVal newVal =
-  runDiffOptions grammar (oldVal, newVal) config
+diffConfigs :: DiffOptions a a -> a -> a -> [String]
+diffConfigs grammar oldVal newVal =
+  runDiffOptions grammar (oldVal, newVal)
 
 diffUnique
     :: Eq b
@@ -71,24 +35,19 @@ diffUnique
     -> FieldName
     -> L.ALens' s a
     -> (s, s)
-    -> DiffConfig
     -> [String]
-diffUnique project render fn lens (diffOld, diffNew) opts =
-  case diffShowOptions opts of
-    ShowChangedOptions | notEqual -> []
-    ShowAllOptions | notEqual -> newLine
-    _ -> oldLine ++ newLine
+diffUnique project render fn lens (diffOld, diffNew)
+    | notEqual =
+    [ "-" ++ fromUTF8BS fn ++ ": " ++ render oldValue
+    , "+" ++ fromUTF8BS fn ++ ": " ++ render newValue
+    , ""
+    ]
+
+    | otherwise = []
   where
-    notEqual = project oldValue == project newValue
+    notEqual = project oldValue /= project newValue
     oldValue = L.aview lens $ diffOld
     newValue = L.aview lens $ diffNew
-
-    oldLine
-        | diffShowOld opts = ["-- " ++ fromUTF8BS fn ++ ": " ++ render oldValue]
-        | otherwise = []
-
-    newLine = [ fromUTF8BS fn ++ ": " ++ render newValue, ""]
-
 
 instance C.FieldGrammar C.Pretty DiffOptions where
     blurFieldGrammar lens (DiffOptions diff) =
@@ -130,7 +89,7 @@ instance C.FieldGrammar C.Pretty DiffOptions where
 instance OptionsGrammar C.Pretty DiffOptions where
     metahelp _ = help
 
-    help h (DiffOptions xs) = DiffOptions $ \vals config ->
-        case xs vals config of
+    help h (DiffOptions xs) = DiffOptions $ \vals ->
+        case xs vals of
             [] -> []
             diffString -> ("-- " ++ h) : diffString

@@ -88,6 +88,14 @@ main = do
         CommandDumpConfig -> do
             putStr $ unlines $ runDG configGrammar
 
+        CommandDiffConfig _Nothing __Nothing -> do
+            let oldConfig = emptyConfig -- default
+            newConfig' <- findConfigFile (optConfig opts)
+            let newConfig = optConfigMorphism opts newConfig'
+            putStr $ unlines $ diffConfigs configGrammar oldConfig newConfig
+
+      
+{-
         CommandDiffConfig cfg fp Nothing -> do
             newConfig <- configFromRegenOrConfigFile fp
 
@@ -98,6 +106,7 @@ main = do
             oldConfig <- configFromRegenOrConfigFile oldConfigFp
             newConfig <- configFromRegenOrConfigFile newConfigFp
             putStr . unlines $ diffConfigs cfg configGrammar oldConfig newConfig
+-}
 
         CommandRegenerate -> do
             regenerateBash opts
@@ -128,6 +137,8 @@ main = do
 -------------------------------------------------------------------------------
 -- Diffing
 -------------------------------------------------------------------------------
+
+{-
 configFromRegenOrConfigFile :: FilePath -> IO Config
 configFromRegenOrConfigFile fp = do
     withContents fp noFile $ \contents -> case findRegendataArgv contents of
@@ -144,6 +155,7 @@ configFromRegenOrConfigFile fp = do
   where
     noFile :: IO Config
     noFile = putStrLnErr $ "No file named \"" ++ fp ++ "\" exists."
+-}
 
 -------------------------------------------------------------------------------
 -- Travis
