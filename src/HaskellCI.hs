@@ -94,20 +94,6 @@ main = do
             let newConfig = optConfigMorphism opts newConfig'
             putStr $ unlines $ diffConfigs configGrammar oldConfig newConfig
 
-      
-{-
-        CommandDiffConfig cfg fp Nothing -> do
-            newConfig <- configFromRegenOrConfigFile fp
-
-            let oldConfig = optConfigMorphism opts emptyConfig
-            putStr . unlines $ diffConfigs cfg configGrammar oldConfig newConfig
-
-        CommandDiffConfig cfg oldConfigFp (Just newConfigFp) -> do
-            oldConfig <- configFromRegenOrConfigFile oldConfigFp
-            newConfig <- configFromRegenOrConfigFile newConfigFp
-            putStr . unlines $ diffConfigs cfg configGrammar oldConfig newConfig
--}
-
         CommandRegenerate -> do
             regenerateBash opts
             regenerateGitHub opts
