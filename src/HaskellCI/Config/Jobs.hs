@@ -7,6 +7,9 @@ import qualified Distribution.Parsec             as C
 import qualified Distribution.Pretty             as C
 import qualified Text.PrettyPrint                as PP
 
+-- $setup
+-- >>> import qualified Distribution.Parsec as C
+
 -- | Jobs
 --
 -- * @N:M@ - @N@ ghcs (cabal -j), @M@ threads (ghc -j)
