@@ -1,7 +1,8 @@
 module HaskellCI.ShVersionRange (
     compilerVersionPredicate,
     compilerVersionArithPredicate,
-    ) where
+    roundDown,
+) where
 
 import HaskellCI.Prelude
 
@@ -16,6 +17,8 @@ import HaskellCI.Compiler
 
 -- $setup
 -- >>> import Distribution.Pretty (prettyShow)
+-- >>> import qualified Data.Set as S
+-- >>> import qualified Distribution.Version as C
 
 compilerVersionPredicate :: Set CompilerVersion -> CompilerRange -> String
 compilerVersionPredicate = compilerVersionPredicateImpl (toTest . freeToArith) where

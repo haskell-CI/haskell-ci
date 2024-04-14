@@ -13,7 +13,10 @@ module HaskellCI.YamlSyntax (
     (~>),
     ykeyValuesFilt,
     ylistFilt,
-    ) where
+    -- * Exported for tests
+    encodeYAMLString,
+    hexChar,
+) where
 
 import HaskellCI.Prelude
 import Prelude ()
@@ -43,6 +46,7 @@ import Numeric (showHex)
 
 -- $setup
 -- >>> :set -XOverloadedStrings
+-- >>> import qualified Data.Aeson as Aeson
 
 -------------------------------------------------------------------------------
 -- Yaml syntx

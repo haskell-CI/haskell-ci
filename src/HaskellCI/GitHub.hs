@@ -5,6 +5,8 @@
 module HaskellCI.GitHub (
     makeGitHub,
     githubHeader,
+    -- * For tests
+    parseGitHubRepo,
 ) where
 
 import HaskellCI.Prelude
