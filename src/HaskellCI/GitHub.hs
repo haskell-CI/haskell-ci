@@ -313,7 +313,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 Binary.put cfgHLint
                 Binary.put cfgGhcupJobs -- GHC location affects doctest, e.g
 
-        when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUses "cache (tools)" "actions/cache/restore@v3"
+        when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUses "cache (tools)" "actions/cache/restore@v4"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
             , ("path", "~/.haskell-ci-tools")
             ]
@@ -374,12 +374,12 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 forHLint $ "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
                 forHLint "hlint --version"
 
-        when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUsesIf "save cache (tools)" "actions/cache/save@v3" "always()"
+        when (doctestEnabled || cfgHLintEnabled cfgHLint) $ githubUsesIf "save cache (tools)" "actions/cache/save@v4" "always()"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
             , ("path", "~/.haskell-ci-tools")
             ]
 
-        githubUses "checkout" "actions/checkout@v3" $ buildList $ do
+        githubUses "checkout" "actions/checkout@v4" $ buildList $ do
             item ("path", "source")
             when cfgSubmodules $
                 item ("submodules", "true")
@@ -470,7 +470,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         -- This a hack. https://github.com/actions/cache/issues/109
         -- Hashing Java - Maven style.
-        githubUses "restore cache" "actions/cache/restore@v3"
+        githubUses "restore cache" "actions/cache/restore@v4"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
             , ("restore-keys", "${{ runner.os }}-${{ matrix.compiler }}-")
             , ("path", "~/.cabal/store")
@@ -614,7 +614,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             when (csHaddock cs) $
                 sh_cs $ "$CABAL v2-haddock --disable-documentation" ++ haddockFlags ++ " $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
-        githubUsesIf "save cache" "actions/cache/save@v3" "always()"
+        githubUsesIf "save cache" "actions/cache/save@v4" "always()"
           [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
           , ("path", "~/.cabal/store")
           ]
