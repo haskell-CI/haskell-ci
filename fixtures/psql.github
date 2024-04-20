@@ -23,7 +23,7 @@ jobs:
     timeout-minutes:
       60
     container:
-      image: buildpack-deps:bionic
+      image: buildpack-deps:jammy
     services:
       postgres:
         image: postgres:14

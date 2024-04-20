@@ -138,7 +138,7 @@ configGrammar = Config
         ^^^ metahelp "VERSION" "cabal-install version for all jobs"
     <*> C.optionalField       "jobs"                                                          (field @"cfgJobs")
         ^^^ metahelp "JOBS" "jobs (N:M - cabal:ghc)"
-    <*> C.optionalFieldDef    "distribution"                                                  (field @"cfgUbuntu") Bionic
+    <*> C.optionalFieldDef    "distribution"                                                  (field @"cfgUbuntu") Jammy
         ^^^ metahelp "DIST" (concat
               [ "distribution version ("
               , intercalate ", " $ map showUbuntu [minBound..maxBound]
