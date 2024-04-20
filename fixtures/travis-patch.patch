@@ -5,7 +5,7 @@ index 9a725c1..0554fed 100644
 @@ -8,7 +8,7 @@
  #
  language: c
- dist: bionic
+ dist: jammy
 -git:
 + git:
    # whether to recursively clone submodules
