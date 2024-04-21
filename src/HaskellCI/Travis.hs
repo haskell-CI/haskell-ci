@@ -24,8 +24,6 @@ import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.ConstraintSet
 import HaskellCI.Config.Doctest
-import HaskellCI.Config.Folds
-import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
@@ -33,7 +31,6 @@ import HaskellCI.Config.Validity
 import HaskellCI.HeadHackage
 import HaskellCI.Jobs
 import HaskellCI.List
-import HaskellCI.MonadErr
 import HaskellCI.Package
 import HaskellCI.Sh
 import HaskellCI.ShVersionRange
@@ -219,29 +216,6 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
             shForJob (Range (cfgDoctestEnabled cfgDoctest) /\ doctestJobVersionRange) $
                 cabal $ "v2-install $WITHCOMPILER --ignore-project -j2 doctest" ++ doctestVersionConstraint
 
-        -- Install hlint
-        let hlintVersionConstraint
-                | C.isAnyVersion (cfgHLintVersion cfgHLint) = ""
-                | otherwise = " --constraint='hlint " ++ C.prettyShow (cfgHLintVersion cfgHLint) ++ "'"
-        when (cfgHLintEnabled cfgHLint) $ do
-            let forHLint = shForJob (hlintJobVersionRange allVersions  cfgHeadHackage (cfgHLintJob cfgHLint))
-            if cfgHLintDownload cfgHLint
-            then do
-                -- install --dry-run and use perl regex magic to find a hlint version
-                -- -v is important
-                forHLint $ "HLINTVER=$(cd /tmp && (${CABAL} v2-install -v $WITHCOMPILER --dry-run hlint " ++ hlintVersionConstraint ++ " |  perl -ne 'if (/\\bhlint-(\\d+(\\.\\d+)*)\\b/) { print \"$1\"; last; }')); echo \"HLint version $HLINTVER\""
-                forHLint $ "if [ ! -e $HOME/.hlint/hlint-$HLINTVER/hlint ]; then " ++ unwords
-                    [ "echo \"Downloading HLint version $HLINTVER\";"
-                    , "mkdir -p $HOME/.hlint;"
-                    , "curl --write-out 'Status Code: %{http_code} Redirects: %{num_redirects} Total time: %{time_total} Total Dsize: %{size_download}\\n' --silent --location --output $HOME/.hlint/hlint-$HLINTVER.tar.gz \"https://github.com/ndmitchell/hlint/releases/download/v$HLINTVER/hlint-$HLINTVER-x86_64-linux.tar.gz\";"
-                    , "tar -xzv -f $HOME/.hlint/hlint-$HLINTVER.tar.gz -C $HOME/.hlint;"
-                    , "fi"
-                    ]
-                forHLint "mkdir -p $CABALHOME/bin && ln -sf \"$HOME/.hlint/hlint-$HLINTVER/hlint\" $CABALHOME/bin/hlint"
-                forHLint "hlint --version"
-
-            else forHLint $ cabal $ "v2-install $WITHCOMPILER --ignore-project -j2 hlint" ++ hlintVersionConstraint
-
         -- Install cabal-plan (for ghcjs tests)
         when (anyGHCJS && cfgGhcjsTests) $ do
             shForJob RangeGHCJS $ cabal "v2-install -w ghc-8.4.4 --ignore-project -j2 cabal-plan --constraint='cabal-plan ^>=0.6.0.0' --constraint='cabal-plan +exe'"
@@ -276,11 +250,11 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
         sh "DISTDIR=$(mktemp -d /tmp/dist-test.XXXX)"
 
         -- sdist
-        foldedSh FoldSDist "Packaging..." cfgFolds $ do
+        foldedSh "Packaging..." $ do
             sh $ cabal "v2-sdist all"
 
         -- unpack
-        foldedSh FoldUnpack "Unpacking..." cfgFolds $ do
+        foldedSh "Unpacking..." $ do
             sh "mv dist-newstyle/sdist/*.tar.gz ${DISTDIR}/"
             sh "cd ${DISTDIR} || false" -- fail explicitly, makes SC happier
             sh "find . -maxdepth 1 -type f -name '*.tar.gz' -exec tar -xvf '{}' \\;"
@@ -303,17 +277,17 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 ]
 
         -- build no-tests no-benchmarks
-        unless (equivVersionRanges C.noVersion cfgNoTestsNoBench) $ foldedSh FoldBuild "Building..." cfgFolds $ do
+        unless (equivVersionRanges C.noVersion cfgNoTestsNoBench) $ foldedSh "Building..." $ do
             comment "this builds all libraries and executables (without tests/benchmarks)"
             shForJob (Range cfgNoTestsNoBench) $ cabal "v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all"
 
         -- build everything
-        foldedSh FoldBuildEverything "Building with tests and benchmarks..." cfgFolds $ do
+        foldedSh "Building with tests and benchmarks..." $ do
             comment "build & run tests, build benchmarks"
             sh $ cabal "v2-build $WITHCOMPILER ${TEST} ${BENCH} all --write-ghc-environment-files=always"
 
         -- cabal v2-test fails if there are no test-suites.
-        foldedSh FoldTest "Testing..." cfgFolds $ do
+        foldedSh "Testing..." $ do
             shForJob (RangeGHC /\ Range (cfgTests /\ cfgRunTests) /\ hasTests) $
                 cabal $ "v2-test $WITHCOMPILER ${TEST} ${BENCH} all" ++ testShowDetails
 
@@ -327,7 +301,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 ]
 
         -- doctest
-        when doctestEnabled $ foldedSh FoldDoctest "Doctest..." cfgFolds $ do
+        when doctestEnabled $ foldedSh "Doctest..." $ do
             let doctestOptions = unwords $ cfgDoctestOptions cfgDoctest
             sh $ "$CABAL v2-build $WITHCOMPILER ${TEST} ${BENCH} all --dry-run"
             unless (null $ cfgDoctestFilterEnvPkgs cfgDoctest) $ do
@@ -351,38 +325,20 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                         unless (null args) $ shForJob  vr $
                             "(cd " ++ pkgNameDirVariable pkgName ++ " && doctest " ++ doctestOptions ++ " " ++ args' ++ ")"
 
-        -- hlint
-        when (cfgHLintEnabled cfgHLint) $ foldedSh FoldHLint "HLint.." cfgFolds $ do
-            let "" <+> ys = ys
-                xs <+> "" = xs
-                xs <+> ys = xs ++ " " ++ ys
-
-                prependSpace "" = ""
-                prependSpace xs = " " ++ xs
-
-            let hlintOptions = prependSpace $ maybe "" ("-h ${TOP}/" ++) (cfgHLintYaml cfgHLint) <+> unwords (cfgHLintOptions cfgHLint)
-
-            for_ pkgs $ \Pkg{pkgName,pkgGpd,pkgJobs} -> do
-                for_ (hlintArgs pkgGpd) $ \args -> do
-                    let args' = unwords args
-                    unless (null args) $
-                        shForJob (hlintJobVersionRange allVersions cfgHeadHackage (cfgHLintJob cfgHLint) /\ RangePoints pkgJobs) $
-                        "(cd " ++ pkgNameDirVariable pkgName ++ " && hlint" ++ hlintOptions ++ " " ++ args' ++ ")"
-
         -- cabal check
-        when cfgCheck $ foldedSh FoldCheck "cabal check..." cfgFolds $ do
+        when cfgCheck $ foldedSh "cabal check..." $ do
             for_ pkgs $ \Pkg{pkgName,pkgJobs} -> shForJob (RangePoints pkgJobs) $
                 "(cd " ++ pkgNameDirVariable pkgName ++ " && ${CABAL} -vnormal check)"
 
         -- haddock
         unless (equivVersionRanges C.noVersion cfgHaddock) $
-            foldedSh FoldHaddock "haddock..." cfgFolds $
+            foldedSh "haddock..." $
                 shForJob (RangeGHC /\ Range cfgHaddock) $ cabal $ "v2-haddock --haddock-all $WITHCOMPILER " ++ withHaddock ++ " ${TEST} ${BENCH} all"
 
         -- unconstained build
         -- Have to build last, as we remove cabal.project.local
         unless (equivVersionRanges C.noVersion cfgUnconstrainted) $
-            foldedSh FoldBuildInstalled "Building without installed constraints for packages in global-db..." cfgFolds $ do
+            foldedSh "Building without installed constraints for packages in global-db..." $ do
                 shForJob (Range cfgUnconstrainted) "rm -f cabal.project.local"
                 shForJob (Range cfgUnconstrainted) $ cabal "v2-build $WITHCOMPILER --disable-tests --disable-benchmarks all"
 
@@ -401,7 +357,7 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
                 let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)
                 let allFlags        = unwords (testFlag : benchFlag : constraintFlags)
 
-                foldedSh' FoldConstraintSets name ("Constraint set " ++ name) cfgFolds $ do
+                foldedSh' name ("Constraint set " ++ name) $ do
                     shForCs $ cabal $ "v2-build $WITHCOMPILER " ++ allFlags ++ " --dependencies-only -j2 all"
                     shForCs $ cabal $ "v2-build $WITHCOMPILER " ++ allFlags ++ " all"
                     when (csRunTests cs) $
@@ -527,26 +483,8 @@ makeTravis argv config@Config {..} prj jobs@JobVersions {..} = do
     -- https://github.com/travis-ci/docs-travis-ci-com/issues/949#issuecomment-276755003
     -- https://github.com/travis-ci/travis-rubies/blob/9f7962a881c55d32da7c76baefc58b89e3941d91/build.sh#L38-L44
     -- https://github.com/travis-ci/travis-build/blob/91bf066/lib/travis/build/shell/dsl.rb#L58-L63
-    foldedSh' :: Fold -> String -> String -> Set Fold -> ShM () -> ShM ()
-    foldedSh' label sfx plabel labels block
-        | label `S.notMember` labels = commentedBlock plabel block
-        | otherwise = case runSh block of
-            Left err  -> throwErr err
-            Right shs
-                | all isComment shs -> pure ()
-                | otherwise         -> ShM $ \shs1 -> Right $
-                    ( shs1
-                    . (Comment plabel :)
-                    . (Sh ("echo '" ++ plabel ++ "' && echo -en 'travis_fold:start:" ++ label' ++ "\\\\r'") :)
-                    . (shs ++)
-                    . (Sh ("echo -en 'travis_fold:end:" ++ label' ++ "\\\\r'") :)
-                    -- return ()
-                    , ()
-                    )
-      where
-        label' | null sfx  = showFold label
-               | otherwise = showFold label ++ "-" ++ sfx
-
+    foldedSh' :: String -> String -> ShM () -> ShM ()
+    foldedSh' plabel _sfx block = commentedBlock plabel block
 
     -- GHC versions which need head.hackage
     headGhcVers :: Set CompilerVersion
