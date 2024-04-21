@@ -67,16 +67,6 @@ branches: master
 -- irc-password: ${{ secrets.MyIrcBotPassword }}
 -- irc-if-in-origin-repo: True
 
--- Sections to fold in the build output
-folds: constraint-sets
-
--- Run HLint
-hlint: True
-hlint-job: 9.2.4
-hlint-yaml: .hlint.yaml
-hlint-download-binary: True
--- hlint-version: ==3.1.*
-
 -- Run doctest (on GHC-8.0+ which support .ghc.environment)
 doctest: <9
 doctest-options: --fast

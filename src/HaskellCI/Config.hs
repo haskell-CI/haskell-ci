@@ -29,8 +29,6 @@ import HaskellCI.Config.CopyFields
 import HaskellCI.Config.Docspec
 import HaskellCI.Config.Doctest
 import HaskellCI.Config.Empty
-import HaskellCI.Config.Folds
-import HaskellCI.Config.HLint
 import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
@@ -79,7 +77,6 @@ data Config = Config
     , cfgIrcIfInOriginRepo   :: Bool
     , cfgEmailNotifications  :: Bool
     , cfgProjectName         :: Maybe String
-    , cfgFolds               :: S.Set Fold
     , cfgGhcHead             :: !Bool
     , cfgPostgres            :: !Bool
     , cfgGoogleChrome        :: !Bool
@@ -98,7 +95,6 @@ data Config = Config
     , cfgErrorMissingMethods :: !PackageScope
     , cfgDoctest             :: !DoctestConfig
     , cfgDocspec             :: !DocspecConfig
-    , cfgHLint               :: !HLintConfig
     , cfgConstraintSets      :: [ConstraintSet]
     , cfgRawProject          :: [C.PrettyField ()]
     , cfgRawTravis           :: !String
@@ -118,7 +114,6 @@ emptyConfig = case runEG configGrammar of
 
 configGrammar
     :: ( OptionsGrammar c g, Applicative (g Config)
-       , c (Identity HLintJob)
        , c (Identity PackageScope)
        , c (Identity TestedWithJobs)
        , c (Identity Ubuntu)
@@ -127,11 +122,11 @@ configGrammar
        , c (Identity Version)
        , c (Identity Natural)
        , c (Identity Components)
-       , c Env, c Folds, c CopyFields, c HeadVersion
+       , c Env, c CopyFields, c HeadVersion
        , c (C.List C.FSep (Identity Installed) Installed)
        , Applicative (g DoctestConfig)
        , Applicative (g DocspecConfig)
-       , Applicative (g HLintConfig))
+       )
     => g Config Config
 configGrammar = Config
     <$> C.optionalFieldDefAla "cabal-install-version"     HeadVersion                         (field @"cfgCabalInstallVersion") defaultCabalInstallVersion
@@ -200,8 +195,6 @@ configGrammar = Config
         ^^^ help "Disable email notifications"
     <*> C.optionalFieldAla    "project-name"              C.Token'                            (field @"cfgProjectName")
         ^^^ metahelp "NAME" "Project name (used for IRC notifications), defaults to package name or name of first package listed in cabal.project file"
-    <*> C.monoidalFieldAla    "folds"                     Folds                               (field @"cfgFolds")
-        ^^^ metahelp "FOLD" "Build steps to fold"
     <*> C.booleanFieldDef     "ghc-head"                                                      (field @"cfgGhcHead") False
         ^^^ help "Add ghc-head job"
     <*> C.booleanFieldDef     "postgresql"                                                    (field @"cfgPostgres") False
@@ -236,7 +229,6 @@ configGrammar = Config
         ^^^ metahelp "PKGSCOPE" "Insert -Werror=missing-methods for package scope (none, local, all)"
     <*> C.blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar
     <*> C.blurFieldGrammar (field @"cfgDocspec") docspecConfigGrammar
-    <*> C.blurFieldGrammar (field @"cfgHLint")   hlintConfigGrammar
     <*> pure [] -- constraint sets
     <*> pure [] -- raw project fields
     <*> C.freeTextFieldDef "raw-travis"                                                       (field @"cfgRawTravis")
