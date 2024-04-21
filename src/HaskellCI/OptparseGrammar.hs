@@ -108,12 +108,13 @@ instance OptionsGrammar ParsecPretty OptparseGrammar where
     --
     -- where the --no-tests has help, because it's not default.
     --
-    rangeField fn l def = OG
+    rangeField fn l s = OG
         [ SP $ \_m _c  h -> setOG l $ O.flag' C.anyVersion $ flagMods fn (th h)
         , SP $ \_m _c  h -> setOG l $ O.flag' C.noVersion  $ flagMods ("no-" <> fn) (fh h)
         , SP $ \_m _c _h -> setOG l $ O.option readMParsec $ O.long (fromUTF8BS $ fn <> "-jobs") <> O.metavar "RANGE"
         ]
       where
+        def = C.aview l s
         th h = if equivVersionRanges def C.anyVersion then Nothing else h
         fh h = if equivVersionRanges def C.anyVersion then h else Nothing
 

@@ -6,8 +6,8 @@ module HaskellCI.ShVersionRange (
 
 import HaskellCI.Prelude
 
-import Algebra.Lattice (joins)
 import Algebra.Heyting.Free (Free (..))
+import Algebra.Lattice      (joins)
 
 import qualified Algebra.Heyting.Free as F
 import qualified Data.Set             as S

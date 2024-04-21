@@ -4,12 +4,14 @@
 module HaskellCI.Config.Docspec (
     DocspecConfig (..),
     docspecConfigGrammar,
+    defaultDocspecConfig,
 ) where
 
 import HaskellCI.Prelude
 
-import qualified Distribution.FieldGrammar    as C
+import qualified Distribution.FieldGrammar as C
 
+import HaskellCI.GrammarDefault
 import HaskellCI.OptionsGrammar
 
 data DocspecConfig = DocspecConfig
@@ -36,15 +38,13 @@ defaultDocspecConfig = DocspecConfig
 -- Grammar
 -------------------------------------------------------------------------------
 
-docspecConfigGrammar
-    :: (OptionsGrammar c g, Applicative (g DocspecConfig))
-    => g DocspecConfig DocspecConfig
+docspecConfigGrammar :: OptionsGrammar c g => g DocspecConfig DocspecConfig
 docspecConfigGrammar = DocspecConfig
-    <$> rangeField            "docspec"                                              (field @"cfgDocspecEnabled") (cfgDocspecEnabled defaultDocspecConfig)
+    <$> rangeField            "docspec"                                            (field @"cfgDocspecEnabled") defaultDocspecConfig
         ^^^ help "Enable Docspec job"
-    <*> C.monoidalFieldAla    "docspec-options" (C.alaList' C.NoCommaFSep C.Token')  (field @"cfgDocspecOptions")
+    <*> monoidalFieldAla    "docspec-options" (C.alaList' C.NoCommaFSep C.Token')  (field @"cfgDocspecOptions")
         ^^^ metahelp "OPTS" "Additional Docspec options"
-    <*> C.optionalFieldDefAla "docspec-url"      C.Token'                            (field @"cfgDocspecUrl") (cfgDocspecUrl defaultDocspecConfig)
+    <*> optionalFieldDefAla "docspec-url"      C.Token'                            (field @"cfgDocspecUrl") defaultDocspecConfig
         ^^^ metahelp "URL" "URL to download cabal-docspec"
-    <*> C.optionalFieldDefAla "docspec-hash"     C.Token'                            (field @"cfgDocspecHash") (cfgDocspecHash defaultDocspecConfig)
+    <*> optionalFieldDefAla "docspec-hash"     C.Token'                            (field @"cfgDocspecHash") defaultDocspecConfig
         ^^^ metahelp "HASH" "SHA256 of cabal-docspec"

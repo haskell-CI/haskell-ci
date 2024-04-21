@@ -57,8 +57,8 @@ class
     help _ = id
 
     -- we treat range fields specially in options
-    rangeField :: C.FieldName -> C.ALens' s C.VersionRange -> C.VersionRange -> p s C.VersionRange
-    rangeField fn = C.optionalFieldDefAla fn Range
+    rangeField :: C.FieldName -> C.ALens' s C.VersionRange -> s -> p s C.VersionRange
+    rangeField fn l s = C.optionalFieldDefAla fn Range l (C.aview l s)
 
 metaActionHelp :: OptionsGrammar c p => MetaVar -> BashCompletionAction -> Help -> p s a -> p s a
 metaActionHelp m a = metaCompleterHelp m (O.bashCompleter a)

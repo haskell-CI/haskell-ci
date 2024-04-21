@@ -5,7 +5,7 @@ module HaskellCI.Config.ConstraintSet where
 
 import HaskellCI.Prelude
 
-import qualified Distribution.FieldGrammar    as C
+import qualified Distribution.FieldGrammar as C
 
 import HaskellCI.Newtypes
 import HaskellCI.OptionsGrammar

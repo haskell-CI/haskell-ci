@@ -3,8 +3,8 @@ module HaskellCI.Config.Empty where
 
 import HaskellCI.Prelude
 
-import qualified Distribution.FieldGrammar   as C
-import qualified Distribution.Fields         as C
+import qualified Distribution.FieldGrammar as C
+import qualified Distribution.Fields       as C
 
 import HaskellCI.OptionsGrammar
 

@@ -121,9 +121,13 @@ library haskell-ci-internal
     HaskellCI.Config.Doctest
     HaskellCI.Config.Dump
     HaskellCI.Config.Empty
+    HaskellCI.Config.Grammar
+    HaskellCI.Config.History
+    HaskellCI.Config.Initial
     HaskellCI.Config.Installed
     HaskellCI.Config.Jobs
     HaskellCI.Config.PackageScope
+    HaskellCI.Config.Type
     HaskellCI.Config.Ubuntu
     HaskellCI.Config.Validity
     HaskellCI.Diagnostics
@@ -132,6 +136,7 @@ library haskell-ci-internal
     HaskellCI.GitConfig
     HaskellCI.GitHub
     HaskellCI.GitHub.Yaml
+    HaskellCI.GrammarDefault
     HaskellCI.HeadHackage
     HaskellCI.Jobs
     HaskellCI.List

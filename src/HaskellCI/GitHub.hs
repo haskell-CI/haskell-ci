@@ -30,6 +30,7 @@ import qualified Distribution.Version            as C
 
 import Cabal.Project
 import HaskellCI.Auxiliary
+import HaskellCI.Cabal
 import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.ConstraintSet
@@ -40,7 +41,6 @@ import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
 import HaskellCI.Config.Ubuntu
 import HaskellCI.Config.Validity
-import HaskellCI.Cabal
 import HaskellCI.GitConfig
 import HaskellCI.GitHub.Yaml
 import HaskellCI.HeadHackage
