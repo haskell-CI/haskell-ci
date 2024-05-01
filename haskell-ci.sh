@@ -19,7 +19,7 @@ fi
 
 CFG_CABAL_STORE_CACHE=""
 CFG_CABAL_REPO_CACHE=""
-CFG_JOBS="9.8.2 9.6.5 9.4.8 9.2.8 9.0.2 8.10.7 8.8.4 8.6.5 8.4.4 8.2.2"
+CFG_JOBS="9.8.2 9.6.5 9.4.8 9.2.8 9.0.2 8.10.7 8.8.4 8.6.5"
 CFG_CABAL_UPDATE=false
 
 SCRIPT_NAME=$(basename "$0")
@@ -548,9 +548,6 @@ run_cmd $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
 put_info "constraint sets"
 run_cmd rm -f cabal.project.local
 put_info "constraint set deepseq-1.4"
-run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' --dependencies-only -j all
-run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all
-run_cmd_if $((HCNUMVER < 80400)) $CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK --disable-tests --disable-benchmarks --constraint='deepseq ==1.4.*' --constraint='binary installed' all
 
 
 # Done

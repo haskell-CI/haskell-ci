@@ -25,9 +25,7 @@ maintainer:         hvr@gnu.org, oleg.grenrus@iki.fi
 category:           Development
 build-type:         Simple
 tested-with:
-  GHC ==8.2.2
-   || ==8.4.4
-   || ==8.6.5
+  GHC ==8.6.5
    || ==8.8.4
    || ==8.10.7
    || ==9.0.2
@@ -67,11 +65,11 @@ library
 
   -- GHC-boot libraries
   build-depends:
-    , base          >=4.10      && <4.20
-    , binary        ^>=0.8.5
-    , bytestring    ^>=0.10.8.1 || ^>=0.11.1.0 || ^>=0.12.0.2
+    , base          >=4.12      && <4.20
+    , binary        ^>=0.8.6.0
+    , bytestring    ^>=0.10.8.2 || ^>=0.11.1.0 || ^>=0.12.0.2
     , Cabal-syntax  ^>=3.10.3.0
-    , containers    ^>=0.5.7.1  || ^>=0.6.0.1
+    , containers    ^>=0.6.0.1
     , deepseq       ^>=1.4.2.0  || ^>=1.5.0.0
     , directory     ^>=1.3.0.0
     , filepath      ^>=1.4.1.1
