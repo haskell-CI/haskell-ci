@@ -418,7 +418,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             case normaliseInstalled cfgInstalled of
                 InstalledDiff pns -> sh $ unwords
                     [ "$HCPKG list --simple-output --names-only"
-                    , "| perl -ne 'for (split /\\s+/) { print \"constraints: $_ installed\\n\" unless /" ++ re ++ "/; }'"
+                    , "| perl -ne 'for (split /\\s+/) { print \"constraints: any.$_ installed\\n\" unless /" ++ re ++ "/; }'"
                     , ">> cabal.project.local"
                     ]
                   where
@@ -426,7 +426,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     re = "^(" ++ intercalate "|" (S.toList pns') ++ ")$"
 
                 InstalledOnly pns | not (null pns') -> cat "cabal.project.local" $ unlines
-                    [ "constraints: " ++ pkg ++ " installed"
+                    [ "constraints: any." ++ pkg ++ " installed"
                     | pkg <- S.toList pns'
                     ]
                   where

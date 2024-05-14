@@ -318,7 +318,7 @@ jobs:
           echo "allow-newer: $($HCPKG list --simple-output | sed -E 's/([a-zA-Z-]+)-[0-9.]+/*:\1,/g')" >> cabal.project
           fi
           cat >> cabal.project.local <<EOF
-          constraints: deepseq installed
+          constraints: any.deepseq installed
           EOF
           cat cabal.project
           cat cabal.project.local
