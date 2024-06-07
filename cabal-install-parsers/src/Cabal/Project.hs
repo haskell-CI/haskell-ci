@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE DeriveFoldable    #-}
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveGeneric     #-}
@@ -34,7 +35,7 @@ import Data.Either                (partitionEithers)
 import Data.Foldable              (toList)
 import Data.Function              ((&))
 import Data.Functor               (void)
-import Data.List                  (foldl', isSuffixOf)
+import Data.List                  (isSuffixOf)
 import Data.List.NonEmpty         (NonEmpty)
 import Data.Maybe                 (mapMaybe)
 import Data.Traversable           (for)
@@ -44,6 +45,10 @@ import GHC.Generics               (Generic)
 import Network.URI                (URI (URI), parseURI)
 import System.Directory           (doesDirectoryExist, doesFileExist)
 import System.FilePath            (isAbsolute, normalise, splitDirectories, splitDrive, takeDirectory, (</>))
+
+#if !MIN_VERSION_base(4,20,0)
+import Data.Foldable (foldl')
+#endif
 
 import qualified Data.ByteString                 as BS
 import qualified Data.Map.Strict                 as M

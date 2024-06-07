@@ -6,3 +6,5 @@ tests: True
 package haskell-ci
   ghc-options: -Wall
   ghc-options: -Werror
+
+allow-newer: ShellCheck:filepath
