@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE StandaloneDeriving   #-}
@@ -22,7 +23,6 @@ import Control.Exception        (throwIO)
 import Data.ByteString          (ByteString)
 import Data.Function            ((&))
 import Data.Functor.Identity    (Identity (..))
-import Data.List                (foldl')
 import Data.List.NonEmpty       (NonEmpty)
 import Data.Map                 (Map)
 import Data.Maybe               (fromMaybe)
@@ -32,6 +32,10 @@ import Network.URI              (URI)
 import System.Directory         (getAppUserDataDirectory)
 import System.Environment       (lookupEnv)
 import System.FilePath          ((</>))
+
+#if !MIN_VERSION_base(4,20,0)
+import Data.Foldable (foldl')
+#endif
 
 import qualified Data.ByteString               as BS
 import qualified Data.Map.Strict               as M

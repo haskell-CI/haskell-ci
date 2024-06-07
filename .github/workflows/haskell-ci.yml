@@ -30,6 +30,11 @@ jobs:
     strategy:
       matrix:
         include:
+          - compiler: ghc-9.10.1
+            compilerKind: ghc
+            compilerVersion: 9.10.1
+            setup-method: ghcup
+            allow-failure: false
           - compiler: ghc-9.8.2
             compilerKind: ghc
             compilerVersion: 9.8.2
@@ -216,13 +221,15 @@ jobs:
             ghc-options: -Werror=missing-methods -Werror=missing-fields
           EOF
           cat >> cabal.project <<EOF
+          allow-newer: ShellCheck:filepath
+
           package haskell-ci
             ghc-options: -Werror
 
           package cabal-install-parsers
             ghc-options: -Werror
 
-          keep-going: False
+          keep-going:  False
 
           package bytestring
             tests: False

@@ -106,7 +106,7 @@ data Config = Config
 emptyConfig :: Config
 emptyConfig = case runEG configGrammar of
     Left xs -> error $ "Required fields: " ++ show xs
-    Right x -> x
+    Right x -> postprocessConfig x
 
 -------------------------------------------------------------------------------
 -- Grammar
@@ -249,7 +249,7 @@ parseConfigFile :: [C.Field C.Position] -> C.ParseResult Config
 parseConfigFile fields0 = do
     config <- C.parseFieldGrammar C.cabalSpecLatest fields configGrammar
     config' <- traverse parseSection $ concat sections
-    return $ postprocess $ foldl' (&) config config'
+    return $ postprocessConfig $ foldl' (&) config config'
   where
     (fields, sections) = C.partitionFields fields0
 
@@ -267,11 +267,11 @@ parseConfigFile fields0 = do
             C.parseWarning pos C.PWTUnknownSection $ "Unknown section " ++ fromUTF8BS name
             return id
 
-    postprocess :: Config -> Config
-    postprocess cfg
-        -- on yammy the only install option is ghcup
-        | cfgUbuntu cfg >= Jammy = cfg { cfgGhcupJobs = anyVersion }
-        | otherwise              = cfg
+postprocessConfig :: Config -> Config
+postprocessConfig cfg
+    -- on yammy the only install option is ghcup
+    | cfgUbuntu cfg >= Jammy = cfg { cfgGhcupJobs = anyVersion }
+    | otherwise              = cfg
 
 -------------------------------------------------------------------------------
 -- Env
