@@ -9,8 +9,8 @@ import qualified Distribution.Fields         as C
 
 import HaskellCI.OptionsGrammar
 
-blurFieldGrammar :: OptionsGrammar c g => C.ALens' a b -> g b d -> g a d
-blurFieldGrammar = C.blurFieldGrammar
+blurFieldGrammar :: OptionsGrammar c g => C.ALens' s d -> (d -> g d d) -> s -> g s d
+blurFieldGrammar l sub s = C.blurFieldGrammar l (sub (C.aview l s))
 
 monoidalFieldAla :: (OptionsGrammar c g, C.Newtype a b, c b, Monoid a) => C.FieldName -> (a -> b) -> C.ALens' s a -> g s a
 monoidalFieldAla = C.monoidalFieldAla

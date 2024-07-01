@@ -152,8 +152,8 @@ configGrammar = Config
         ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
     <*> optionalFieldDef "error-missing-methods"                                            (field @"cfgErrorMissingMethods") defaultConfig
         ^^^ metahelp "PKGSCOPE" "Insert -Werror=missing-methods for package scope (none, local, all)"
-    <*> C.blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar
-    <*> C.blurFieldGrammar (field @"cfgDocspec") docspecConfigGrammar
+    <*> blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar defaultConfig
+    <*> blurFieldGrammar (field @"cfgDocspec") docspecConfigGrammar defaultConfig
     <*> pure [] -- constraint sets
     <*> pure [] -- raw project fields
     <*> freeTextFieldDef "raw-travis"                                                       (field @"cfgRawTravis")
