@@ -43,7 +43,7 @@ import Numeric.Natural         as X (Natural)
 import Text.Read               as X (readMaybe)
 
 import Data.Generics.Lens.Lite  as X (field)
-import Distribution.Compat.Lens as X (over, toListOf, (&), (.~), (^.))
+import Distribution.Compat.Lens as X (over, toListOf, (&), (.~), (?~), (^.))
 
 import Distribution.Parsec        as X (simpleParsec)
 import Distribution.Pretty        as X (prettyShow)
