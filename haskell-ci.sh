@@ -525,7 +525,7 @@ run_cmd $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-detai
 put_info "doctest"
 run_cmd perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
 change_dir_if $((HCNUMVER < 90000)) ${PKGDIR_haskell_ci}
-run_cmd_if $((HCNUMVER < 90000)) doctest --fast -XHaskell2010 -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XNoImplicitPrelude -XScopedTypeVariables -XTypeOperators src
+run_cmd_if $((HCNUMVER < 90000)) doctest --fast -XHaskell2010 -XBangPatterns -XConstraintKinds -XDataKinds -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XFlexibleContexts -XFlexibleInstances -XFunctionalDependencies -XGADTs -XGeneralizedNewtypeDeriving -XMultiWayIf -XNoImplicitPrelude -XQuantifiedConstraints -XRankNTypes -XScopedTypeVariables -XTypeApplications -XTypeOperators -XUndecidableInstances -XUndecidableSuperClasses -XViewPatterns src
 change_dir_if $((HCNUMVER < 90000)) ${PKGDIR_cabal_install_parsers}
 run_cmd_if $((HCNUMVER < 90000)) doctest --fast -XHaskell2010 src
 

@@ -1,9 +1,3 @@
-{-# LANGUAGE ConstraintKinds         #-}
-{-# LANGUAGE FlexibleContexts        #-}
-{-# LANGUAGE FlexibleInstances       #-}
-{-# LANGUAGE FunctionalDependencies  #-}
-{-# LANGUAGE UndecidableInstances    #-}
-{-# LANGUAGE UndecidableSuperClasses #-}
 module HaskellCI.OptionsGrammar (
     OptionsGrammar (..),
     (C.^^^),
@@ -40,7 +34,9 @@ type BashCompletionAction = String
 
 class
     ( C.FieldGrammar c p
-    , c Range, c (Identity C.VersionRange)
+    , forall s. Applicative (p s)
+    , forall a. c a => c (Identity a)
+    , c Range, c C.VersionRange
     , c (C.List C.NoCommaFSep C.Token' String)
     , c (C.List C.FSep C.Token' String)
     , c (AlaSet C.NoCommaFSep C.Token' String)

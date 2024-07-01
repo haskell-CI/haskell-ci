@@ -114,15 +114,17 @@ emptyConfig = case runEG configGrammar of
 
 configGrammar
     :: ( OptionsGrammar c g, Applicative (g Config)
-       , c (Identity PackageScope)
-       , c (Identity TestedWithJobs)
-       , c (Identity Ubuntu)
-       , c (Identity Jobs)
-       , c (Identity CopyFields)
-       , c (Identity Version)
-       , c (Identity Natural)
-       , c (Identity Components)
-       , c Env, c CopyFields, c HeadVersion
+       , c Components
+       , c CopyFields
+       , c CopyFields
+       , c Env
+       , c HeadVersion
+       , c Jobs
+       , c Natural
+       , c PackageScope
+       , c TestedWithJobs
+       , c Ubuntu
+       , c Version
        , c (C.List C.FSep (Identity Installed) Installed)
        , Applicative (g DoctestConfig)
        , Applicative (g DocspecConfig)

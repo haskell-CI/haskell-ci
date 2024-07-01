@@ -264,7 +264,7 @@ jobs:
         run: |
           perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_haskell_ci} || false ; fi
-          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 -XBangPatterns -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XGeneralizedNewtypeDeriving -XNoImplicitPrelude -XScopedTypeVariables -XTypeOperators src ; fi
+          if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 -XBangPatterns -XConstraintKinds -XDataKinds -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XFlexibleContexts -XFlexibleInstances -XFunctionalDependencies -XGADTs -XGeneralizedNewtypeDeriving -XMultiWayIf -XNoImplicitPrelude -XQuantifiedConstraints -XRankNTypes -XScopedTypeVariables -XTypeApplications -XTypeOperators -XUndecidableInstances -XUndecidableSuperClasses -XViewPatterns src ; fi
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then cd ${PKGDIR_cabal_install_parsers} || false ; fi
           if [ $((HCNUMVER < 90000)) -ne 0 ] ; then doctest --fast -XHaskell2010 src ; fi
       - name: docspec
