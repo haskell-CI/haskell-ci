@@ -34,76 +34,76 @@ before_cache:
 jobs:
   include:
     - compiler: ghc-8.10.7
-      addons: {"apt":{"packages":["ghc-8.10.7","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.10.7","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.10.6
-      addons: {"apt":{"packages":["ghc-8.10.6","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.10.6","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.10.5
-      addons: {"apt":{"packages":["ghc-8.10.5","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.10.5","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.10.4
-      addons: {"apt":{"packages":["ghc-8.10.4","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.10.4","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.10.3
-      addons: {"apt":{"packages":["ghc-8.10.3","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.10.3","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.10.2
-      addons: {"apt":{"packages":["ghc-8.10.2","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.10.2","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.10.1
-      addons: {"apt":{"packages":["ghc-8.10.1","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.10.1","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.8.4
-      addons: {"apt":{"packages":["ghc-8.8.4","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.8.4","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.8.3
-      addons: {"apt":{"packages":["ghc-8.8.3","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.8.3","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.8.2
-      addons: {"apt":{"packages":["ghc-8.8.2","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.8.2","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.8.1
-      addons: {"apt":{"packages":["ghc-8.8.1","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.8.1","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.6.5
-      addons: {"apt":{"packages":["ghc-8.6.5","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.6.5","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.6.4
-      addons: {"apt":{"packages":["ghc-8.6.4","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.6.4","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.6.3
-      addons: {"apt":{"packages":["ghc-8.6.3","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.6.3","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.6.2
-      addons: {"apt":{"packages":["ghc-8.6.2","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.6.2","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.6.1
-      addons: {"apt":{"packages":["ghc-8.6.1","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.6.1","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.4.4
-      addons: {"apt":{"packages":["ghc-8.4.4","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.4.4","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.4.3
-      addons: {"apt":{"packages":["ghc-8.4.3","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.4.3","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.4.2
-      addons: {"apt":{"packages":["ghc-8.4.2","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.4.2","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.4.1
-      addons: {"apt":{"packages":["ghc-8.4.1","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.4.1","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.2.2
-      addons: {"apt":{"packages":["ghc-8.2.2","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.2.2","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.2.1
-      addons: {"apt":{"packages":["ghc-8.2.1","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.2.1","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.0.2
-      addons: {"apt":{"packages":["ghc-8.0.2","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.0.2","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-8.0.1
-      addons: {"apt":{"packages":["ghc-8.0.1","cabal-install-3.10","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
+      addons: {"apt":{"packages":["ghc-8.0.1","cabal-install-3.10.2.0","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
       os: linux
     - compiler: ghc-head
       addons: {"apt":{"packages":["ghc-head","cabal-install-head","fftw3-dev"],"sources":[{"key_url":"https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x063dab2bdc0b3f9fcebc378bff3aeacef6f88286","sourceline":"deb http://ppa.launchpad.net/hvr/ghc/ubuntu jammy main"}]}}
