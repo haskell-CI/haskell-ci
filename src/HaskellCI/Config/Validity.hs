@@ -15,3 +15,6 @@ checkConfigValidity :: MonadErr HsCiError m => Config -> JobVersions -> m ()
 checkConfigValidity Config {..} _  = do
     unless (cfgUbuntu >= Focal) $
         throwErr $ ValidationError $ prettyShow cfgUbuntu ++ "distribution is not supported"
+
+    unless cfgGhcupCabal $
+        throwErr $ ValidationError $ "The GHCUP is the only supported installation method for cabal-install"

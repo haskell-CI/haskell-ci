@@ -30,7 +30,6 @@ import qualified Distribution.Version            as C
 
 import Cabal.Project
 import HaskellCI.Auxiliary
-import HaskellCI.Cabal
 import HaskellCI.Compiler
 import HaskellCI.Config
 import HaskellCI.Config.ConstraintSet
@@ -170,16 +169,16 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     sh_if RangeGHCJS "curl -sSL \"https://deb.nodesource.com/gpgkey/nodesource.gpg.key\" | apt-key add -"
                     sh_if RangeGHCJS $ "apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x " ++ ubuntuVer ++ " main'"
                 sh "apt-get update"
-                let basePackages  = ["\"$HCNAME\"" ] ++ [ "cabal-install-" ++ cabalVer | not cfgGhcupCabal ] ++ S.toList cfgApt
+                let basePackages  = ["\"$HCNAME\"" ] ++ S.toList cfgApt
                     ghcjsPackages = ["ghc-8.4.4", "nodejs"]
                     baseInstall   = "apt-get install -y " ++ unwords basePackages
                     ghcjsInstall  = "apt-get install -y " ++ unwords (basePackages ++ ghcjsPackages)
                 if anyGHCJS
                     then if_then_else RangeGHCJS ghcjsInstall baseInstall
                     else sh baseInstall
-                when cfgGhcupCabal $ do
-                    installGhcup
-                    installGhcupCabal
+
+                installGhcup
+                installGhcupCabal
 
             ghcup <- runSh $ do
                 installGhcup
@@ -617,7 +616,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
     ubuntuVer    = showUbuntu cfgUbuntu
     cabalVer     = dispCabalVersion cfgCabalInstallVersion
-    cabalFullVer = dispCabalVersion $ cabalGhcupVersion <$> cfgCabalInstallVersion
+    cabalFullVer = dispCabalVersion cfgCabalInstallVersion
 
     Auxiliary {..} = auxiliary config prj jobs
 

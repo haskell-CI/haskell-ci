@@ -21,7 +21,7 @@ import HaskellCI.TestedWith
 -- All changes to defaults should be done in History.
 initialConfig :: Config
 initialConfig = Config
-    { cfgCabalInstallVersion = Just (C.mkVersion [3,10])
+    { cfgCabalInstallVersion = Just (C.mkVersion [3,10,2,0])
     , cfgJobs                = Nothing
     , cfgUbuntu              = Bionic
     , cfgTestedWith          = TestedWithUniform
