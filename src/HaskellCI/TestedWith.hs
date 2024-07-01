@@ -6,8 +6,8 @@ module HaskellCI.TestedWith (
 import Prelude ()
 import Prelude.Compat
 
-import Control.Applicative  ((<|>))
-import Data.List            (intercalate)
+import Control.Applicative ((<|>))
+import Data.List           (intercalate)
 
 import qualified Data.Foldable                   as F
 import qualified Data.Set                        as S

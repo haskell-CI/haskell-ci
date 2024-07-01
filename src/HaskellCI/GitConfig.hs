@@ -54,4 +54,4 @@ sectionP = do
     remote <- Atto.takeWhile (/= '"')
     _ <- Atto.char '"'
     return remote
-    
+

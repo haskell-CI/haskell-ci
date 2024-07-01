@@ -26,13 +26,13 @@ import Data.Char   (isControl, isPrint, ord)
 import Data.List   (dropWhileEnd)
 import Data.Monoid (Endo (..))
 
-import qualified Data.Aeson              as Aeson
-import qualified Data.Aeson.Encoding     as AE
+import qualified Data.Aeson          as Aeson
+import qualified Data.Aeson.Encoding as AE
 #if MIN_VERSION_aeson(2,0,0)
-import qualified Data.Aeson.Key          as AK
-import qualified Data.Aeson.KeyMap       as AKM
+import qualified Data.Aeson.Key    as AK
+import qualified Data.Aeson.KeyMap as AKM
 #else
-import qualified Data.HashMap.Strict     as HM
+import qualified Data.HashMap.Strict as HM
 #endif
 import qualified Data.List.NonEmpty      as NE
 import qualified Data.Map.Strict         as M

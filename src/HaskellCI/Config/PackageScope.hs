@@ -14,7 +14,7 @@ data PackageScope
   deriving (Eq, Show)
 
 instance C.Parsec PackageScope where
-    parsec = 
+    parsec =
             PackageScopeNone  <$ C.string "none"
         <|> PackageScopeLocal <$ C.string "local"
         <|> PackageScopeAll   <$ C.string "all"

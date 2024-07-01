@@ -6,7 +6,7 @@ module HaskellCI.VersionInfo (
 
 import HaskellCI.Prelude
 
-import Data.Map          (Map)
+import Data.Map (Map)
 
 import qualified Data.Map as Map
 

@@ -1,10 +1,11 @@
+{-# LANGUAGE PatternSynonyms     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module HaskellCI.Prelude (
     module Prelude.Compat,
     module X,
     module HaskellCI.Prelude,
-    ) where
+) where
 
 import Prelude.Compat hiding (head, tail)
 
@@ -113,3 +114,10 @@ instance C.Parsec Natural where
 
 instance C.Pretty Natural where
     pretty = PP.text . show
+
+type a := b = (a, b)
+
+pattern (:=) :: a -> b -> a := b
+pattern a := b = (a, b)
+
+infixr 0 :=

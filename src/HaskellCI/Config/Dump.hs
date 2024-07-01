@@ -1,4 +1,4 @@
-{-# LANGUAGE FunctionalDependencies  #-}
+{-# LANGUAGE FunctionalDependencies #-}
 module HaskellCI.Config.Dump where
 
 import HaskellCI.Prelude
