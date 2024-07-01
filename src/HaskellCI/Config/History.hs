@@ -2,10 +2,13 @@
 {-# LANGUAGE TypeApplications #-}
 module HaskellCI.Config.History where
 
+import HaskellCI.Prelude
+
+import qualified Distribution.Version as C
+
 import HaskellCI.Config.Initial
 import HaskellCI.Config.Type
 import HaskellCI.Config.Ubuntu
-import HaskellCI.Prelude
 
 configHistory :: [([Int], Config -> Config)]
 configHistory =
@@ -15,6 +18,8 @@ configHistory =
         & field @"cfgUbuntu" .~ Jammy
     , ver 0 19 20240513 := \cfg -> cfg
         -- defaultHeadHackage = C.orLaterVersion (C.mkVersion [9,11])
+    , ver 0 19 20240701 := \cfg -> cfg
+        & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,12,1,0]
     ]
   where
     ver x y z = [x, y, z]
