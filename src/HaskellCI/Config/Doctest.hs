@@ -43,13 +43,13 @@ initialDoctestConfig = DoctestConfig
 -- Grammar
 -------------------------------------------------------------------------------
 
-doctestConfigGrammar :: OptionsGrammar c g => g DoctestConfig DoctestConfig
-doctestConfigGrammar = DoctestConfig
-    <$> rangeField         "doctest"                                            (field @"cfgDoctestEnabled") initialDoctestConfig
+doctestConfigGrammar :: OptionsGrammar c g => DoctestConfig -> g DoctestConfig DoctestConfig
+doctestConfigGrammar def = DoctestConfig
+    <$> rangeField         "doctest"                                            (field @"cfgDoctestEnabled") def
         ^^^ help "Enable Doctest job"
     <*> monoidalFieldAla "doctest-options" (C.alaList' C.NoCommaFSep C.Token')  (field @"cfgDoctestOptions")
         ^^^ metahelp "OPTS" "Additional Doctest options"
-    <*> optionalFieldDef "doctest-version"                                      (field @"cfgDoctestVersion") initialDoctestConfig
+    <*> optionalFieldDef "doctest-version"                                      (field @"cfgDoctestVersion") def
         ^^^ metahelp "RANGE" "Doctest version"
     <*> monoidalFieldAla "doctest-filter-packages" (C.alaList C.NoCommaFSep)    (field @"cfgDoctestFilterEnvPkgs")
         ^^^ metahelp "PKGS" "Filter packages from .ghc.environment file"

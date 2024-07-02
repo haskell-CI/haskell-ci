@@ -1,3 +1,5 @@
+{-# LANGUAGE StandaloneDeriving #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module HaskellCI.Config.Type where
 
 import HaskellCI.Prelude
@@ -79,4 +81,6 @@ data Config = Config
     , cfgGitHubActionName    :: !(Maybe String)
     , cfgTimeoutMinutes      :: !Natural
     }
-  deriving (Generic)
+  deriving (Show, Generic)
+
+deriving instance Show (C.PrettyField ())

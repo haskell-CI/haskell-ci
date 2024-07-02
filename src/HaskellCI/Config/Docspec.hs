@@ -4,7 +4,7 @@
 module HaskellCI.Config.Docspec (
     DocspecConfig (..),
     docspecConfigGrammar,
-    defaultDocspecConfig,
+    initialDocspecConfig,
 ) where
 
 import HaskellCI.Prelude
@@ -26,8 +26,8 @@ data DocspecConfig = DocspecConfig
 -- Default
 -------------------------------------------------------------------------------
 
-defaultDocspecConfig :: DocspecConfig
-defaultDocspecConfig = DocspecConfig
+initialDocspecConfig :: DocspecConfig
+initialDocspecConfig = DocspecConfig
     { cfgDocspecEnabled = noVersion
     , cfgDocspecOptions = []
     , cfgDocspecUrl     = "https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20240414/cabal-docspec-0.0.0.20240414-x86_64-linux.xz"
@@ -38,13 +38,13 @@ defaultDocspecConfig = DocspecConfig
 -- Grammar
 -------------------------------------------------------------------------------
 
-docspecConfigGrammar :: OptionsGrammar c g => g DocspecConfig DocspecConfig
-docspecConfigGrammar = DocspecConfig
-    <$> rangeField            "docspec"                                            (field @"cfgDocspecEnabled") defaultDocspecConfig
+docspecConfigGrammar :: OptionsGrammar c g => DocspecConfig -> g DocspecConfig DocspecConfig
+docspecConfigGrammar def = DocspecConfig
+    <$> rangeField            "docspec"                                            (field @"cfgDocspecEnabled") def
         ^^^ help "Enable Docspec job"
     <*> monoidalFieldAla    "docspec-options" (C.alaList' C.NoCommaFSep C.Token')  (field @"cfgDocspecOptions")
         ^^^ metahelp "OPTS" "Additional Docspec options"
-    <*> optionalFieldDefAla "docspec-url"      C.Token'                            (field @"cfgDocspecUrl") defaultDocspecConfig
+    <*> optionalFieldDefAla "docspec-url"      C.Token'                            (field @"cfgDocspecUrl") def
         ^^^ metahelp "URL" "URL to download cabal-docspec"
-    <*> optionalFieldDefAla "docspec-hash"     C.Token'                            (field @"cfgDocspecHash") defaultDocspecConfig
+    <*> optionalFieldDefAla "docspec-hash"     C.Token'                            (field @"cfgDocspecHash") def
         ^^^ metahelp "HASH" "SHA256 of cabal-docspec"
