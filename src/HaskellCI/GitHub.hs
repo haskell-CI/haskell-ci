@@ -854,4 +854,4 @@ parseGitHubRepo t =
 -- date to ensure that it runs on a version of Ubuntu that GitHub Actions
 -- runners support.
 ghcRunsOnVer :: String
-ghcRunsOnVer = "ubuntu-20.04"
+ghcRunsOnVer = "ubuntu-22.04"
