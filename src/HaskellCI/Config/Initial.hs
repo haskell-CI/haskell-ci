@@ -23,7 +23,7 @@ initialConfig :: Config
 initialConfig = Config
     { cfgCabalInstallVersion = Just (C.mkVersion [3,10,2,0])
     , cfgJobs                = Nothing
-    , cfgUbuntu              = Bionic
+    , cfgUbuntu              = Jammy
     , cfgTestedWith          = TestedWithUniform
     , cfgEnabledJobs         = anyVersion
     , cfgCopyFields          = CopyFieldsSome
