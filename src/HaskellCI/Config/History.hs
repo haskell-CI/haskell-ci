@@ -23,6 +23,8 @@ configHistory =
         & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,12,1,0]
         & field @"cfgDocspec" . field @"cfgDocspecUrl"  .~ "https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20240703/cabal-docspec-0.0.0.20240703-x86_64-linux.xz"
         & field @"cfgDocspec" . field @"cfgDocspecHash" .~ "48bf3b7fd2f7f0caa6162afee57a755be8523e7f467b694900eb420f5f9a7b76"
+    , ver 0 19 20240708 := \cfg -> cfg
+        & field @"cfgGhcupVersion" .~ C.mkVersion [0,1,30,0]
     ]
   where
     ver x y z = [x, y, z]
