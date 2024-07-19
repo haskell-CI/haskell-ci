@@ -39,10 +39,7 @@ main = do
             , fixtureGoldenTest "copy-fields-some"
             , fixtureGoldenTest "copy-fields-none"
             ]
-        , testGroup "github-specific"
-            [
-              fixtureWeederGoldenTest "<= 8.10" "weeder"
-            ]
+        , fixtureWeederGoldenTest "<= 8.10" "weeder"
         ]
 
 -- | Weeder invocation only applies to GitHub.
