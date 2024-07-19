@@ -5,6 +5,7 @@ import Prelude ()
 import Prelude.Compat
 
 import HaskellCI hiding (main)
+import HaskellCI.Diagnostics ( DiagnosticsT )
 
 import Control.Arrow              (first)
 import Data.Algorithm.Diff        (PolyDiff (..), getGroupedDiff)
@@ -14,6 +15,7 @@ import System.FilePath            (addExtension)
 import Test.Tasty                 (TestName, TestTree, defaultMain, testGroup)
 import Test.Tasty.Golden.Advanced (goldenTest)
 
+import qualified Distribution.Parsec   as C
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as BS8
 import qualified System.Console.ANSI   as ANSI
@@ -37,7 +39,24 @@ main = do
             , fixtureGoldenTest "copy-fields-some"
             , fixtureGoldenTest "copy-fields-none"
             ]
+        , testGroup "github-specific"
+            [
+              fixtureWeederGoldenTest "<= 8.10" "weeder"
+            ]
         ]
+
+-- | Weeder invocation only applies to GitHub.
+fixtureWeederGoldenTest :: String -> FilePath -> TestTree
+fixtureWeederGoldenTest versionRangeString fp =
+    fixtureGoldenTestConfigVariant mkWeederVersions fp "github" githubFromConfigFile
+    where
+        weederVersionRange = case C.eitherParsec versionRangeString of
+            Left e -> error $ unlines ["Supplied an unparsable version range:", e]
+            Right x -> x
+        mkWeederVersions cfg = cfg {
+              cfgInsertVersion = False
+            , cfgWeeder = weederVersionRange
+            }
 
 -- |
 -- @
@@ -46,35 +65,41 @@ main = do
 -- @
 fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = testGroup fp
-    [ fixtureGoldenTest' "travis" travisFromConfigFile
-    , fixtureGoldenTest' "github" githubFromConfigFile
-    , fixtureGoldenTest' "bash"   bashFromConfigFile
+    [ fixture "travis" travisFromConfigFile
+    , fixture "github" githubFromConfigFile
+    , fixture "bash"   bashFromConfigFile
     ]
-  where
-    -- name acts as extension also
-    fixtureGoldenTest' name generate = cabalGoldenTest name outputRef $ do
-        (argv, opts') <- makeFlags
-        let opts = opts'
-              { optInputType      = Just InputTypeProject
-              , optConfigMorphism = (\cfg -> cfg { cfgInsertVersion = False}) . optConfigMorphism opts'
-              }
-        let genConfig = generate argv opts projectfp
-        first (fmap (lines . fromUTF8BS)) <$> runDiagnosticsT genConfig
-      where
-        outputRef = addExtension fp name
-        projectfp = fp ++ ".project"
+    where
+        fixture = fixtureGoldenTest' fp
 
-        readArgv :: IO [String]
-        readArgv = do
-            contents <- readFile $ addExtension fp "args"
-            return $ filter (not . null)$ lines contents
+fixtureGoldenTest' :: FilePath -> String -> ([String] -> Options -> String -> DiagnosticsT IO BS8.ByteString) -> TestTree
+fixtureGoldenTest' = fixtureGoldenTestConfigVariant (\cfg -> cfg { cfgInsertVersion = False})
 
-        makeFlags :: IO ([String], Options)
-        makeFlags = do
-            argv <- readArgv
-            let argv' = argv ++ [name, projectfp]
-            (_fp, opts) <- parseOptions argv'
-            return (argv', opts)
+-- name acts as extension also
+fixtureGoldenTestConfigVariant :: (Config -> Config) -> FilePath -> String -> ([String] -> Options -> String -> DiagnosticsT IO BS8.ByteString) -> TestTree
+fixtureGoldenTestConfigVariant modifyConfig fp name generate = cabalGoldenTest name outputRef $ do
+    (argv, opts') <- makeFlags
+    let opts = opts'
+            { optInputType      = Just InputTypeProject
+            , optConfigMorphism = modifyConfig . optConfigMorphism opts'
+            }
+    let genConfig = generate argv opts projectfp
+    first (fmap (lines . fromUTF8BS)) <$> runDiagnosticsT genConfig
+    where
+    outputRef = addExtension fp name
+    projectfp = fp ++ ".project"
+
+    readArgv :: IO [String]
+    readArgv = do
+        contents <- readFile $ addExtension fp "args"
+        return $ filter (not . null)$ lines contents
+
+    makeFlags :: IO ([String], Options)
+    makeFlags = do
+        argv <- readArgv
+        let argv' = argv ++ [name, projectfp]
+        (_fp, opts) <- parseOptions argv'
+        return (argv', opts)
 
 cabalGoldenTest
     :: TestName

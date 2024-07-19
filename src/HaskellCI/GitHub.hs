@@ -540,7 +540,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             let range = RangeGHC /\ Range cfgWeeder in
             let ifCond = ghCompilerVersionArithPredicate allVersions range in
             for_ pkgs $ \Pkg{pkgName} -> do
-                githubUsesIf "weeder" "freckle/weeder-action@v2" ifCond $ buildList $ do
+                githubUsesIf (unwords ["weeder:", pkgName]) "freckle/weeder-action@v2" ifCond $ buildList $ do
                     item ("ghc-version", ghWrapExpr "matrix.compilerVersion")
                     item ("weeder-arguments", "--config $GITHUB_WORKSPACE/source/weeder.toml")
                     item ("working-directory", ghWrapExpr $ ghEnvContext $ pkgNameDirVariable' pkgName)
