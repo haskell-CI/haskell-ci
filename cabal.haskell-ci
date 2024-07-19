@@ -36,6 +36,11 @@ benchmarks: True
 -- Build haddocks. Accepts booleans or version range.
 haddock: True
 
+-- Run weeder. Accepts booleans or version range.
+-- Expects 'weeder.toml' to live at the repository root,
+-- and the '.hie/' directory to be generated in the repository root.
+weeder: True
+
 -- Run cabal check
 -- cabal-check: True
 

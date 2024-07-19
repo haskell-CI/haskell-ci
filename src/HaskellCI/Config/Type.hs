@@ -42,6 +42,7 @@ data Config = Config
     , cfgBenchmarks          :: !VersionRange
     , cfgHaddock             :: !VersionRange
     , cfgHaddockComponents   :: !Components
+    , cfgWeeder              :: !VersionRange
     , cfgNoTestsNoBench      :: !VersionRange
     , cfgUnconstrainted      :: !VersionRange
     , cfgHeadHackage         :: !VersionRange
