@@ -37,6 +37,7 @@ initialConfig = Config
     , cfgBenchmarks          = anyVersion
     , cfgHaddock             = anyVersion
     , cfgHaddockComponents   = ComponentsAll
+    , cfgWeeder              = noVersion
     , cfgNoTestsNoBench      = anyVersion
     , cfgUnconstrainted      = anyVersion
     , cfgHeadHackage         = defaultHeadHackage

@@ -49,6 +49,7 @@ data Auxiliary = Auxiliary
     , anyJobUsesPreviewGHC    :: Bool
     , runHaddock              :: Bool
     , haddockFlags            :: String
+    , runWeeder               :: Bool
     }
 
 auxiliary :: Config -> Project URI Void Package -> JobVersions -> Auxiliary
@@ -83,6 +84,8 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
     haddockFlags = case cfgHaddockComponents of
         ComponentsAll  -> " --haddock-all"
         ComponentsLibs -> ""
+
+    runWeeder = not (equivVersionRanges C.noVersion cfgWeeder)
 
     extraCabalProjectFields :: FilePath -> [C.PrettyField ()]
     extraCabalProjectFields rootdir = buildList $ do

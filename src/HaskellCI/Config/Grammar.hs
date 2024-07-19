@@ -90,6 +90,8 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Haddock step"
     <*> optionalFieldDef   "haddock-components"                                             (field @"cfgHaddockComponents") defaultConfig
         ^^^ metahelp "all|libs" "Haddock components"
+    <*> rangeField           "weeder"                                                       (field @"cfgWeeder") defaultConfig
+        ^^^ metahelp "RANGE" "Weeder step"
     <*> rangeField           "no-tests-no-benchmarks"                                       (field @"cfgNoTestsNoBench") defaultConfig
         ^^^ metahelp "RANGE" "Build without tests and benchmarks"
     <*> rangeField            "unconstrained"                                               (field @"cfgUnconstrainted") defaultConfig
