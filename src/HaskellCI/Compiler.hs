@@ -185,7 +185,10 @@ dispCabalVersion :: Maybe Version -> String
 dispCabalVersion = maybe "head" C.prettyShow
 
 ghcAlpha :: Maybe (Version, Version)
-ghcAlpha = Just (mkVersion [9,12,1], mkVersion [9,12,0,20241014])
+-- Due to a packaging mistake, GHC 9.12.1-alpha1 uses the version number
+-- 9.12.20241014 rather than 9.12.0.20241014. See
+-- https://gitlab.haskell.org/ghc/ghc/-/issues/25123#note_591718
+ghcAlpha = Just (mkVersion [9,12,1], mkVersion [9,12,20241014])
 
 -- | GHC HEAD, and versions specified by head.hackage option.
 usesHeadHackage
