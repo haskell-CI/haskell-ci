@@ -66,7 +66,10 @@ data Config = Config
     , cfgLinuxJobs           :: !VersionRange
     , cfgMacosJobs           :: !VersionRange
     , cfgGhcupCabal          :: !Bool
+    , cfgHvrPpaJobs          :: !VersionRange
     , cfgGhcupJobs           :: !VersionRange
+    , cfgGhcupVanillaJobs    :: !VersionRange
+    , cfgGhcupPrereleaseJobs :: !VersionRange
     , cfgGhcupVersion        :: !Version
     , cfgApt                 :: S.Set String
     , cfgTravisPatches       :: [FilePath]

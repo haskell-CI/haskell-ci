@@ -115,19 +115,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             ]
 
     steps <- sequence $ buildList $ do
-        -- This have to be first, since the packages we install depend on
-        -- whether we need GHCJS or not.
-        when anyGHCJS $ githubRun' "Set GHCJS environment variables" envEnv $ sh $ intercalate "\n"
-            [ "if [ $HCKIND = ghcjs ]; then"
-            , tell_env' "GHCJS" "true"
-            , tell_env' "GHCJSARITH" "1"
-            , "else"
-            , tell_env' "GHCJS" "false"
-            , tell_env' "GHCJSARITH" "0"
-            , "fi"
-            ]
-
-        githubRun' "apt" envEnv $ do
+        githubRun "apt-get install" $ do
             sh "apt-get update"
             let corePkgs :: [String]
                 corePkgs =
@@ -145,89 +133,65 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     | GHC (C.mkVersion [8,4,4]) `elem` allVersions
                     , GHC (C.mkVersion [8,4,4]) & isGHCUP
                     ]
+
             sh $ "apt-get install -y --no-install-recommends " ++ unwords corePkgs
 
-            let installGhcup :: ShM ()
-                installGhcup = do
-                    let ghcupVer = C.prettyShow cfgGhcupVersion
-                    sh $ "mkdir -p \"$HOME/.ghcup/bin\""
-                    sh $ "curl -sL https://downloads.haskell.org/ghcup/" ++ ghcupVer ++ "/x86_64-linux-ghcup-" ++ ghcupVer ++ " > \"$HOME/.ghcup/bin/ghcup\""
-                    sh $ "chmod a+x \"$HOME/.ghcup/bin/ghcup\""
+            -- additional packages
+            unless (null cfgApt) $ sh $ "apt-get install -y " ++ unwords (S.toList cfgApt)
 
-                    -- if any job uses prereleases, add release channel unconditionally. (HEADHACKAGE variable is set later)
-                    when (anyJobUsesPreviewGHC || previewCabal cfgCabalInstallVersion) $
-                      sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.8.yaml;"
+        githubRun "Install GHCup" $ do
+            let ghcupVer = C.prettyShow cfgGhcupVersion
+            sh $ "mkdir -p \"$HOME/.ghcup/bin\""
+            sh $ "curl -sL https://downloads.haskell.org/ghcup/" ++ ghcupVer ++ "/x86_64-linux-ghcup-" ++ ghcupVer ++ " > \"$HOME/.ghcup/bin/ghcup\""
+            sh $ "chmod a+x \"$HOME/.ghcup/bin/ghcup\""
 
-                installGhcupCabal :: ShM ()
-                installGhcupCabal =
-                    sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer ++ " || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
+        githubRun "Install cabal-install" $ do
+            sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer ++ " || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
+            tell_env "CABAL" $ "$HOME/.ghcup/bin/cabal-" ++ cabalFullVer ++ " -vnormal+nowrap"
 
-            hvrppa <- runSh $ do
-                sh "apt-add-repository -y 'ppa:hvr/ghc'"
-                when anyGHCJS $ do
-                    sh_if RangeGHCJS "apt-add-repository -y 'ppa:hvr/ghcjs'"
-                    sh_if RangeGHCJS "curl -sSL \"https://deb.nodesource.com/gpgkey/nodesource.gpg.key\" | apt-key add -"
-                    sh_if RangeGHCJS $ "apt-add-repository -y 'deb https://deb.nodesource.com/node_10.x " ++ ubuntuVer ++ " main'"
-                sh "apt-get update"
-                let basePackages  = ["\"$HCNAME\"" ] ++ S.toList cfgApt
-                    ghcjsPackages = ["ghc-8.4.4", "nodejs"]
-                    baseInstall   = "apt-get install -y " ++ unwords basePackages
-                    ghcjsInstall  = "apt-get install -y " ++ unwords (basePackages ++ ghcjsPackages)
-                if anyGHCJS
-                    then if_then_else RangeGHCJS ghcjsInstall baseInstall
-                    else sh baseInstall
+        -- todo: when any job uses hvr-ppa
+        let whenWithinGhcRange :: Applicative f => VersionRange -> f () -> f ()
+            whenWithinGhcRange vr m = when (any (`compilerWithinGhcRange` vr) allVersions) m
 
-                installGhcup
-                installGhcupCabal
+        whenWithinGhcRange cfgHvrPpaJobs $ githubRunIf' "Install GHC (hvr-ppa)" "matrix.setup-method == 'hvr-ppa'" envEnv $ do
+            sh "apt-add-repository -y 'ppa:hvr/ghc'"
+            sh "apt-get update"
+            sh $ "apt-get install -y \"$HCNAME\""
 
-            ghcup <- runSh $ do
-                installGhcup
+            let hc = "$HCDIR/bin/$HCKIND"
+            sh $ "HC=" ++ hc -- HC is an absolute path.
+            tell_env "HC" "$HC"
+            tell_env "HCPKG" $ hc ++ "-pkg"
+            tell_env "HADDOCK" "$HCDIR/bin/haddock"
 
-                sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
-                installGhcupCabal
-                unless (null cfgApt) $ do
-                    sh "apt-get update"
-                    sh $ "apt-get install -y " ++ unwords (S.toList cfgApt)
-
-            setup hvrppa ghcup
-
-        githubRun' "Set PATH and environment variables" envEnv $ do
-            echo_to "$GITHUB_PATH" "$HOME/.cabal/bin"
-
-            -- Hack: happy needs ghc. Let's install version matching GHCJS.
-            -- At the moment, there is only GHCJS-8.4, so we install GHC-8.4.4
-            when anyGHCJS $
-                echo_if_to RangeGHCJS "$GITHUB_PATH" "/opt/ghc/8.4.4/bin"
-
-            tell_env "LANG" "C.UTF-8"
-
-            tell_env "CABAL_DIR"    "$HOME/.cabal"
-            tell_env "CABAL_CONFIG" "$HOME/.cabal/config"
-
-            sh "HCDIR=/opt/$HCKIND/$HCVER"
-
-            let ghcupCabalPath = tell_env "CABAL" $ "$HOME/.ghcup/bin/cabal-" ++ cabalFullVer ++ " -vnormal+nowrap"
-
-            hvrppa <- runSh $ do
-                let hc = "$HCDIR/bin/$HCKIND"
-                sh $ "HC=" ++ hc -- HC is an absolute path.
-                tell_env "HC" "$HC"
-                tell_env "HCPKG" $ hc ++ "-pkg"
-                tell_env "HADDOCK" "$HCDIR/bin/haddock"
-                if cfgGhcupCabal
-                then ghcupCabalPath
-                else tell_env "CABAL" $ "/opt/cabal/" ++ cabalVer ++ "/bin/cabal -vnormal+nowrap"
-
-            ghcup <- runSh $ do
+        let ghcupGhcEnv = do
                 sh $ "HC=$(\"$HOME/.ghcup/bin/ghcup\" whereis ghc \"$HCVER\")"
                 sh $ "HCPKG=$(echo \"$HC\" | sed 's#ghc$#ghc-pkg#')"
                 sh $ "HADDOCK=$(echo \"$HC\" | sed 's#ghc$#haddock#')"
                 tell_env "HC" "$HC"
                 tell_env "HCPKG" "$HCPKG"
                 tell_env "HADDOCK" "$HADDOCK"
-                ghcupCabalPath
 
-            setup hvrppa ghcup
+        whenWithinGhcRange cfgGhcupJobs $ githubRunIf' "Install GHC (GHCup)" "matrix.setup-method == 'ghcup'" envEnv $ do
+            sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
+            ghcupGhcEnv
+
+        whenWithinGhcRange cfgGhcupVanillaJobs $ githubRunIf' "Install GHC (GHCup vanilla)" "matrix.setup-method == 'ghcup-vanilla'" envEnv $ do
+            sh $ "\"$HOME/.ghcup/bin/ghcup\" -s https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-vanilla-0.0.8.yaml install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
+            ghcupGhcEnv
+
+        whenWithinGhcRange cfgGhcupPrereleaseJobs $ githubRunIf' "Install GHC (GHCup prerelease)" "matrix.setup-method == 'ghcup-prerelease'" envEnv $ do
+            sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.8.yaml;"
+            sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
+            ghcupGhcEnv
+
+        githubRun' "Set PATH and environment variables" envEnv $ do
+            echo_to "$GITHUB_PATH" "$HOME/.cabal/bin"
+
+            tell_env "LANG" "C.UTF-8"
+
+            tell_env "CABAL_DIR"    "$HOME/.cabal"
+            tell_env "CABAL_CONFIG" "$HOME/.cabal/config"
 
             sh "HCNUMVER=$(${HC} --numeric-version|perl -ne '/^(\\d+)\\.(\\d+)\\.(\\d+)(\\.(\\d+))?$/; print(10000 * $1 + 100 * $2 + ($3 == 0 ? $5 != 1 : $3))')"
             tell_env "HCNUMVER" "$HCNUMVER"
@@ -243,9 +207,6 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 (tell_env' "HEADHACKAGE" "false")
 
             tell_env "ARG_COMPILER" "--$HCKIND --with-compiler=$HC"
-
-            unless anyGHCJS $
-                tell_env "GHCJSARITH" "0"
 
         githubRun "env" $ do
             sh "env"
@@ -298,9 +259,6 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh "$HC --version || true"
             sh "$HC --print-project-git-commit-id || true"
             sh "$CABAL --version || true"
-            when anyGHCJS $ do
-                sh_if RangeGHCJS "node --version"
-                sh_if RangeGHCJS "echo $GHCJS"
 
         githubRun "update cabal index" $ do
             sh "$CABAL v2-update -v"
@@ -323,10 +281,6 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh "rm -f cabal-plan.xz"
             sh "chmod a+x $HOME/.cabal/bin/cabal-plan"
             sh "cabal-plan --version"
-
-        when anyGHCJS $ githubRun "install happy" $ do
-            for_ cfgGhcjsTools $ \t ->
-                sh_if RangeGHCJS $ "$CABAL v2-install -w ghc-8.4.4 --ignore-project -j2" ++ C.prettyShow t
 
         when docspecEnabled $ githubRun "install cabal-docspec" $ do
             let hash = cfgDocspecHash cfgDocspec
@@ -467,26 +421,6 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             let range = RangeGHC /\ Range (cfgTests /\ cfgRunTests) /\ hasTests
             sh_if range $ "$CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all" ++ testShowDetails
 
-            when (anyGHCJS && cfgGhcjsTests) $ sh $ unlines $
-                [ "pkgdir() {"
-                , "  case $1 in"
-                ] ++
-                [ "    " ++ pkgName ++ ") echo " ++ pkgNameDirVariable pkgName ++ " ;;"
-                | Pkg{pkgName} <- pkgs
-                ] ++
-                [ "  esac"
-                , "}"
-                ]
-
-            when cfgGhcjsTests $ sh_if (RangeGHCJS /\ hasTests) $ unwords
-                [ "cabal-plan list-bins '*:test:*' | while read -r line; do"
-                , "testpkg=$(echo \"$line\" | perl -pe 's/:.*//');"
-                , "testexe=$(echo \"$line\" | awk '{ print $2 }');"
-                , "echo \"testing $textexe in package $textpkg\";"
-                , "(cd \"$(pkgdir $testpkg)\" && nodejs \"$testexe\".jsexe/all.js);"
-                , "done"
-                ]
-
         -- doctest
         when doctestEnabled $ githubRun "doctest" $ do
             let doctestOptions = unwords $ cfgDoctestOptions cfgDoctest
@@ -594,19 +528,29 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 , ghjServices        = mconcat
                     [ Map.singleton "postgres" postgresService | cfgPostgres ]
                 , ghjTimeout         = max 10 cfgTimeoutMinutes
-                , ghjMatrix          =
-                    [ GitHubMatrixEntry
+                , ghjMatrix          = concat $
+                    -- we can have multiple setup methods for the same
+                    -- compiler version, if jobs overlap.
+                    [ [ GitHubMatrixEntry
                         { ghmeCompiler     = translateCompilerVersion $ compiler
                         , ghmeAllowFailure =
                                isGHCHead compiler
                             || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
-                        , ghmeSetupMethod = if isGHCUP compiler then GHCUP else HVRPPA
+                        , ghmeSetupMethod = sp
                         }
-                    | compiler <- reverse $ toList linuxVersions
-                    , compiler /= GHCHead -- TODO: Make this work
+                        | sp <- [GHCUP, GHCUPvanilla, GHCUPprerelease, HVRPPA]
+                        , compilerWithinGhcRange compiler $ case sp of
+                            GHCUP           -> cfgGhcupJobs
+                            GHCUPvanilla    -> cfgGhcupVanillaJobs
+                            GHCUPprerelease -> cfgGhcupPrereleaseJobs
+                            HVRPPA          -> cfgHvrPpaJobs
+                      ]
+                      | compiler <- reverse $ toList linuxVersions
+                      , compiler /= GHCHead -- TODO: Make this work
                                           -- https://github.com/haskell-CI/haskell-ci/issues/458
-                    ]
+                      ]
                 })
+
             unless (null cfgIrcChannels) $
                 ircJob actionName mainJobName projectName config gitconfig
         }
@@ -615,36 +559,9 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     mainJobName = "linux"
 
     ubuntuVer    = showUbuntu cfgUbuntu
-    cabalVer     = dispCabalVersion cfgCabalInstallVersion
     cabalFullVer = dispCabalVersion cfgCabalInstallVersion
 
     Auxiliary {..} = auxiliary config prj jobs
-
-    anyGHCJS = any isGHCJS allVersions
-    anyGHCUP = any isGHCUP allVersions
-    allGHCUP = all isGHCUP allVersions
-
-    -- Generate a setup block for hvr-ppa or ghcup, or both.
-    setup :: [Sh] -> [Sh] -> ShM ()
-    setup hvrppa ghcup
-        | allGHCUP     = traverse_ liftSh ghcup
-        | not anyGHCUP = traverse_ liftSh hvrppa
-        -- SC2192: ${{ ...}} will match (ShellCheck think it doesn't)
-        -- SC2129: individual redirects
-        -- SC2296: Parameter expansions can't start with {. Double check syntax. -- ${{ }} in YAML templating.
-        | otherwise    = sh' [2193, 2129, 2296] $ unlines $
-            [ "if [ \"${{ matrix.setup-method }}\" = ghcup ]; then"
-            ] ++
-            [ "  " ++ shToString s
-            | s <- ghcup
-            ] ++
-            [ "else"
-            ] ++
-            [ "  " ++ shToString s
-            | s <- hvrppa
-            ] ++
-            [ "fi"
-            ]
 
     -- job to be setup with ghcup
     isGHCUP :: CompilerVersion -> Bool
@@ -654,18 +571,23 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     githubRun' :: String -> Map.Map String String ->  ShM () -> ListBuilder (Either HsCiError GitHubStep) ()
     githubRun' name env shm = item $ do
         shs <- runSh shm
-        return $ GitHubStep name $ Left $ GitHubRun shs env
+        return $ GitHubStep name Nothing $ Left $ GitHubRun shs env
 
     githubRun :: String -> ShM () -> ListBuilder (Either HsCiError GitHubStep) ()
     githubRun name = githubRun' name mempty
 
+    githubRunIf' :: String -> String -> Map.Map String String -> ShM () -> ListBuilder (Either HsCiError GitHubStep) ()
+    githubRunIf' name if_ env shm = item $ do
+        shs <- runSh shm
+        return $ GitHubStep name (Just if_) $ Left $ GitHubRun shs env
+
     githubUses :: String -> String -> [(String, String)] -> ListBuilder (Either HsCiError GitHubStep) ()
     githubUses name action with = item $ return $
-        GitHubStep name $ Right $ GitHubUses action Nothing (Map.fromList with)
+        GitHubStep name Nothing $ Right $ GitHubUses action (Map.fromList with)
 
     githubUsesIf :: String -> String -> String -> [(String, String)] -> ListBuilder (Either HsCiError GitHubStep) ()
     githubUsesIf name action if_ with = item $ return $
-        GitHubStep name $ Right $ GitHubUses action (Just if_) (Map.fromList with)
+        GitHubStep name (Just if_) $ Right $ GitHubUses action (Map.fromList with)
 
     -- shell primitives
     echo_to' :: FilePath -> String -> String
@@ -782,11 +704,13 @@ ircJob actionName mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
                             | otherwise = "failed"
 
             eqCheck | success   = "=="
-                    | otherwise = "!=" in
+                    | otherwise = "!="
 
-        GitHubStep ("IRC " ++ result ++ " notification (" ++ serverChannelName ++ ")") $ Right $
+            condition =  "needs." ++ mainJobName ++ ".result " ++ eqCheck ++ " 'success'" in
+
+        GitHubStep ("IRC " ++ result ++ " notification (" ++ serverChannelName ++ ")") (Just condition) $ Right $
         GitHubUses "Gottox/irc-message-action@v2"
-                   (Just $ "needs." ++ mainJobName ++ ".result " ++ eqCheck ++ " 'success'") $
+                    $
         Map.fromList $ buildList $ do
             item ("server",   serverName)
             item ("channel",  channelName)
@@ -797,6 +721,7 @@ ircJob actionName mainJobName projectName cfg gitconfig = item ("irc", GitHubJob
                                        ++ "\x0314${{ github.sha }}\x03 "
                                        ++ "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} "
                                        ++ "The build " ++ resultPastTense ++ ".")
+
 
 catCmd :: FilePath -> String -> String
 catCmd path contents = concat

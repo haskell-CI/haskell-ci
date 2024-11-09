@@ -42,7 +42,7 @@ data GitHubJob = GitHubJob
     }
   deriving (Show)
 
-data SetupMethod = HVRPPA | GHCUP
+data SetupMethod = HVRPPA | GHCUP | GHCUPvanilla | GHCUPprerelease
   deriving Show
 
 data GitHubMatrixEntry = GitHubMatrixEntry
@@ -54,6 +54,7 @@ data GitHubMatrixEntry = GitHubMatrixEntry
 
 data GitHubStep = GitHubStep
     { ghsName :: String
+    , ghsIf   :: Maybe String
     , ghsStep :: Either GitHubRun GitHubUses
     }
   deriving (Show)
@@ -68,7 +69,6 @@ data GitHubRun = GitHubRun
 -- | Steps with @uses@
 data GitHubUses = GitHubUses
     { ghsAction :: String
-    , ghsIf     :: Maybe String
     , ghsWith   :: M.Map String String
     }
   deriving (Show)
@@ -130,8 +130,10 @@ instance ToYaml GitHubJob where
         item $ "steps" ~> ylistFilt [] (map toYaml $ filter notEmptyStep ghjSteps)
 
 instance ToYaml SetupMethod where
-    toYaml HVRPPA = "hvr-ppa"
-    toYaml GHCUP  = "ghcup"
+    toYaml HVRPPA          = "hvr-ppa"
+    toYaml GHCUP           = "ghcup"
+    toYaml GHCUPvanilla    = "ghcup-vanilla"
+    toYaml GHCUPprerelease = "ghcup-prerelease"
 
 instance ToYaml GitHubMatrixEntry where
     toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
@@ -143,22 +145,22 @@ instance ToYaml GitHubMatrixEntry where
         ]
 
 instance ToYaml GitHubStep where
-    toYaml GitHubStep {..} = ykeyValuesFilt [] $
-        [ "name" ~> fromString ghsName
-        ] ++ case ghsStep of
-            Left GitHubRun {..} ->
-                [ "run" ~> fromString (shlistToString ghsRun)
-                , "env" ~> mapToYaml ghsEnv
-                ]
+    toYaml GitHubStep {..} = ykeyValuesFilt [] $ buildList $ do
+        item $ "name" ~> fromString ghsName
+        for_ ghsIf $ \if_ -> item $ "if" ~> fromString if_
 
-            Right GitHubUses {..} -> buildList $ do
+        case ghsStep of
+            Left GitHubRun {..} -> do 
+                item $ "run" ~> fromString (shlistToString ghsRun)
+                item $ "env" ~> mapToYaml ghsEnv
+
+            Right GitHubUses {..} -> do
                 item $ "uses" ~> fromString ghsAction
-                for_ ghsIf $ \if_ -> item $ "if" ~> fromString if_
                 item $ "with" ~> mapToYaml ghsWith
 
 notEmptyStep :: GitHubStep -> Bool
-notEmptyStep (GitHubStep _ (Left (GitHubRun [] _))) = False
-notEmptyStep _                                      = True
+notEmptyStep (GitHubStep _ _ (Left (GitHubRun [] _))) = False
+notEmptyStep _                                        = True
 
 instance ToYaml GitHubService where
     toYaml GitHubService {..} = ykeyValuesFilt [] $ buildList $ do

@@ -62,8 +62,7 @@ parseConfigFile fields0 = do
 
 postprocessConfig :: Config -> Config
 postprocessConfig cfg
-    -- on yammy the only install option is ghcup
-    | cfgUbuntu cfg >= Jammy = cfg { cfgGhcupJobs = anyVersion }
+    | cfgUbuntu cfg >= Jammy = cfg
     | otherwise              = cfg
 
 -------------------------------------------------------------------------------
