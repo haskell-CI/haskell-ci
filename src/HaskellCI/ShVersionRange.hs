@@ -1,6 +1,9 @@
 module HaskellCI.ShVersionRange (
     compilerVersionPredicate,
     compilerVersionArithPredicate,
+    compilerVersionPredicateImpl,
+    freeToArith,
+    ExprConfig (..),
     roundDown,
 ) where
 
@@ -21,11 +24,11 @@ import HaskellCI.Compiler
 -- >>> import qualified Distribution.Version as C
 
 compilerVersionPredicate :: Set CompilerVersion -> CompilerRange -> String
-compilerVersionPredicate = compilerVersionPredicateImpl (toTest . freeToArith) where
+compilerVersionPredicate = compilerVersionPredicateImpl (toTest . shFreeToArith) where
     toTest expr = "[ " ++ expr ++ " -ne 0 ]"
 
 compilerVersionArithPredicate :: Set CompilerVersion -> CompilerRange -> String
-compilerVersionArithPredicate = compilerVersionPredicateImpl freeToArith
+compilerVersionArithPredicate = compilerVersionPredicateImpl shFreeToArith
 
 compilerVersionPredicateImpl
     :: (Free String -> String)
@@ -197,14 +200,25 @@ roundDown = go S.empty . S.toList where
 -- Arithmetic expression
 -------------------------------------------------------------------------------
 
-freeToArith :: Free String -> String
-freeToArith z
+shWrapExpr :: String -> String
+shWrapExpr expr = "$((" ++ expr ++ "))"
+
+shFreeToArith :: Free String -> String
+shFreeToArith = freeToArith $ ExprConfig shWrapExpr id
+
+data ExprConfig = ExprConfig {
+      _exprWrap :: String -> String
+    , _varWrap :: String -> String
+    }
+
+freeToArith :: ExprConfig -> Free String -> String
+freeToArith (ExprConfig exprWrap varWrap) z
     | z == top    = "1"
     | z == bottom = "0"
-    | otherwise   = "$((" ++ go 0 z ++ "))"
+    | otherwise   = exprWrap $ go 0 z
   where
     go :: Int -> Free String -> String
-    go _ (Var x)  = x
+    go _ (Var x)  = varWrap x
     go _ F.Bottom = "1"
     go _ F.Top    = "0"
 

@@ -536,6 +536,15 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             -- disable-documentation disables docs in deps: https://github.com/haskell/cabal/issues/7462
             sh_if range $ "$CABAL v2-haddock --disable-documentation" ++ haddockFlags ++ " $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all"
 
+        when runWeeder $
+            let range = RangeGHC /\ Range cfgWeeder in
+            let ifCond = ghCompilerVersionArithPredicate allVersions range in
+            for_ pkgs $ \Pkg{pkgName} -> do
+                githubUsesIf (unwords ["weeder:", pkgName]) "freckle/weeder-action@v2" ifCond $ buildList $ do
+                    item ("ghc-version", ghWrapExpr "matrix.compilerVersion")
+                    item ("weeder-arguments", "--config $GITHUB_WORKSPACE/source/weeder.toml")
+                    item ("working-directory", ghWrapExpr $ ghEnvContext $ pkgNameDirVariable' pkgName)
+
         -- unconstrained build
         unless (equivVersionRanges C.noVersion cfgUnconstrainted) $ githubRun "unconstrained build" $ do
             let range = Range cfgUnconstrainted
@@ -855,3 +864,13 @@ parseGitHubRepo t =
 -- runners support.
 ghcRunsOnVer :: String
 ghcRunsOnVer = "ubuntu-20.04"
+
+ghWrapExpr :: String -> String
+ghWrapExpr expr = "${{ " ++ expr ++ " }}"
+
+ghEnvContext :: String -> String
+ghEnvContext = ("env." ++)
+
+ghCompilerVersionArithPredicate :: Set CompilerVersion -> CompilerRange -> String
+ghCompilerVersionArithPredicate = compilerVersionPredicateImpl $
+    freeToArith $ ExprConfig ghWrapExpr ghEnvContext
