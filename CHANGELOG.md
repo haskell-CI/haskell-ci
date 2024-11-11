@@ -1,3 +1,7 @@
+## 0.20
+
+- Add support for GHCup vanilla and prerelease channels (in a more principled way)
+
 ## 0.18.1 - 2024-02-25
 
 - Add GHC-9.8.2

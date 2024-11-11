@@ -16,7 +16,9 @@ module HaskellCI.Compiler (
     -- * Compiler version range
     CompilerRange (..),
     compilerWithinRange,
+    compilerWithinGhcRange,
     invertCompilerRange,
+    invertVersionRange,
     -- * Known versions
     knownGhcVersions,
     knownGhcjsVersions,
@@ -113,6 +115,9 @@ compilerWithinRange GHCHead   RangeGHCJS       = False
 compilerWithinRange (GHCJS _) RangeGHCJS       = True
 compilerWithinRange v         (RangePoints vs) = S.member v vs
 
+compilerWithinGhcRange :: CompilerVersion -> VersionRange -> Bool
+compilerWithinGhcRange v vr = compilerWithinRange v (RangeGHC /\ Range vr)
+
 invertCompilerRange :: CompilerRange -> CompilerRange
 invertCompilerRange (Range vr)       = Range (invertVersionRange vr)
 invertCompilerRange RangeGHC         = RangeGHCJS
@@ -140,7 +145,7 @@ knownGhcVersions = fmap mkVersion
     , [9,2,1],  [9,2,2],  [9,2,3], [9,2,4], [9,2,5], [9,2,6], [9,2,7], [9,2,8]
     , [9,4,1],  [9,4,2],  [9,4,3], [9,4,4], [9,4,5], [9,4,6], [9,4,7], [9,4,8]
     , [9,6,1],  [9,6,2],  [9,6,3], [9,6,4], [9,6,5], [9,6,6]
-    , [9,8,1],  [9,8,2]
+    , [9,8,1],  [9,8,2],  [9,8,3]
     , [9,10,1]
     , [9,12,1]
     ]

@@ -138,8 +138,14 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Jobs to additionally build with OSX"
     <*> booleanFieldDef     "ghcup-cabal"                                                   (field @"cfgGhcupCabal") defaultConfig
         ^^^ help "Use (or don't) ghcup to install cabal"
+    <*> rangeField            "hvr-ppa-jobs"                                                (field @"cfgHvrPpaJobs") defaultConfig
+        ^^^ metahelp "RANGE" "(Linux) jobs to use hvr-ppa to install ghc"
     <*> rangeField            "ghcup-jobs"                                                  (field @"cfgGhcupJobs") defaultConfig
-        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup to install tools"
+        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup to install ghc"
+    <*> rangeField            "ghcup-vanilla-jobs"                                          (field @"cfgGhcupVanillaJobs") defaultConfig
+        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup-vanilla to install ghc"
+    <*> rangeField            "ghcup-prerelease-jobs"                                       (field @"cfgGhcupPrereleaseJobs") defaultConfig
+        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup-prerelease to install ghc"
     <*> optionalFieldDef    "ghcup-version"                                                 (field @"cfgGhcupVersion") defaultConfig 
         ^^^ metahelp "VERSION" "ghcup version"
     <*> monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    (field @"cfgApt")
