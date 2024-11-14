@@ -29,11 +29,23 @@ import HaskellCI.Config.Ubuntu
 import HaskellCI.GrammarDefault
 import HaskellCI.Newtypes
 import HaskellCI.OptionsGrammar
+import HaskellCI.SetupMethod
 import HaskellCI.TestedWith
 
 -------------------------------------------------------------------------------
 -- Grammar
 -------------------------------------------------------------------------------
+
+setupMethodsGrammar :: OptionsGrammar c g => PerSetupMethod VersionRange -> g (PerSetupMethod VersionRange) (PerSetupMethod VersionRange)
+setupMethodsGrammar def = pure PerSetupMethod
+    <*> rangeField            "hvr-ppa-jobs"                                                (field @"hvrPpa") def
+        ^^^ metahelp "RANGE" "(Linux) jobs to use hvr-ppa to install ghc"
+    <*> rangeField            "ghcup-jobs"                                                  (field @"ghcup") def
+        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup to install ghc"
+    <*> rangeField            "ghcup-vanilla-jobs"                                          (field @"ghcupVanilla") def
+        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup-vanilla to install ghc"
+    <*> rangeField            "ghcup-prerelease-jobs"                                       (field @"ghcupPrerelease") def
+        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup-prerelease to install ghc"
 
 configGrammar
     :: ( OptionsGrammar c g
@@ -138,15 +150,8 @@ configGrammar = Config
         ^^^ metahelp "RANGE" "Jobs to additionally build with OSX"
     <*> booleanFieldDef     "ghcup-cabal"                                                   (field @"cfgGhcupCabal") defaultConfig
         ^^^ help "Use (or don't) ghcup to install cabal"
-    <*> rangeField            "hvr-ppa-jobs"                                                (field @"cfgHvrPpaJobs") defaultConfig
-        ^^^ metahelp "RANGE" "(Linux) jobs to use hvr-ppa to install ghc"
-    <*> rangeField            "ghcup-jobs"                                                  (field @"cfgGhcupJobs") defaultConfig
-        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup to install ghc"
-    <*> rangeField            "ghcup-vanilla-jobs"                                          (field @"cfgGhcupVanillaJobs") defaultConfig
-        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup-vanilla to install ghc"
-    <*> rangeField            "ghcup-prerelease-jobs"                                       (field @"cfgGhcupPrereleaseJobs") defaultConfig
-        ^^^ metahelp "RANGE" "(Linux) jobs to use ghcup-prerelease to install ghc"
-    <*> optionalFieldDef    "ghcup-version"                                                 (field @"cfgGhcupVersion") defaultConfig 
+    <*> blurFieldGrammar (field @"cfgSetupMethods") setupMethodsGrammar defaultConfig
+    <*> optionalFieldDef    "ghcup-version"                                                 (field @"cfgGhcupVersion") defaultConfig
         ^^^ metahelp "VERSION" "ghcup version"
     <*> monoidalFieldAla    "apt"                       (alaSet' C.NoCommaFSep C.Token')    (field @"cfgApt")
         ^^^ metahelp "PKG" "Additional apt packages to install"

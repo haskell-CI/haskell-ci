@@ -101,6 +101,15 @@ findMaybe f = foldr (\a b -> f a <|> b) Nothing
 equivVersionRanges :: C.VersionRange -> C.VersionRange -> Bool
 equivVersionRanges = on (==) C.asVersionIntervals
 
+-- | Functional dependency variant of @Representable@ class.
+class Representable i f | f -> i where
+    tabulate :: (i -> a) -> f a
+    index    :: f a -> i -> a
+
+instance Representable a ((->) a) where
+    tabulate = id
+    index = ($)
+
 -------------------------------------------------------------------------------
 -- Orphans
 -------------------------------------------------------------------------------

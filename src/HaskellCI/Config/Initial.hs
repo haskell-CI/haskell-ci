@@ -15,6 +15,7 @@ import HaskellCI.Config.Type
 import HaskellCI.Config.Ubuntu
 import HaskellCI.Ghcup
 import HaskellCI.HeadHackage
+import HaskellCI.SetupMethod
 import HaskellCI.TestedWith
 
 -- | This is an "initial" configuration. It's meant to stay immutable.
@@ -61,10 +62,12 @@ initialConfig = Config
     , cfgLinuxJobs           = anyVersion
     , cfgMacosJobs           = noVersion
     , cfgGhcupCabal          = True
-    , cfgHvrPpaJobs          = noVersion
-    , cfgGhcupJobs           = C.unionVersionRanges (C.intersectVersionRanges (C.laterVersion (mkVersion [8,10,4])) (C.earlierVersion (mkVersion [9]))) (C.laterVersion (mkVersion [9,0,1]))
-    , cfgGhcupVanillaJobs    = noVersion -- TODO -- include GHC-9.8.3
-    , cfgGhcupPrereleaseJobs = C.orLaterVersion (mkVersion ([9,11,0]))
+    , cfgSetupMethods = PerSetupMethod
+        { hvrPpa          = noVersion
+        , ghcup           = C.unionVersionRanges (C.intersectVersionRanges (C.laterVersion (mkVersion [8,10,4])) (C.earlierVersion (mkVersion [9]))) (C.laterVersion (mkVersion [9,0,1]))
+        , ghcupVanilla    = noVersion -- TODO -- include GHC-9.8.3
+        , ghcupPrerelease = C.orLaterVersion (mkVersion ([9,11,0]))
+        }
     , cfgGhcupVersion        = initialGhcupVersion
     , cfgApt                 = mempty
     , cfgTravisPatches       = []

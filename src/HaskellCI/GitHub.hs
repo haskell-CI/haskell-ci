@@ -47,6 +47,7 @@ import HaskellCI.Jobs
 import HaskellCI.List
 import HaskellCI.MonadErr
 import HaskellCI.Package
+import HaskellCI.SetupMethod
 import HaskellCI.Sh
 import HaskellCI.ShVersionRange
 import HaskellCI.Tools
@@ -153,7 +154,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
         let whenWithinGhcRange :: Applicative f => VersionRange -> f () -> f ()
             whenWithinGhcRange vr m = when (any (`compilerWithinGhcRange` vr) allVersions) m
 
-        whenWithinGhcRange cfgHvrPpaJobs $ githubRunIf' "Install GHC (hvr-ppa)" "matrix.setup-method == 'hvr-ppa'" envEnv $ do
+        whenWithinGhcRange (index cfgSetupMethods HVRPPA) $ githubRunIf' "Install GHC (hvr-ppa)" "matrix.setup-method == 'hvr-ppa'" envEnv $ do
             sh "apt-add-repository -y 'ppa:hvr/ghc'"
             sh "apt-get update"
             sh $ "apt-get install -y \"$HCNAME\""
@@ -172,15 +173,15 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 tell_env "HCPKG" "$HCPKG"
                 tell_env "HADDOCK" "$HADDOCK"
 
-        whenWithinGhcRange cfgGhcupJobs $ githubRunIf' "Install GHC (GHCup)" "matrix.setup-method == 'ghcup'" envEnv $ do
+        whenWithinGhcRange (index cfgSetupMethods GHCUP) $ githubRunIf' "Install GHC (GHCup)" "matrix.setup-method == 'ghcup'" envEnv $ do
             sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
             ghcupGhcEnv
 
-        whenWithinGhcRange cfgGhcupVanillaJobs $ githubRunIf' "Install GHC (GHCup vanilla)" "matrix.setup-method == 'ghcup-vanilla'" envEnv $ do
+        whenWithinGhcRange (index cfgSetupMethods GHCUPvanilla) $ githubRunIf' "Install GHC (GHCup vanilla)" "matrix.setup-method == 'ghcup-vanilla'" envEnv $ do
             sh $ "\"$HOME/.ghcup/bin/ghcup\" -s https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-vanilla-0.0.8.yaml install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
             ghcupGhcEnv
 
-        whenWithinGhcRange cfgGhcupPrereleaseJobs $ githubRunIf' "Install GHC (GHCup prerelease)" "matrix.setup-method == 'ghcup-prerelease'" envEnv $ do
+        whenWithinGhcRange (index cfgSetupMethods GHCUPprerelease) $ githubRunIf' "Install GHC (GHCup prerelease)" "matrix.setup-method == 'ghcup-prerelease'" envEnv $ do
             sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.8.yaml;"
             sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
             ghcupGhcEnv
@@ -266,7 +267,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
         let toolsConfigHash :: String
             toolsConfigHash = take 8 $ BS8.unpack $ Base16.encode $ SHA256.hashlazy $ Binary.runPut $ do
                 Binary.put cfgDoctest
-                Binary.put cfgGhcupJobs -- GHC location affects doctest, e.g
+                Binary.put cfgSetupMethods
 
         when (doctestEnabled) $ githubUses "cache (tools)" "actions/cache/restore@v4"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
@@ -539,11 +540,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                         , ghmeSetupMethod = sp
                         }
                         | sp <- [GHCUP, GHCUPvanilla, GHCUPprerelease, HVRPPA]
-                        , compilerWithinGhcRange compiler $ case sp of
-                            GHCUP           -> cfgGhcupJobs
-                            GHCUPvanilla    -> cfgGhcupVanillaJobs
-                            GHCUPprerelease -> cfgGhcupPrereleaseJobs
-                            HVRPPA          -> cfgHvrPpaJobs
+                        , compilerWithinGhcRange compiler $ index cfgSetupMethods sp
                       ]
                       | compiler <- reverse $ toList linuxVersions
                       , compiler /= GHCHead -- TODO: Make this work
@@ -565,7 +562,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
     -- job to be setup with ghcup
     isGHCUP :: CompilerVersion -> Bool
-    isGHCUP v = compilerWithinRange v (RangeGHC /\ Range cfgGhcupJobs)
+    isGHCUP v = compilerWithinRange v (RangeGHC /\ Range (index cfgSetupMethods GHCUP))
 
     -- step primitives
     githubRun' :: String -> Map.Map String String ->  ShM () -> ListBuilder (Either HsCiError GitHubStep) ()

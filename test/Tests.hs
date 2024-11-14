@@ -1,43 +1,78 @@
 {-# LANGUAGE ViewPatterns #-}
 module Main (main) where
 
-import Prelude ()
-import Prelude.Compat
+import HaskellCI         hiding (main)
+import HaskellCI.Prelude
 
-import HaskellCI hiding (main)
-
-import Control.Arrow              (first)
 import Data.Algorithm.Diff        (PolyDiff (..), getGroupedDiff)
-import Distribution.Utils.Generic (fromUTF8BS)
 import System.Directory           (setCurrentDirectory)
 import System.FilePath            (addExtension)
 import Test.Tasty                 (TestName, TestTree, defaultMain, testGroup)
 import Test.Tasty.Golden.Advanced (goldenTest)
+import Test.Tasty.HUnit           (assertEqual, testCase, (@?=))
 
 import qualified Data.ByteString       as BS
 import qualified Data.ByteString.Char8 as BS8
+import qualified Distribution.Version  as C
 import qualified System.Console.ANSI   as ANSI
+
+import HaskellCI.Config.History
+import HaskellCI.SetupMethod
 
 main :: IO ()
 main = do
     setCurrentDirectory "fixtures/"
-    defaultMain $ testGroup "fixtures"
-        [ fixtureGoldenTest "all-versions"
-        , fixtureGoldenTest "empty-line"
-        , fixtureGoldenTest "fail-versions"
-        , fixtureGoldenTest "irc-channels"
-        , fixtureGoldenTest "messy"
-        , fixtureGoldenTest "psql"
-        , fixtureGoldenTest "travis-patch"
-        , fixtureGoldenTest "enabled-jobs"
-        , fixtureGoldenTest "doctest"
-        , fixtureGoldenTest "doctest-version"
-        , testGroup "copy-fields"
-            [ fixtureGoldenTest "copy-fields-all"
-            , fixtureGoldenTest "copy-fields-some"
-            , fixtureGoldenTest "copy-fields-none"
+    defaultMain $ testGroup "haskell-ci"
+        [ testGroup "fixtures"
+            [ fixtureGoldenTest "all-versions"
+            , fixtureGoldenTest "empty-line"
+            , fixtureGoldenTest "fail-versions"
+            , fixtureGoldenTest "irc-channels"
+            , fixtureGoldenTest "messy"
+            , fixtureGoldenTest "psql"
+            , fixtureGoldenTest "travis-patch"
+            , fixtureGoldenTest "enabled-jobs"
+            , fixtureGoldenTest "doctest"
+            , fixtureGoldenTest "doctest-version"
+            , testGroup "copy-fields"
+                [ fixtureGoldenTest "copy-fields-all"
+                , fixtureGoldenTest "copy-fields-some"
+                , fixtureGoldenTest "copy-fields-none"
+                ]
+            ]
+        , testGroup "setup-methods"
+            -- we test that haskell-ci default configuration setup-methods
+            -- * span all possible GHC version
+            -- * have only one setup-method per version, i.e. setup-methods have disjoint GHC versions spans
+            --
+            [ testCase "span-whole-range" $ do
+                let methods :: PerSetupMethod C.VersionRange
+                    methods = cfgSetupMethods defaultConfig
+
+                let vr = simplify $ foldr (\/) C.noVersion methods
+
+                vr @?= C.anyVersion
+
+            , testCase "disjoint" $ do
+                let methods :: PerSetupMethod VersionRange
+                    methods = cfgSetupMethods defaultConfig
+
+                let indices :: [(SetupMethod,SetupMethod)]
+                    indices = pairs [minBound .. maxBound]
+
+                for_ indices $ \(i, j) -> do
+                    let x = index methods i
+                    let y = index methods j
+                    assertEqual (show (i, j)) C.noVersion (simplify (x /\ y))
             ]
         ]
+
+simplify :: VersionRange -> VersionRange
+simplify = C.fromVersionIntervals . C.toVersionIntervals
+
+pairs :: [a] -> [(a,a)]
+pairs []     = []
+pairs (x:xs) = map ((,) x) xs ++ pairs xs
 
 -- |
 -- @
