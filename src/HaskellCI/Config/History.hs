@@ -12,11 +12,9 @@ import qualified Distribution.Version as C
 import HaskellCI.Config.Initial
 import HaskellCI.Config.Type
 import HaskellCI.Config.Ubuntu
+import HaskellCI.SetupMethod
 
 import HaskellCI.Compiler (invertVersionRange)
-
-ghcupNormalRange :: VersionRange
-ghcupNormalRange = C.laterVersion (mkVersion [8,4,4])
 
 configHistory :: [([Int], Config -> Config)]
 configHistory =
@@ -34,10 +32,19 @@ configHistory =
     , ver 0 19 20240708 := \cfg -> cfg
         & field @"cfgGhcupVersion" .~ C.mkVersion [0,1,30,0]
     , ver 0 19 20241111 := \cfg -> cfg
-        & field @"cfgHvrPpaJobs"          .~ C.earlierVersion (C.mkVersion [8,4])
-        & field @"cfgGhcupJobs"           .~ C.simplifyVersionRange (C.intersectVersionRanges (C.intersectVersionRanges ghcupNormalRange (C.earlierVersion (C.mkVersion [9,12,0]))) (invertVersionRange (C.withinVersion (C.mkVersion [9,8,3]))))
-        & field @"cfgGhcupVanillaJobs"    .~ C.withinVersion (C.mkVersion [9,8,3])
-        & field @"cfgGhcupPrereleaseJobs" .~ C.orLaterVersion (C.mkVersion [9,12,0])
+        & field @"cfgSetupMethods" .~ PerSetupMethod
+            { hvrPpa          = C.earlierVersion (C.mkVersion [8,4])
+            , ghcup           = C.simplifyVersionRange (C.laterVersion (C.mkVersion [8,4,4]) \/ C.earlierVersion (C.mkVersion [9,12,0]) \/ invertVersionRange (C.withinVersion (C.mkVersion [9,8,3])))
+            , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
+            , ghcupPrerelease = C.orLaterVersion (C.mkVersion [9,12,0])
+            }
+    , ver 0 19 2024114 := \cfg -> cfg
+        & field @"cfgSetupMethods" .~ PerSetupMethod
+            { hvrPpa          = C.noVersion
+            , ghcup           = invertVersionRange (C.withinVersion (C.mkVersion [9,8,3])) /\ C.earlierVersion (C.mkVersion [9,12])
+            , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
+            , ghcupPrerelease = C.orLaterVersion (C.mkVersion [9,12])
+            }
     ]
   where
     ver x y z = [x, y, z]

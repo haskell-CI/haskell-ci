@@ -9,6 +9,7 @@ import qualified Data.Map.Strict as M
 
 import HaskellCI.Compiler
 import HaskellCI.List
+import HaskellCI.SetupMethod
 import HaskellCI.Sh
 import HaskellCI.YamlSyntax
 
@@ -41,9 +42,6 @@ data GitHubJob = GitHubJob
     , ghjTimeout         :: Natural
     }
   deriving (Show)
-
-data SetupMethod = HVRPPA | GHCUP | GHCUPvanilla | GHCUPprerelease
-  deriving Show
 
 data GitHubMatrixEntry = GitHubMatrixEntry
     { ghmeCompiler     :: CompilerVersion
@@ -129,12 +127,6 @@ instance ToYaml GitHubJob where
             ]
         item $ "steps" ~> ylistFilt [] (map toYaml $ filter notEmptyStep ghjSteps)
 
-instance ToYaml SetupMethod where
-    toYaml HVRPPA          = "hvr-ppa"
-    toYaml GHCUP           = "ghcup"
-    toYaml GHCUPvanilla    = "ghcup-vanilla"
-    toYaml GHCUPprerelease = "ghcup-prerelease"
-
 instance ToYaml GitHubMatrixEntry where
     toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
         [ "compiler"        ~> fromString (dispGhcVersion ghmeCompiler)
@@ -150,7 +142,7 @@ instance ToYaml GitHubStep where
         for_ ghsIf $ \if_ -> item $ "if" ~> fromString if_
 
         case ghsStep of
-            Left GitHubRun {..} -> do 
+            Left GitHubRun {..} -> do
                 item $ "run" ~> fromString (shlistToString ghsRun)
                 item $ "env" ~> mapToYaml ghsEnv
 

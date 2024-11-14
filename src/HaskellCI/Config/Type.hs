@@ -18,6 +18,7 @@ import HaskellCI.Config.Installed
 import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
 import HaskellCI.Config.Ubuntu
+import HaskellCI.SetupMethod
 import HaskellCI.TestedWith
 
 -------------------------------------------------------------------------------
@@ -66,10 +67,7 @@ data Config = Config
     , cfgLinuxJobs           :: !VersionRange
     , cfgMacosJobs           :: !VersionRange
     , cfgGhcupCabal          :: !Bool
-    , cfgHvrPpaJobs          :: !VersionRange
-    , cfgGhcupJobs           :: !VersionRange
-    , cfgGhcupVanillaJobs    :: !VersionRange
-    , cfgGhcupPrereleaseJobs :: !VersionRange
+    , cfgSetupMethods        :: !(PerSetupMethod VersionRange)
     , cfgGhcupVersion        :: !Version
     , cfgApt                 :: S.Set String
     , cfgTravisPatches       :: [FilePath]

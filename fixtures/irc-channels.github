@@ -135,32 +135,52 @@ jobs:
             compilerVersion: 8.6.1
             setup-method: ghcup
             allow-failure: false
+          - compiler: ghc-8.4.4
+            compilerKind: ghc
+            compilerVersion: 8.4.4
+            setup-method: ghcup
+            allow-failure: false
+          - compiler: ghc-8.4.3
+            compilerKind: ghc
+            compilerVersion: 8.4.3
+            setup-method: ghcup
+            allow-failure: false
+          - compiler: ghc-8.4.2
+            compilerKind: ghc
+            compilerVersion: 8.4.2
+            setup-method: ghcup
+            allow-failure: false
+          - compiler: ghc-8.4.1
+            compilerKind: ghc
+            compilerVersion: 8.4.1
+            setup-method: ghcup
+            allow-failure: false
           - compiler: ghc-8.2.2
             compilerKind: ghc
             compilerVersion: 8.2.2
-            setup-method: hvr-ppa
+            setup-method: ghcup
             allow-failure: false
           - compiler: ghc-8.2.1
             compilerKind: ghc
             compilerVersion: 8.2.1
-            setup-method: hvr-ppa
+            setup-method: ghcup
             allow-failure: false
           - compiler: ghc-8.0.2
             compilerKind: ghc
             compilerVersion: 8.0.2
-            setup-method: hvr-ppa
+            setup-method: ghcup
             allow-failure: false
           - compiler: ghc-8.0.1
             compilerKind: ghc
             compilerVersion: 8.0.1
-            setup-method: hvr-ppa
+            setup-method: ghcup
             allow-failure: false
       fail-fast: false
     steps:
       - name: apt-get install
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5
+          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5 libnuma-dev
       - name: Install GHCup
         run: |
           mkdir -p "$HOME/.ghcup/bin"
@@ -170,20 +190,6 @@ jobs:
         run: |
           "$HOME/.ghcup/bin/ghcup" install cabal 3.12.1.0 || (cat "$HOME"/.ghcup/logs/*.* && false)
           echo "CABAL=$HOME/.ghcup/bin/cabal-3.12.1.0 -vnormal+nowrap" >> "$GITHUB_ENV"
-      - name: Install GHC (hvr-ppa)
-        if: matrix.setup-method == 'hvr-ppa'
-        run: |
-          apt-add-repository -y 'ppa:hvr/ghc'
-          apt-get update
-          apt-get install -y "$HCNAME"
-          HC=$HCDIR/bin/$HCKIND
-          echo "HC=$HC" >> "$GITHUB_ENV"
-          echo "HCPKG=$HCDIR/bin/$HCKIND-pkg" >> "$GITHUB_ENV"
-          echo "HADDOCK=$HCDIR/bin/haddock" >> "$GITHUB_ENV"
-        env:
-          HCKIND: ${{ matrix.compilerKind }}
-          HCNAME: ${{ matrix.compiler }}
-          HCVER: ${{ matrix.compilerVersion }}
       - name: Install GHC (GHCup)
         if: matrix.setup-method == 'ghcup'
         run: |
