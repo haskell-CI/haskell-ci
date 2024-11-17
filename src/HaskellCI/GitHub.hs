@@ -533,7 +533,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     -- we can have multiple setup methods for the same
                     -- compiler version, if jobs overlap.
                     [ [ GitHubMatrixEntry
-                        { ghmeCompiler     = translateCompilerVersion $ compiler
+                        { ghmeCompiler     = translateCompilerVersion cfgVersionMapping $ compiler
                         , ghmeAllowFailure =
                                isGHCHead compiler
                             || maybeGHC False (`C.withinRange` cfgAllowFailures) compiler
@@ -777,3 +777,7 @@ parseGitHubRepo t =
 -- runners support.
 ghcRunsOnVer :: String
 ghcRunsOnVer = "ubuntu-20.04"
+
+translateCompilerVersion :: Map Version Version -> CompilerVersion -> CompilerVersion
+translateCompilerVersion m (GHC v) = GHC (Map.findWithDefault v v m)
+translateCompilerVersion _ x       = x

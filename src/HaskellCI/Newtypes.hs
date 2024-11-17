@@ -5,6 +5,7 @@ module HaskellCI.Newtypes where
 import HaskellCI.Prelude
 
 import qualified Data.Set                           as S
+import qualified Data.Map                           as Map
 import qualified Distribution.Compat.CharParsing    as C
 import qualified Distribution.Compat.Newtype        as C
 import qualified Distribution.FieldGrammar.Newtypes as C
@@ -133,6 +134,43 @@ instance (C.Newtype a b, Ord a, C.Sep sep, C.Parsec b) => C.Parsec (AlaSet sep b
 
 instance (C.Newtype a b, C.Sep sep, C.Pretty b) => C.Pretty (AlaSet sep b a) where
     pretty = C.prettySep (hack (Proxy :: Proxy sep)) . map (C.pretty . (C.pack :: a -> b)) . S.toList . C.unpack
+
+-------------------------------------------------------------------------------
+-- AlaMap
+-------------------------------------------------------------------------------
+
+newtype AlaMap sep b k v = AlaMap { getAlaMap :: Map k v }
+  deriving anyclass (C.Newtype (Map k v))
+
+alaMap' :: sep -> ((k, v) -> b) -> Map k v -> AlaMap sep b k v
+alaMap' _ _ = AlaMap
+
+instance (C.Newtype (k, v) b, Ord k, C.Sep sep, C.Parsec b) => C.Parsec (AlaMap sep b k v) where
+    parsec   = C.pack . Map.fromList . map (C.unpack :: b -> (k, v)) <$> C.parseSep (hack (Proxy :: Proxy sep)) C.parsec
+
+instance (C.Newtype (k, v) b, C.Sep sep, C.Pretty b) => C.Pretty (AlaMap sep b k v) where
+    pretty = C.prettySep (hack (Proxy :: Proxy sep)) . map (C.pretty . (C.pack :: (k, v) -> b)) . Map.toList . C.unpack
+
+-------------------------------------------------------------------------------
+-- VersionPair
+-------------------------------------------------------------------------------
+
+newtype VersionPair = VersionPair (C.Version, C.Version)
+  deriving anyclass (C.Newtype (C.Version, C.Version))
+
+instance C.Parsec VersionPair where
+    parsec = do
+        a <- C.parsec
+        _ <- C.char ':'
+        b <- C.parsec
+        return (VersionPair (a, b))
+
+instance C.Pretty VersionPair where
+    pretty (VersionPair (a, b)) = C.pretty a <> PP.text ":" <> C.pretty b
+
+-------------------------------------------------------------------------------
+-- AlaMap
+-------------------------------------------------------------------------------
 
 -- Someone (= me) forgot to export Distribution.Parsec.Newtypes.P
 hack :: Proxy a -> proxy a

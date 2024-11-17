@@ -46,7 +46,6 @@ data Auxiliary = Auxiliary
     , extraCabalProjectFields :: FilePath -> [C.PrettyField ()]
     , testShowDetails         :: String
     , anyJobUsesHeadHackage   :: Bool
-    , anyJobUsesPreviewGHC    :: Bool
     , runHaddock              :: Bool
     , haddockFlags            :: String
     }
@@ -138,9 +137,6 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
 
     anyJobUsesHeadHackage :: Bool
     anyJobUsesHeadHackage = not $ null headGhcVers
-
-    anyJobUsesPreviewGHC :: Bool
-    anyJobUsesPreviewGHC = not $ null $ S.filter isPreviewGHC allVersions
 
 pkgNameDirVariable' :: String -> String
 pkgNameDirVariable' n = "PKGDIR_" ++ map f n where

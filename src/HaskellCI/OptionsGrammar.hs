@@ -44,6 +44,7 @@ class
     , c (C.List C.CommaVCat NoCommas String)
     , c (C.List C.NoCommaFSep (Identity C.PackageName) C.PackageName)
     , c (C.List C.FSep (Identity C.PackageName) C.PackageName)
+    , c (AlaMap C.NoCommaFSep VersionPair Version Version)
     )
     => OptionsGrammar c p | p -> c
   where

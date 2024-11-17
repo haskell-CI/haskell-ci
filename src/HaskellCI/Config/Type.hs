@@ -81,6 +81,7 @@ data Config = Config
     , cfgRawTravis           :: !String
     , cfgGitHubActionName    :: !(Maybe String)
     , cfgTimeoutMinutes      :: !Natural
+    , cfgVersionMapping      :: !(Map Version Version)
     }
   deriving (Show, Generic)
 
