@@ -549,7 +549,6 @@ configFromCabalFile cfg (cabalFile, gpd) = do
     lastStableGhcVers
         = nubBy ((==) `on` ghcMajVer)
         $ sortBy (flip compare)
-        $ filter (not . isPreviewGHC . GHC)
         $ knownGhcVersions
 
     isTwoDigitGhcVersion :: VersionRange -> Maybe Version

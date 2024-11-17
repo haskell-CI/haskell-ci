@@ -81,4 +81,5 @@ initialConfig = Config
     , cfgRawTravis           = ""
     , cfgGitHubActionName    = Nothing
     , cfgTimeoutMinutes      = 60
+    , cfgVersionMapping      = mempty
     }

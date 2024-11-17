@@ -145,3 +145,6 @@ raw-project
   keep-going: False
   package bytestring
     tests: False
+
+-- Mapping of GHC versions (used for prereleases)
+ghc-version-mapping: 9.12.1:9.12.0.20241114

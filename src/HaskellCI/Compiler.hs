@@ -9,7 +9,6 @@ module HaskellCI.Compiler (
     -- ** Predicates
     isGHCHead,
     usesHeadHackage,
-    isPreviewGHC,
     -- ** Selectors
     compilerKind,
     compilerVersion,
@@ -31,8 +30,7 @@ module HaskellCI.Compiler (
     previewCabal,
     -- * Misc
     ghcMajVer,
-    translateCompilerVersion,
-    ) where
+) where
 
 import HaskellCI.Prelude
 
@@ -189,9 +187,6 @@ dispGhcVersionShort (GHCJS v) = "ghcjs-" ++ C.prettyShow v
 dispCabalVersion :: Maybe Version -> String
 dispCabalVersion = maybe "head" C.prettyShow
 
-ghcAlpha :: Maybe (Version, Version)
-ghcAlpha = Just (mkVersion [9,12,1], mkVersion [9,12,0,20241031])
-
 -- | GHC HEAD, and versions specified by head.hackage option.
 usesHeadHackage
     :: VersionRange     -- ^ head.hackage range
@@ -200,11 +195,6 @@ usesHeadHackage
 usesHeadHackage _vr GHCHead   = True
 usesHeadHackage  vr (GHC v)   = withinRange v vr
 usesHeadHackage _vr (GHCJS _) = False
-
-isPreviewGHC :: CompilerVersion -> Bool
-isPreviewGHC GHCHead   = True
-isPreviewGHC (GHC v)   = maybe False (\(v', _) -> v /= v') ghcAlpha
-isPreviewGHC (GHCJS _) = False
 
 isGHCHead :: CompilerVersion -> Bool
 isGHCHead GHCHead = True
@@ -222,13 +212,3 @@ ghcMajVer :: Version -> (Int,Int)
 ghcMajVer v
     | x:y:_ <- versionNumbers v = (x,y)
     | otherwise = error $ "panic: ghcMajVer called with " ++ show v
-
--- | Map compiler version to one available to download.
---
--- This way we can map e.g. 9.4.1 to 9.4.0.20220501 i.e. a prerelease.
-translateCompilerVersion :: CompilerVersion -> CompilerVersion
-translateCompilerVersion (GHC v)
-    | Just (u, w) <- ghcAlpha
-    , v == u
-    = GHC w
-translateCompilerVersion v = v

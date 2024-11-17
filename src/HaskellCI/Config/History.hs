@@ -8,6 +8,7 @@ module HaskellCI.Config.History (
 import HaskellCI.Prelude
 
 import qualified Distribution.Version as C
+import qualified Data.Map.Strict as Map
 
 import HaskellCI.Config.Initial
 import HaskellCI.Config.Type
@@ -45,6 +46,8 @@ configHistory =
             , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
             , ghcupPrerelease = C.orLaterVersion (C.mkVersion [9,12])
             }
+    , ver 0 19 20241117 := \cfg -> cfg
+        & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,12,1]) (mkVersion [9,12,0,20241031])
     ]
   where
     ver x y z = [x, y, z]

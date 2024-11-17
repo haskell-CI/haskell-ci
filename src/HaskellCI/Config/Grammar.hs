@@ -173,6 +173,8 @@ configGrammar = Config
         ^^^ help "The name of GitHub Action"
     <*> optionalFieldDef    "timeout-minutes"                                              (field @"cfgTimeoutMinutes") defaultConfig
         ^^^ metahelp "MINUTES" "The maximum number of minutes to let a job run"
+    <*> optionalFieldDefAla "ghc-version-mapping"      (alaMap' C.NoCommaFSep VersionPair) (field @"cfgVersionMapping") defaultConfig
+        ^^^ metahelp "VERSIONS" "Mapping of GHC versions (used for prereleases)"
 
 -------------------------------------------------------------------------------
 -- Env
