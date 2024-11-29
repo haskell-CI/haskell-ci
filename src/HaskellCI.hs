@@ -4,10 +4,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
 
--- | New-style @.travis.yml@ script generator using cabal 1.24's nix-style
--- tech-preview facilities.
---
--- See also <https://github.com/haskell-CI/haskell-ci>
+-- | See <https://github.com/haskell-CI/haskell-ci>
 --
 -- NB: This code deliberately avoids relying on non-standard packages and
 --     is expected to compile/work with at least GHC 7.0 through GHC 8.0
@@ -21,7 +18,6 @@ module HaskellCI (
     runDiagnosticsT,
     -- ** Variants
     bashFromConfigFile,
-    travisFromConfigFile,
     githubFromConfigFile,
     ) where
 
@@ -63,7 +59,6 @@ import HaskellCI.GitHub
 import HaskellCI.Jobs
 import HaskellCI.Package
 import HaskellCI.TestedWith
-import HaskellCI.Travis
 import HaskellCI.VersionInfo
 import HaskellCI.YamlSyntax
 
@@ -90,11 +85,9 @@ main = do
         CommandRegenerate -> do
             regenerateBash opts
             regenerateGitHub opts
-            regenerateTravis opts
 
         CommandBash   f -> doBash argv0 f opts
         CommandGitHub f -> doGitHub argv0 f opts
-        CommandTravis f -> doTravis argv0 f opts
 
         CommandVersionInfo -> do
             putStrLn $ "haskell-ci " ++ haskellCIVerStr ++ " with dependencies"
@@ -112,92 +105,6 @@ main = do
 
     ifor_ :: Map.Map k v -> (k -> v -> IO a) -> IO ()
     ifor_ xs f = Map.foldlWithKey' (\m k a -> m >> void (f k a)) (return ()) xs
-
--------------------------------------------------------------------------------
--- Travis
--------------------------------------------------------------------------------
-
-defaultTravisPath :: FilePath
-defaultTravisPath = ".travis.yml"
-
-doTravis :: [String] -> FilePath -> Options -> IO ()
-doTravis args path opts = do
-    contents <- travisFromConfigFile args opts path
-    case optOutput opts of
-        Nothing              -> BS.writeFile defaultTravisPath contents
-        Just OutputStdout    -> BS.putStr contents
-        Just (OutputFile fp) -> BS.writeFile fp contents
-
-travisFromConfigFile
-    :: forall m. (MonadIO m, MonadDiagnostics m, MonadMask m)
-    => [String]
-    -> Options
-    -> FilePath
-    -> m ByteString
-travisFromConfigFile args opts path = do
-    gitconfig <- liftIO readGitConfig
-    cabalFiles <- getCabalFiles (optInputType' opts path) path
-    config' <- findConfigFile (optConfig opts)
-    let config = optConfigMorphism opts config'
-    pkgs <- T.mapM (configFromCabalFile config) cabalFiles
-    (ghcs, prj) <- case checkVersions (cfgTestedWith config) pkgs of
-        Right x     -> return x
-        Left []     -> putStrLnErr "panic: checkVersions failed without errors"
-        Left (e:es) -> putStrLnErrs (e :| es)
-
-    let prj' | cfgGhcHead config = over (mapped . field @"pkgJobs") (S.insert GHCHead) prj
-             | otherwise         = prj
-
-    ls <- genTravisFromConfigs args config gitconfig prj' ghcs
-    patchTravis config ls
-
-genTravisFromConfigs
-    :: (Monad m, MonadDiagnostics m)
-    => [String]
-    -> Config
-    -> GitConfig
-    -> Project URI Void Package
-    -> Set CompilerVersion
-    -> m ByteString
-genTravisFromConfigs argv config _gitconfig prj vs = do
-    let jobVersions = makeJobVersions config vs
-    case makeTravis argv config prj jobVersions of
-        Left err     -> putStrLnErr $ displayException err
-        Right travis -> do
-            describeJobs "Travis-CI config" (cfgTestedWith config) jobVersions (prjPackages prj)
-            return $ toUTF8BS $
-                prettyYaml id (reann (travisHeader (cfgInsertVersion config) argv ++) $ toYaml travis)
-                ++ unlines
-                [ ""
-                , "# REGENDATA " ++ if cfgInsertVersion config then show (haskellCIVerStr, argv) else show argv
-                , "# EOF"
-                ]
-
-regenerateTravis :: Options -> IO ()
-regenerateTravis opts = do
-    let fp = defaultTravisPath
-
-    -- change the directory
-    for_ (optCwd opts) setCurrentDirectory
-
-    -- read, and then change to the directory
-    withContents fp noTravisYml $ \contents -> case findRegendataArgv contents of
-        Nothing     -> do
-            hPutStrLn stderr $ "Error: expected REGENDATA line in " ++ fp
-            exitFailure
-
-        Just (mversion, argv) -> do
-            -- warn if we regenerate using older haskell-ci
-            for_ mversion $ \version -> for_ (simpleParsec haskellCIVerStr) $ \haskellCIVer ->
-                when (haskellCIVer < version) $ do
-                    hPutStrLn stderr $ "Regenerating using older haskell-ci-" ++ haskellCIVerStr
-                    hPutStrLn stderr $ "File generated using haskell-ci-" ++ prettyShow version
-
-            (f, opts') <- parseOptions argv
-            doTravis argv f ( optionsWithOutputFile fp <> opts' <> opts)
-  where
-    noTravisYml :: IO ()
-    noTravisYml = putStrLn "No .travis.yml, skipping travis regeneration"
 
 -------------------------------------------------------------------------------
 -- Bash
@@ -383,11 +290,6 @@ findConfigFile ConfigOptAuto  = do
 -------------------------------------------------------------------------------
 -- Patches
 -------------------------------------------------------------------------------
-
-patchTravis
-    :: (MonadIO m, MonadMask m)
-    => Config -> ByteString -> m ByteString
-patchTravis = patchYAML . cfgTravisPatches
 
 patchGitHub
     :: (MonadIO m, MonadMask m)

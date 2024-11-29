@@ -81,8 +81,7 @@ pairs (x:xs) = map ((,) x) xs ++ pairs xs
 -- @
 fixtureGoldenTest :: FilePath -> TestTree
 fixtureGoldenTest fp = testGroup fp
-    [ fixtureGoldenTest' "travis" travisFromConfigFile
-    , fixtureGoldenTest' "github" githubFromConfigFile
+    [ fixtureGoldenTest' "github" githubFromConfigFile
     , fixtureGoldenTest' "bash"   bashFromConfigFile
     ]
   where
