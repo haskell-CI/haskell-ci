@@ -1,11 +1,10 @@
 cabal-version:      2.2
 name:               haskell-ci
 version:            0.19.20241121
-synopsis:           Cabal package script generator for Travis-CI
+synopsis:           Haskell CI script generator
 description:
   Script generator (@haskell-ci@) for
   [GitHub Actions](https://docs.github.com/en/actions) and
-  [Travis-CI](https://travis-ci.org/)
   for continuous-integration testing of Haskell Cabal packages.
   .
   Included features (not limited to):
@@ -17,12 +16,6 @@ description:
   * Generates Haddocks
   * GHCJS support
   * building with specific constraints
-  .
-  === Quick Start Guide
-  .
-  Add a @tested-with@ line to your @.cabal@ file (e.g. @tested-with: GHC == 8.0.2 || == 8.2.2@) and then run @haskell-ci yourpackage.cabal -o .travis.yml@ to generate the Travis-CI job script.
-  .
-  See @haskell-ci --help@ for more information.
 
 homepage:           https://haskell-ci.rtfd.org/
 bug-reports:        https://github.com/haskell-CI/haskell-ci/issues
@@ -51,7 +44,6 @@ extra-source-files:
   fixtures/*.github
   fixtures/*.patch
   fixtures/*.project
-  fixtures/*.travis
   fixtures/servant/servant.cabal
   fixtures/servant-client/servant-client.cabal
   fixtures/servant-client-core/servant-client-core.cabal
@@ -154,8 +146,6 @@ library haskell-ci-internal
     HaskellCI.ShVersionRange
     HaskellCI.TestedWith
     HaskellCI.Tools
-    HaskellCI.Travis
-    HaskellCI.Travis.Yaml
     HaskellCI.VersionInfo
     HaskellCI.YamlSyntax
 
