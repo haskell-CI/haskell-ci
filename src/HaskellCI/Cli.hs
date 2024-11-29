@@ -26,6 +26,7 @@ data Command
     | CommandRegenerate
     | CommandListGHC
     | CommandDumpConfig
+    | CommandDiffConfig
     | CommandVersionInfo
   deriving Show
 
@@ -135,6 +136,7 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
         , O.command "github"       $ O.info githubP                   $ O.progDesc "Generate GitHub Actions config"
         , O.command "list-ghc"     $ O.info (pure CommandListGHC)     $ O.progDesc "List known GHC versions"
         , O.command "dump-config"  $ O.info (pure CommandDumpConfig)  $ O.progDesc "Dump cabal.haskell-ci config with default values"
+        , O.command "diff-config"  $ O.info diffP                     $ O.progDesc "Diff between default and current configuration"
         , O.command "version-info" $ O.info (pure CommandVersionInfo) $ O.progDesc "Print versions info haskell-ci was compiled with"
         ]) <|> travisP
 
@@ -146,6 +148,8 @@ cliParserInfo = O.info ((,) <$> cmdP <*> optionsP O.<**> versionP O.<**> O.helpe
 
     githubP = CommandGitHub
         <$> O.strArgument (O.metavar "CABAL.FILE" <> O.action "file" <> O.help "Either <pkg.cabal> or cabal.project")
+
+    diffP = pure CommandDiffConfig
 
 -------------------------------------------------------------------------------
 -- Parsing helpers
