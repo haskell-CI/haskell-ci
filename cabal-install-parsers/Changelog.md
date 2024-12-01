@@ -1,3 +1,7 @@
+## 0.6.3
+
+- Use `Cabal-syntax-3.14`
+
 ## 0.6.2
 
 - Drop support for GHC prior 8.6.5
