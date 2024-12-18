@@ -146,7 +146,12 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh $ "curl -sL https://downloads.haskell.org/ghcup/" ++ ghcupVer ++ "/x86_64-linux-ghcup-" ++ ghcupVer ++ " > \"$HOME/.ghcup/bin/ghcup\""
             sh $ "chmod a+x \"$HOME/.ghcup/bin/ghcup\""
 
-        githubRun "Install cabal-install" $ do
+        unless cabalPrerelease $ githubRun "Install cabal-install" $ do
+            sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer ++ " || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
+            tell_env "CABAL" $ "$HOME/.ghcup/bin/cabal-" ++ cabalFullVer ++ " -vnormal+nowrap"
+
+        when cabalPrerelease $ githubRun "Install cabal-install (prerelease)" $ do
+            sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.8.yaml;"
             sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer ++ " || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
             tell_env "CABAL" $ "$HOME/.ghcup/bin/cabal-" ++ cabalFullVer ++ " -vnormal+nowrap"
 

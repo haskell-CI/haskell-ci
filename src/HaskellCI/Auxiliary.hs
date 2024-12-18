@@ -17,6 +17,7 @@ import qualified Distribution.FieldGrammar.Pretty             as C
 import qualified Distribution.Fields.Pretty                   as C
 import qualified Distribution.Pretty                          as C
 import qualified Distribution.Types.GenericPackageDescription as C
+import qualified Distribution.Types.Version                   as C
 import qualified Distribution.Types.VersionRange              as C
 import qualified Network.URI                                  as URI
 import qualified Text.PrettyPrint                             as PP
@@ -48,6 +49,7 @@ data Auxiliary = Auxiliary
     , anyJobUsesHeadHackage   :: Bool
     , runHaddock              :: Bool
     , haddockFlags            :: String
+    , cabalPrerelease         :: Bool
     }
 
 auxiliary :: Config -> Project URI Void Package -> JobVersions -> Auxiliary
@@ -137,6 +139,11 @@ auxiliary Config {..} prj JobVersions {..} = Auxiliary {..}
 
     anyJobUsesHeadHackage :: Bool
     anyJobUsesHeadHackage = not $ null headGhcVers
+
+    cabalPrerelease :: Bool
+    cabalPrerelease = case C.versionNumbers $ fromMaybe C.nullVersion cfgCabalInstallVersion of
+        _ : m : _ | odd m -> True
+        _                 -> False
 
 pkgNameDirVariable' :: String -> String
 pkgNameDirVariable' n = "PKGDIR_" ++ map f n where

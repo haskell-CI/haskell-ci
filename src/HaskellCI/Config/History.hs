@@ -52,6 +52,8 @@ configHistory =
         & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,12,1]) (mkVersion [9,12,0,20241114])
     , ver 0 19 20241202 := \cfg -> cfg
         & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,12,1]) (mkVersion [9,12,0,20241128])
+    , ver 0 19 20241218 := \cfg -> cfg
+        & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,15,0,0,2024,10,3]
     ]
   where
     ver x y z = [x, y, z]
