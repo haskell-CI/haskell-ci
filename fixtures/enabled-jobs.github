@@ -28,10 +28,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - compiler: ghc-9.12.0.20241128
+          - compiler: ghc-9.12.1
             compilerKind: ghc
-            compilerVersion: 9.12.0.20241128
-            setup-method: ghcup-prerelease
+            compilerVersion: 9.12.1
+            setup-method: ghcup
             allow-failure: false
           - compiler: ghc-9.10.1
             compilerKind: ghc
@@ -332,21 +332,6 @@ jobs:
         if: matrix.setup-method == 'ghcup-vanilla'
         run: |
           "$HOME/.ghcup/bin/ghcup" -s https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-vanilla-0.0.8.yaml install ghc "$HCVER" || (cat "$HOME"/.ghcup/logs/*.* && false)
-          HC=$("$HOME/.ghcup/bin/ghcup" whereis ghc "$HCVER")
-          HCPKG=$(echo "$HC" | sed 's#ghc$#ghc-pkg#')
-          HADDOCK=$(echo "$HC" | sed 's#ghc$#haddock#')
-          echo "HC=$HC" >> "$GITHUB_ENV"
-          echo "HCPKG=$HCPKG" >> "$GITHUB_ENV"
-          echo "HADDOCK=$HADDOCK" >> "$GITHUB_ENV"
-        env:
-          HCKIND: ${{ matrix.compilerKind }}
-          HCNAME: ${{ matrix.compiler }}
-          HCVER: ${{ matrix.compilerVersion }}
-      - name: Install GHC (GHCup prerelease)
-        if: matrix.setup-method == 'ghcup-prerelease'
-        run: |
-          "$HOME/.ghcup/bin/ghcup" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.8.yaml;
-          "$HOME/.ghcup/bin/ghcup" install ghc "$HCVER" || (cat "$HOME"/.ghcup/logs/*.* && false)
           HC=$("$HOME/.ghcup/bin/ghcup" whereis ghc "$HCVER")
           HCPKG=$(echo "$HC" | sed 's#ghc$#ghc-pkg#')
           HADDOCK=$(echo "$HC" | sed 's#ghc$#haddock#')

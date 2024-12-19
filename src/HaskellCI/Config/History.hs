@@ -54,6 +54,14 @@ configHistory =
         & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,12,1]) (mkVersion [9,12,0,20241128])
     , ver 0 19 20241218 := \cfg -> cfg
         & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,15,0,0,2024,10,3]
+    , ver 0 19 20241202 := \cfg -> cfg
+        & field @"cfgVersionMapping" .~ mempty
+        & field @"cfgSetupMethods" .~ PerSetupMethod
+            { hvrPpa          = C.noVersion
+            , ghcup           = invertVersionRange (C.withinVersion (C.mkVersion [9,8,3]))
+            , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
+            , ghcupPrerelease = C.noVersion
+            }
     ]
   where
     ver x y z = [x, y, z]
