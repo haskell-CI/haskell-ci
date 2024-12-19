@@ -28,10 +28,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - compiler: ghc-9.12.0.20241128
+          - compiler: ghc-9.12.1
             compilerKind: ghc
-            compilerVersion: 9.12.0.20241128
-            setup-method: ghcup-prerelease
+            compilerVersion: 9.12.1
+            setup-method: ghcup
             allow-failure: false
           - compiler: ghc-9.10.1
             compilerKind: ghc
@@ -342,21 +342,6 @@ jobs:
           HCKIND: ${{ matrix.compilerKind }}
           HCNAME: ${{ matrix.compiler }}
           HCVER: ${{ matrix.compilerVersion }}
-      - name: Install GHC (GHCup prerelease)
-        if: matrix.setup-method == 'ghcup-prerelease'
-        run: |
-          "$HOME/.ghcup/bin/ghcup" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.8.yaml;
-          "$HOME/.ghcup/bin/ghcup" install ghc "$HCVER" || (cat "$HOME"/.ghcup/logs/*.* && false)
-          HC=$("$HOME/.ghcup/bin/ghcup" whereis ghc "$HCVER")
-          HCPKG=$(echo "$HC" | sed 's#ghc$#ghc-pkg#')
-          HADDOCK=$(echo "$HC" | sed 's#ghc$#haddock#')
-          echo "HC=$HC" >> "$GITHUB_ENV"
-          echo "HCPKG=$HCPKG" >> "$GITHUB_ENV"
-          echo "HADDOCK=$HADDOCK" >> "$GITHUB_ENV"
-        env:
-          HCKIND: ${{ matrix.compilerKind }}
-          HCNAME: ${{ matrix.compiler }}
-          HCVER: ${{ matrix.compilerVersion }}
       - name: Set PATH and environment variables
         run: |
           echo "$HOME/.cabal/bin" >> $GITHUB_PATH
@@ -423,7 +408,7 @@ jobs:
       - name: cache (tools)
         uses: actions/cache/restore@v4
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-ae4cd18b
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-cc3c62c0
           path: ~/.haskell-ci-tools
       - name: install cabal-plan
         run: |
@@ -442,7 +427,7 @@ jobs:
         if: always()
         uses: actions/cache/save@v4
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-ae4cd18b
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-cc3c62c0
           path: ~/.haskell-ci-tools
       - name: checkout
         uses: actions/checkout@v4
