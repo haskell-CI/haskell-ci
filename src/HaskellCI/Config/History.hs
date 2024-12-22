@@ -25,7 +25,7 @@ configHistory =
     , ver 0 19 20240420 := \cfg -> cfg
         & field @"cfgUbuntu" .~ Jammy
     , ver 0 19 20240513 := \cfg -> cfg
-        -- defaultHeadHackage = C.orLaterVersion (C.mkVersion [9,11])
+        -- & defaultHeadHackage .~ C.orLaterVersion (C.mkVersion [9,11])
     , ver 0 19 20240702 := \cfg -> cfg
         & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,12,1,0]
         & field @"cfgDocspec" . field @"cfgDocspecUrl"  .~ "https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20240703/cabal-docspec-0.0.0.20240703-x86_64-linux.xz"
@@ -54,7 +54,7 @@ configHistory =
         & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,12,1]) (mkVersion [9,12,0,20241128])
     , ver 0 19 20241218 := \cfg -> cfg
         & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,15,0,0,2024,10,3]
-    , ver 0 19 20241202 := \cfg -> cfg
+    , ver 0 19 20241219 := \cfg -> cfg
         & field @"cfgVersionMapping" .~ mempty
         & field @"cfgSetupMethods" .~ PerSetupMethod
             { hvrPpa          = C.noVersion
@@ -62,6 +62,8 @@ configHistory =
             , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
             , ghcupPrerelease = C.noVersion
             }
+    , ver 0 19 20240522 := \cfg -> cfg
+        & field @"cfgHeadHackage" .~ C.orLaterVersion (C.mkVersion [9,13])
     ]
   where
     ver x y z = [x, y, z]
