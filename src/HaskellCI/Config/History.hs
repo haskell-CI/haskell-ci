@@ -64,6 +64,8 @@ configHistory =
             }
     , ver 0 19 20240522 := \cfg -> cfg
         & field @"cfgHeadHackage" .~ C.orLaterVersion (C.mkVersion [9,13])
+    , ver 0 19 20240523 := \cfg -> cfg
+        & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,14,1,0]
     ]
   where
     ver x y z = [x, y, z]
