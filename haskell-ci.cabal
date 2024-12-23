@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.19.20241222
+version:            0.19.20241223
 synopsis:           Haskell CI script generator
 description:
   Script generator (@haskell-ci@) for
