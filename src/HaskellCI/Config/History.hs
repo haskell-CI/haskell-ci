@@ -62,10 +62,12 @@ configHistory =
             , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
             , ghcupPrerelease = C.noVersion
             }
-    , ver 0 19 20240522 := \cfg -> cfg
+    , ver 0 19 20241222 := \cfg -> cfg
         & field @"cfgHeadHackage" .~ C.orLaterVersion (C.mkVersion [9,13])
-    , ver 0 19 20240523 := \cfg -> cfg
+    , ver 0 19 20241223 := \cfg -> cfg
         & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,14,1,0]
+    , ver 0 19 20250104 := \cfg -> cfg
+        & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,14,1,1]
     ]
   where
     ver x y z = [x, y, z]
