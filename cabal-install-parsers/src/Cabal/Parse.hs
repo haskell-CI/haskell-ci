@@ -8,7 +8,7 @@ module Cabal.Parse (
     parseWith,
     ParseError (..),
     renderParseError,
-    ) where
+) where
 
 import Control.DeepSeq            (NFData (..))
 import Control.Exception          (Exception (..))
