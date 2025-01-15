@@ -68,6 +68,10 @@ configHistory =
         & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,14,1,0]
     , ver 0 19 20250104 := \cfg -> cfg
         & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,14,1,1]
+
+    -- https://github.com/haskell-CI/haskell-ci/issues/766
+    , ver 0 19 20250115 := \cfg -> cfg
+        & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,12,1,0]
     ]
   where
     ver x y z = [x, y, z]
