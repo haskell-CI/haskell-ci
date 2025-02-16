@@ -781,7 +781,7 @@ parseGitHubRepo t =
 -- date to ensure that it runs on a version of Ubuntu that GitHub Actions
 -- runners support.
 ghcRunsOnVer :: String
-ghcRunsOnVer = "ubuntu-20.04"
+ghcRunsOnVer = "ubuntu-24.04"
 
 translateCompilerVersion :: Map Version Version -> CompilerVersion -> CompilerVersion
 translateCompilerVersion m (GHC v) = GHC (Map.findWithDefault v v m)

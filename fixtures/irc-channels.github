@@ -19,7 +19,7 @@ on:
 jobs:
   irc:
     name: Haskell-CI (IRC notification)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     needs:
       - linux
     if: ${{ always() }}
@@ -46,7 +46,7 @@ jobs:
           server: irc.libera.chat
   linux:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes:
       60
     container:
