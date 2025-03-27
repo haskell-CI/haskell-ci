@@ -84,7 +84,7 @@ jobs:
       - name: Install GHCup
         run: |
           mkdir -p "$HOME/.ghcup/bin"
-          curl -sL https://downloads.haskell.org/ghcup/0.1.40.0/x86_64-linux-ghcup-0.1.40.0 > "$HOME/.ghcup/bin/ghcup"
+          curl -sL https://downloads.haskell.org/ghcup/0.1.50.1/x86_64-linux-ghcup-0.1.50.1 > "$HOME/.ghcup/bin/ghcup"
           chmod a+x "$HOME/.ghcup/bin/ghcup"
       - name: Install cabal-install
         run: |
