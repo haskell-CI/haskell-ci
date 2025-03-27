@@ -40,6 +40,7 @@ import HaskellCI.Config.Jobs
 import HaskellCI.Config.PackageScope
 import HaskellCI.Config.Ubuntu
 import HaskellCI.Config.Validity
+import HaskellCI.Ghcup
 import HaskellCI.GitConfig
 import HaskellCI.GitHub.Yaml
 import HaskellCI.HeadHackage
@@ -561,7 +562,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
     mainJobName = "linux"
 
     ubuntuVer    = showUbuntu cfgUbuntu
-    cabalFullVer = dispCabalVersion cfgCabalInstallVersion
+    cabalFullVer = maybe "head" translateCabalVersion cfgCabalInstallVersion
 
     Auxiliary {..} = auxiliary config prj jobs
 
