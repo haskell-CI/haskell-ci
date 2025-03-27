@@ -8,6 +8,7 @@ import HaskellCI.Prelude
 import qualified Data.Map.Strict as M
 
 import HaskellCI.Compiler
+import HaskellCI.Ghcup
 import HaskellCI.List
 import HaskellCI.SetupMethod
 import HaskellCI.Sh
@@ -129,12 +130,20 @@ instance ToYaml GitHubJob where
 
 instance ToYaml GitHubMatrixEntry where
     toYaml GitHubMatrixEntry {..} = ykeyValuesFilt []
-        [ "compiler"        ~> fromString (dispGhcVersion ghmeCompiler)
+        [ "compiler"        ~> fromString compiler
         , "compilerKind"    ~> fromString (compilerKind ghmeCompiler)
         , "compilerVersion" ~> fromString (compilerVersion ghmeCompiler)
         , "setup-method"    ~> toYaml ghmeSetupMethod
         , "allow-failure"   ~> toYaml ghmeAllowFailure
         ]
+      where
+        compiler
+            | GHCUP <- ghmeSetupMethod
+            , GHC v <- ghmeCompiler
+            = "ghc-" ++ translateGhcVersion v
+
+            | otherwise
+            = dispGhcVersion ghmeCompiler
 
 instance ToYaml GitHubStep where
     toYaml GitHubStep {..} = ykeyValuesFilt [] $ buildList $ do
