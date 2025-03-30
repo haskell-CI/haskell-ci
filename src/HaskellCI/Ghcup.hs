@@ -17,4 +17,9 @@ translateGhcVersion :: Version -> String
 translateGhcVersion = prettyShow
 
 translateCabalVersion :: Version -> String
-translateCabalVersion = prettyShow
+translateCabalVersion x
+    | [3,14,1,1] <- C.versionNumbers x
+    = "3.14.1.1-p1"
+
+    | otherwise
+    = prettyShow x
