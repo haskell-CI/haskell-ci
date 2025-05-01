@@ -78,6 +78,8 @@ configHistory =
         & field @"cfgGhcupVersion" .~ C.mkVersion [0,1,50,1]
     , ver 0 19 20250330 := \cfg -> cfg
         & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,14,1,1]
+    , ver 0 19 20250330 := \cfg -> cfg
+        & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,14,2,0]
     ]
   where
     ver x y z = [x, y, z]
