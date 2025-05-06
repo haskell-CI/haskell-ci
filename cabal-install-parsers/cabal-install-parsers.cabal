@@ -33,7 +33,7 @@ tested-with:
    || ==9.4.8
    || ==9.6.7
    || ==9.8.4
-   || ==9.10.1
+   || ==9.10.2
 
 extra-source-files:
   Changelog.md
