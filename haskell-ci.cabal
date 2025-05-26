@@ -158,7 +158,7 @@ library haskell-ci-internal
     , base          >=4.12      && <4.21
     , binary        ^>=0.8.5.1
     , bytestring    ^>=0.10.8.1 || ^>=0.11.1.0 || ^>=0.12.0.2
-    , Cabal-syntax  ^>=3.12.0.0
+    , Cabal-syntax  ^>=3.12.0.0 || ^>=3.14.0.0
     , containers    ^>=0.6.0.1  || ^>=0.7
     , deepseq       ^>=1.4.2.0  || ^>=1.5.0.0
     , directory     ^>=1.3.0.0
