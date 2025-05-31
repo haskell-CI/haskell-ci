@@ -11,15 +11,16 @@ import HaskellCI.Newtypes
 import HaskellCI.OptionsGrammar
 
 data ConstraintSet = ConstraintSet
-    { csName        :: String
-    , csGhcVersions :: VersionRange
-    , csGhcjs       :: Bool
-    , csConstraints :: [String] -- we parse these simply as strings
-    , csTests       :: Bool
-    , csRunTests    :: Bool
-    , csDocspec     :: Bool
-    , csBenchmarks  :: Bool
-    , csHaddock     :: Bool
+    { csName         :: String
+    , csGhcVersions  :: VersionRange
+    , csGhcjs        :: Bool
+    , csConstraints  :: [String] -- we parse these simply as strings
+    , csTests        :: Bool
+    , csRunTests     :: Bool
+    , csDocspec      :: Bool
+    , csBenchmarks   :: Bool
+    , csHaddock      :: Bool
+    , csPreferOldest :: Bool
     }
   deriving (Show, Generic)
 
@@ -40,3 +41,4 @@ constraintSetGrammar name = ConstraintSet name
     <*> C.booleanFieldDef  "docspec"                                       (field @"csDocspec") False
     <*> C.booleanFieldDef  "benchmarks"                                    (field @"csBenchmarks") False
     <*> C.booleanFieldDef  "haddock"                                       (field @"csHaddock") False
+    <*> C.booleanFieldDef  "prefer-oldest"                                 (field @"csPreferOldest") False

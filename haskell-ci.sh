@@ -549,7 +549,9 @@ run_cmd $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
 # constraint sets
 put_info "constraint sets"
 run_cmd rm -f cabal.project.local
-put_info "constraint set deepseq-1.4"
+put_info "constraint set prefer-oldest"
+run_cmd $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --dependencies-only -j all
+run_cmd $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
 
 
 # Done

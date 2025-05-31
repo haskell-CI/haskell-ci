@@ -497,7 +497,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             let testFlag        = if csTests cs then "--enable-tests" else "--disable-tests"
             let benchFlag       = if csBenchmarks cs then "--enable-benchmarks" else "--disable-benchmarks"
             let constraintFlags = map (\x ->  "--constraint='" ++ x ++ "'") (csConstraints cs)
-            let allFlags        = unwords (testFlag : benchFlag : constraintFlags)
+            let preferFlags     = if csPreferOldest cs then ["--prefer-oldest"] else []
+            let allFlags        = unwords (testFlag : benchFlag : constraintFlags ++ preferFlags)
 
             sh_cs $ "$CABAL v2-build $ARG_COMPILER " ++ allFlags ++ " all --dry-run"
             sh_cs $ "cabal-plan topo | sort"

@@ -292,6 +292,12 @@ jobs:
       - name: prepare for constraint sets
         run: |
           rm -f cabal.project.local
+      - name: constraint set prefer-oldest
+        run: |
+          $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --prefer-oldest all --dry-run
+          cabal-plan topo | sort
+          $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --prefer-oldest --dependencies-only -j2 all
+          $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks --prefer-oldest all
       - name: save cache
         if: always()
         uses: actions/cache/save@v4

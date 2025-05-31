@@ -91,21 +91,24 @@ macos-jobs: ==8.10.*
 -- Package will be build with different constraints.
 -- This is useful to check compatibility with older versions of dependencies.
 
-constraint-set deepseq-1.4
-  ghc: (>= 7.8 && <7.10) || == 8.2.2
-  constraints: deepseq ==1.4.*
-  constraints: binary installed
+constraint-set prefer-oldest
+  -- we can limit GHC's and add extra constraints for each constraint-set
+  -- for haskell-ci itself, we don't.
+
+  --  ghc: (>= 7.8 && <7.10) || == 8.2.2
+  --  constraints: deepseq ==1.4.*
 
   -- Constraint sets accept booleans for few steps, as the main script
   -- Defaults are False.
   -- These fields don't accept version ranges: you should rather create
   -- another constraint set.
 
-  -- tests: False
-  -- run-tests: False
+  tests: False
+  run-tests: False
+  prefer-oldest: True
   -- docspec: False
   -- benchmarks: False
-  haddock: True
+  -- haddock: True
 
 -- Copy over additional properties specified in a cabal.project file.
 -- Possible values are:
