@@ -64,7 +64,15 @@ newtype NoCommas = NoCommas String
   deriving anyclass (C.Newtype String)
 
 instance C.Parsec NoCommas where
-    parsec = NoCommas <$> liftA2 (:) (C.satisfy (not . isSpace)) (C.munch (/= ','))
+    parsec = NoCommas . mergeSpaces <$> liftA2 (:) (C.satisfy (not . isSpace)) (C.munch (/= ','))
+
+mergeSpaces :: String -> String
+mergeSpaces []        = []
+mergeSpaces (' ' : s) = ' ' : go s where
+    go []         = []
+    go (' ' : s') = go s'
+    go (c   : s') = c : mergeSpaces s'
+mergeSpaces (c   : s) = c   : mergeSpaces s
 
 instance C.Pretty NoCommas where
     pretty (NoCommas p) = PP.text p
