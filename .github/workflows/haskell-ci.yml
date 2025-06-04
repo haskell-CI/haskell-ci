@@ -70,11 +70,6 @@ jobs:
             compilerVersion: 8.8.4
             setup-method: ghcup
             allow-failure: false
-          - compiler: ghc-8.6.5
-            compilerKind: ghc
-            compilerVersion: 8.6.5
-            setup-method: ghcup
-            allow-failure: false
       fail-fast: false
     steps:
       - name: apt-get install
