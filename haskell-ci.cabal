@@ -34,6 +34,7 @@ tested-with:
    || ==9.6.7
    || ==9.8.4
    || ==9.10.2
+   || ==9.12.2
 
 extra-source-files: CHANGELOG.md
 extra-source-files:
@@ -154,7 +155,7 @@ library haskell-ci-internal
     ViewPatterns
 
   build-depends:
-    , base          >=4.13      && <4.21
+    , base          >=4.13      && <4.22
     , binary        ^>=0.8.7.0
     , bytestring    ^>=0.10.10.1 || ^>=0.11.1.0 || ^>=0.12.0.2
     , Cabal-syntax  ^>=3.14.2.0
