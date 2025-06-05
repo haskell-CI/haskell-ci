@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.19.20250604
+version:            0.19.20250605
 synopsis:           Haskell CI script generator
 description:
   Script generator (@haskell-ci@) for
@@ -185,14 +185,14 @@ library haskell-ci-internal
     , ini                            ^>=0.4.1
     , lattices                       ^>=2.2
     , network-uri                    ^>=2.6.1.0
-    , optparse-applicative           ^>=0.18.1.0
+    , optparse-applicative           ^>=0.19.0.0
     , temporary                      ^>=1.3
     , unordered-containers           ^>=0.2.10.0
     , zinza                          ^>=0.2
 
   -- ShellCheck. Would need newer transformers for older GHC
   if flag(shellcheck)
-    build-depends: ShellCheck ==0.9.0
+    build-depends: ShellCheck ==0.10.0
 
 executable haskell-ci
   main-is:          Main.hs
@@ -224,7 +224,7 @@ test-suite golden
   -- dependencies needing explicit constraints
   build-depends:
     , ansi-terminal  >=1.0      && <1.2
-    , Diff           ^>=0.4.0   || ^>=0.5
+    , Diff           ^>=1.0.2
     , tasty          ^>=1.4.1   || ^>=1.5
     , tasty-golden   ^>=2.3.1.1
     , tasty-hunit
