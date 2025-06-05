@@ -29,6 +29,8 @@ jobs:
     continue-on-error: ${{ matrix.allow-failure }}
     strategy:
       matrix:
+        compiler: [ghc-9.10.2,ghc-9.8.4,ghc-9.6.7,ghc-9.4.8,ghc-9.2.8,ghc-9.0.2,ghc-8.10.7,ghc-8.8.4]
+        animal: [cat, dog]
         include:
           - compiler: ghc-9.10.2
             compilerKind: ghc
