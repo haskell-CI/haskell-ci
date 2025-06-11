@@ -399,7 +399,7 @@ indexMetadata indexFilepath mindexState = do
 
                 f :: Maybe TmpPackageInfo -> Maybe TmpPackageInfo
                 f Nothing = Just TmpPackageInfo
-                    { tmpPiVersions  = Map.singleton ver TmpReleaseInfo 
+                    { tmpPiVersions  = Map.singleton ver TmpReleaseInfo
                         { tmpRiRevision    = 0
                         , tmpRiTarOffset   = offset
                         , tmpRiCabalHash   = Just digest

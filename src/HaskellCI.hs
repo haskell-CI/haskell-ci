@@ -35,6 +35,7 @@ import System.Process        (readProcessWithExitCode)
 
 import Distribution.PackageDescription (GenericPackageDescription, package, packageDescription, testedWith)
 import Distribution.Text
+import Distribution.Types.CondTree     (CondBranch (..), CondTree (..))
 import Distribution.Version
 
 import qualified Data.ByteString       as BS
@@ -360,12 +361,37 @@ getCabalFiles
     -> m (Project URI Void (FilePath, GenericPackageDescription))
 getCabalFiles InputTypeProject path = do
     contents <- liftIO $ BS.readFile path
-    prj0 <- either (putStrLnErr . renderParseError) return $ parseProject path contents
-    prj1 <- either (putStrLnErr . renderResolveError) return =<< liftIO (resolveProject path prj0)
+    prj0 <- either (putStrLnErr . renderParseError) return $ parseProjectWithConditionals path contents
+    let prj0' :: Project Void String String
+        prj0' = simplifyProject prj0
+    prj1 <- either (putStrLnErr . renderResolveError) return =<< liftIO (resolveProject path prj0')
     either (putStrLnErr . renderParseError) return =<< liftIO (readPackagesOfProject prj1)
 getCabalFiles InputTypePackage path = do
     e <- liftIO $ readPackagesOfProject (emptyProject & field @"prjPackages" .~ [path])
     either (putStrLnErr . renderParseError) return e
+
+simplifyProject :: CondTree c d (Project Void String String) -> Project Void String String
+simplifyProject (CondNode a _ ifs) =
+  foldl (<<>>) a $ map simplifyProject' ifs
+
+simplifyProject' :: CondBranch v d (Project Void String String) -> Project Void String String
+simplifyProject' (CondBranch _ t Nothing)  = simplifyProject t
+simplifyProject' (CondBranch _ t (Just e)) = simplifyProject t <<>> simplifyProject e
+
+-- TODO: we preserve only top-level structure and packages specs.
+(<<>>) :: Project pkg opt uri -> Project pkg opt uri -> Project pkg opt uri
+x <<>> y = Project
+    { prjPackages     = prjPackages x <> prjPackages y
+    , prjOptPackages  = prjOptPackages x <> prjOptPackages y
+    , prjUriPackages  = prjUriPackages x <> prjUriPackages y
+    , prjConstraints  = prjConstraints x
+    , prjAllowNewer   = prjAllowNewer x
+    , prjReorderGoals = prjReorderGoals x
+    , prjMaxBackjumps = prjMaxBackjumps x
+    , prjOptimization = prjOptimization x
+    , prjSourceRepos  = prjSourceRepos x
+    , prjOtherFields  = prjOtherFields x
+    }
 
 -------------------------------------------------------------------------------
 -- Config

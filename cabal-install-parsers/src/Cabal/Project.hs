@@ -1,10 +1,11 @@
-{-# LANGUAGE CPP               #-}
-{-# LANGUAGE DeriveFoldable    #-}
-{-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE DeriveGeneric     #-}
-{-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE MultiWayIf        #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE CPP                 #-}
+{-# LANGUAGE DeriveFoldable      #-}
+{-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE DeriveTraversable   #-}
+{-# LANGUAGE MultiWayIf          #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | License: GPL-3.0-or-later AND BSD-3-Clause
 --
 module Cabal.Project (
@@ -15,6 +16,8 @@ module Cabal.Project (
     -- * Parse project
     readProject,
     parseProject,
+    readProjectWithConditionals,
+    parseProjectWithConditionals,
     -- * Resolve project
     resolveProject,
     ResolveError (..),
@@ -25,6 +28,7 @@ module Cabal.Project (
 
 import Control.DeepSeq            (NFData (..))
 import Control.Exception          (Exception (..), throwIO)
+import Control.Monad              (unless)
 import Control.Monad.IO.Class     (liftIO)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Data.Bifoldable            (Bifoldable (..))
@@ -55,6 +59,7 @@ import qualified Data.Map.Strict                 as M
 import qualified Distribution.CabalSpecVersion   as C
 import qualified Distribution.FieldGrammar       as C
 import qualified Distribution.Fields             as C
+import qualified Distribution.Fields.ConfVar     as C
 import qualified Distribution.PackageDescription as C
 import qualified Distribution.Parsec             as C
 
@@ -71,6 +76,12 @@ infixl 1 <&>
 
 -- $setup
 -- >>> :set -XOverloadedStrings
+-- >>> import Data.String (fromString)
+-- >>> import qualified Distribution.PackageDescription as C
+-- >>> import Text.Show (showListWith)
+-- >>> import Data.Functor.Classes (liftShowsPrec)
+-- >>> let sB (C.CondBranch c t f) = showString "CondBranch _ " . showParen True (sT t) . showChar ' ' . liftShowsPrec (\_ -> sT) undefined 11 f; sT (C.CondNode x c xs) = showString "CondTree " . showsPrec 11 x . showString " _ " . showListWith sB xs
+-- >>> pp x = putStrLn (either show (flip sT "") x)
 
 -- | @cabal.project@ file
 data Project uri opt pkg = Project
@@ -152,7 +163,7 @@ instance (NFData c, NFData b, NFData a) => NFData (Project c b a) where
         rnf x7 `seq` rnf x8 `seq` rnf x9 `seq`
         rnfList rnfPrettyField x10
       where
-        rnfList :: (a -> ()) -> [a] -> ()
+        rnfList :: (x -> ()) -> [x] -> ()
         rnfList _ []     = ()
         rnfList f (x:xs) = f x `seq` rnfList f xs
 
@@ -179,6 +190,13 @@ readProject fp = do
     prj1 <- resolveProject fp prj0 >>= either throwIO return
     readPackagesOfProject prj1 >>= either throwIO return
 
+readProjectWithConditionals :: FilePath -> IO (C.CondTree C.ConfVar () (Project URI Void (FilePath, C.GenericPackageDescription)))
+readProjectWithConditionals fp = do
+    contents <- BS.readFile fp
+    prj0 <- either throwIO return (parseProjectWithConditionals fp contents)
+    prj1 <- traverse (\p -> resolveProject fp p >>= either throwIO return) prj0
+    traverse (\p -> readPackagesOfProject p >>= either throwIO return) prj1
+
 -- | Parse project file. Extracts only few fields.
 --
 -- >>> fmap prjPackages $ parseProject "cabal.project" "packages: foo bar/*.cabal"
@@ -192,6 +210,46 @@ parseProject = parseWith $ \fields0 -> do
   where
     knownFields = C.fieldGrammarKnownFieldList $ grammar []
 
+    parse otherFields fields sections = do
+        let prettyOtherFields = map void $ C.fromParsecFields $ filter otherFieldName otherFields
+        prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOtherFields
+        foldl' (&) prj <$> traverse parseSec (concat sections)
+
+    -- Special case for source-repository-package. If you add another such
+    -- special case, make sure to update otherFieldName appropriately.
+    parseSec :: C.Section C.Position -> C.ParseResult (Project Void String String -> Project Void String String)
+    parseSec (C.MkSection (C.Name _pos name) [] fields) | name == sourceRepoSectionName = do
+        let fields' = fst $ C.partitionFields fields
+        repos <- C.parseFieldGrammar C.cabalSpecLatest fields' sourceRepositoryPackageGrammar
+        return $ over prjSourceReposL (++ toList (srpFanOut repos))
+
+    parseSec _ = return id
+
+-- | Parse project files with conditionals.
+--
+-- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" "packages: foo bar/*.cabal"
+-- CondTree ["foo","bar/*.cabal"] _ []
+--
+-- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" $ fromString $ unlines [ "packages: foo bar/*.cabal", "if impl(ghc >=9)", "  packages: quu" ]
+-- CondTree ["foo","bar/*.cabal"] _ [CondBranch _ (CondTree ["quu"] _ []) Nothing]
+--
+-- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" $ fromString $ unlines [ "packages: foo bar/*.cabal", "if impl(ghc >=9)", "  packages: quu", "if impl(ghc >=10)", "  packages: zoo" ]
+-- CondTree ["foo","bar/*.cabal"] _ [CondBranch _ (CondTree ["quu"] _ []) Nothing,CondBranch _ (CondTree ["zoo"] _ []) Nothing]
+--
+-- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" $ fromString $ unlines [ "packages: foo bar/*.cabal", "if impl(ghc >=9)", "  packages: quu", "else", "  packages: zoo" ]
+-- CondTree ["foo","bar/*.cabal"] _ [CondBranch _ (CondTree ["quu"] _ []) (Just CondTree ["zoo"] _ [])]
+--
+-- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" $ fromString $ unlines [ "packages: foo bar/*.cabal", "if impl(ghc >=9)", "  packages: quu", "elif impl(ghc >=10)", "  packages: zoo", "else", "  packages: yyz" ]
+-- CondTree ["foo","bar/*.cabal"] _ [CondBranch _ (CondTree ["quu"] _ []) (Just CondTree [] _ [CondBranch _ (CondTree ["zoo"] _ []) (Just CondTree ["yyz"] _ [])])]
+--
+parseProjectWithConditionals :: FilePath -> ByteString -> Either (ParseError NonEmpty) (C.CondTree C.ConfVar () (Project Void String String))
+parseProjectWithConditionals = parseWith $ \fields0 -> flip parseCondTree fields0 $ \fields1 sections -> do
+    let fields2  = M.filterWithKey (\k _ -> k `elem` knownFields) fields1
+    parse fields0 fields2 sections
+  where
+    knownFields = C.fieldGrammarKnownFieldList $ grammar []
+
+    parse :: [C.Field a] -> C.Fields C.Position -> [[C.Section C.Position]] -> C.ParseResult (Project Void String String)
     parse otherFields fields sections = do
         let prettyOtherFields = map void $ C.fromParsecFields $ filter otherFieldName otherFields
         prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOtherFields
@@ -377,3 +435,61 @@ readPackagesOfProject :: Project uri opt FilePath -> IO (Either (ParseError NonE
 readPackagesOfProject prj = runExceptT $ for prj $ \fp -> do
     contents <- liftIO $ BS.readFile fp
     either throwE (\gpd -> return (fp, gpd)) (parsePackage fp contents)
+
+-------------------------------------------------------------------------------
+-- Read package files
+-------------------------------------------------------------------------------
+
+parseCondTree
+  :: forall a. (C.Fields C.Position -> [[C.Section C.Position]] -> C.ParseResult a)  -- ^ parse
+  -> [C.Field C.Position]
+  -> C.ParseResult (C.CondTree C.ConfVar () a)
+parseCondTree subparse = go
+  where
+    go fields = do
+        let (fs, ss) = C.partitionFields fields
+        (ss', branches) <- second concat . unzip <$> traverse (goIfs id id) ss
+        x <- subparse fs ss'
+        return $ C.CondNode x () branches
+
+    goIfs
+        :: ([C.Section C.Position] -> [C.Section C.Position])
+        -> ([C.CondBranch C.ConfVar () a] -> [C.CondBranch C.ConfVar () a])
+        -> [C.Section C.Position]
+        -> C.ParseResult ([C.Section C.Position], [C.CondBranch C.ConfVar () a])
+    goIfs accS accB [] = do
+        return (accS [], accB [])
+    goIfs accS accB (C.MkSection (C.Name pos name) args fields : sections)
+        | name == "if" = do
+            test' <- C.parseConditionConfVar args
+            fields' <- go fields
+            goElse (C.CondBranch test' fields') accS accB sections
+        | name == "else" = do
+            C.parseFailure pos "standalone else"
+            return ([], [])
+        | name == "elif" = do
+            C.parseFailure pos "standalone elif"
+            goIfs accS accB sections
+    goIfs accS accB (section : sections) = do
+        goIfs (accS . (section :)) accB sections
+
+    goElse
+        :: (Maybe (C.CondTree C.ConfVar () a) -> C.CondBranch C.ConfVar () a)
+        -> ([C.Section C.Position] -> [C.Section C.Position])
+        -> ([C.CondBranch C.ConfVar () a] -> [C.CondBranch C.ConfVar () a])
+        -> [C.Section C.Position]
+        -> C.ParseResult ([C.Section C.Position], [C.CondBranch C.ConfVar () a])
+    goElse make accS accB (C.MkSection (C.Name pos name) args fields : sections)
+        | name == "else" = do
+            unless (null args) $ C.parseFailure pos "arguments passed to else"
+            fields' <- go fields
+            let condTree = make (Just fields')
+            goIfs accS (accB . (condTree :)) sections
+        | name == "elif" = do
+            test' <- C.parseConditionConfVar args
+            fields' <- go fields
+            emptyA <- subparse mempty []
+            goElse (make . Just . C.CondNode emptyA () . pure .  C.CondBranch test' fields') accS accB sections
+    goElse make accS accB sections = do
+        let condTree = make Nothing
+        goIfs accS (accB . (condTree :)) sections

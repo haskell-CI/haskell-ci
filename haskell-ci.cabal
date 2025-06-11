@@ -1,6 +1,6 @@
 cabal-version:      2.2
 name:               haskell-ci
-version:            0.19.20250605
+version:            0.19.20250630
 synopsis:           Haskell CI script generator
 description:
   Script generator (@haskell-ci@) for
@@ -176,7 +176,7 @@ library haskell-ci-internal
     , attoparsec                     ^>=0.14.1
     , base-compat                    ^>=0.14.0
     , base16-bytestring              ^>=1.0.1.0
-    , cabal-install-parsers          ^>=0.6.3
+    , cabal-install-parsers          ^>=0.6.4
     , cryptohash-sha256              ^>=0.11.101.0
     , exceptions                     ^>=0.10.0
     , generic-lens-lite              ^>=0.1
