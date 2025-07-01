@@ -1,3 +1,7 @@
+## 0.6.4
+
+- Add support for reading project files with conditionals.
+
 ## 0.6.3
 
 - Drop support for GHC prior 8.8.4

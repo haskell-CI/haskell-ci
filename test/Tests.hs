@@ -34,6 +34,7 @@ main = do
             , fixtureGoldenTest "enabled-jobs"
             , fixtureGoldenTest "doctest"
             , fixtureGoldenTest "doctest-version"
+            , fixtureGoldenTest "conditionals"
             , testGroup "copy-fields"
                 [ fixtureGoldenTest "copy-fields-all"
                 , fixtureGoldenTest "copy-fields-some"
