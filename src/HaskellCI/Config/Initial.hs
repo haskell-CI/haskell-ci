@@ -74,6 +74,7 @@ initialConfig = Config
     , cfgGitHubPatches       = []
     , cfgInsertVersion       = True
     , cfgErrorMissingMethods = PackageScopeLocal
+    , cfgErrorUnusedPkgs     = noVersion
     , cfgDoctest             = initialDoctestConfig
     , cfgDocspec             = initialDocspecConfig
     , cfgConstraintSets      = []

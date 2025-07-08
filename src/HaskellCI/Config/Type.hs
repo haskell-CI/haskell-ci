@@ -74,6 +74,7 @@ data Config = Config
     , cfgGitHubPatches       :: [FilePath]
     , cfgInsertVersion       :: !Bool
     , cfgErrorMissingMethods :: !PackageScope
+    , cfgErrorUnusedPkgs     :: !VersionRange
     , cfgDoctest             :: !DoctestConfig
     , cfgDocspec             :: !DocspecConfig
     , cfgConstraintSets      :: [ConstraintSet]

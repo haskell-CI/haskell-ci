@@ -350,11 +350,18 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 PackageScopeLocal -> for_ pkgs $ \Pkg{pkgName,pkgJobs} -> do
                     let range = Range (C.orLaterVersion (C.mkVersion [8,2])) /\ RangePoints pkgJobs
                     echo_if_to range "cabal.project" $ "package " ++ pkgName
-                    echo_if_to range "cabal.project" $ "    ghc-options: -Werror=missing-methods"
+                    echo_if_to range "cabal.project" $ "    ghc-options: -Werror=missing-methods -Werror=missing-fields"
                 PackageScopeAll   -> cat "cabal.project" $ unlines
                     [ "package *"
                     , "  ghc-options: -Werror=missing-methods -Werror=missing-fields"
                     ]
+
+            -- -Werror-unused-pkgs
+            for_ pkgs $ \Pkg{pkgName,pkgJobs} -> do
+                -- is introduced in 8.10.
+                let range = Range cfgErrorUnusedPkgs /\ Range (C.orLaterVersion (C.mkVersion [8,10])) /\ RangePoints pkgJobs
+                echo_if_to range "cabal.project" $ "package " ++ pkgName
+                echo_if_to range "cabal.project" $ "    ghc-options: -Werror=unused-packages"
 
             -- extra cabal.project fields
             cat "cabal.project" $ C.showFields' (const C.NoComment) (const id) 2 $ extraCabalProjectFields "$GITHUB_WORKSPACE/source/"

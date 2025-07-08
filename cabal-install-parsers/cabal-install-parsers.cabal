@@ -123,14 +123,11 @@ test-suite cabal-parsers-golden
     , bytestring
     , cabal-install-parsers
     , Cabal-syntax
-    , containers
-    , directory
     , filepath
     , pretty
 
   -- dependencies needing explicit constraints
   build-depends:
-    , ansi-terminal  >=1.0      && <1.2
     , tasty          ^>=1.4     || ^>=1.5
     , tasty-golden   ^>=2.3.1.1
     , tree-diff      >=0.2      && <0.4
@@ -146,10 +143,6 @@ benchmark cabal-parsers-bench
     , base
     , bytestring
     , cabal-install-parsers
-    , Cabal-syntax
-    , containers
-    , directory
-    , filepath
 
   -- dependencies needing explicit constraints
   build-depends:    criterion ^>=1.6.0.0

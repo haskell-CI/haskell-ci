@@ -263,7 +263,7 @@ jobs:
           touch cabal.project.local
           echo "packages: ${PKGDIR_servant}" >> cabal.project
           if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo "package servant" >> cabal.project ; fi
-          if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo "    ghc-options: -Werror=missing-methods" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields" >> cabal.project ; fi
           cat >> cabal.project <<EOF
           EOF
           $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(servant)$/; }' >> cabal.project.local

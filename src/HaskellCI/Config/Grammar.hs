@@ -159,10 +159,12 @@ configGrammar = Config
         ^^^ metaActionHelp "PATCH" "file" ".patch files to apply to the generated Travis YAML file"
     <*> monoidalFieldAla    "github-patches"            (C.alaList' C.NoCommaFSep C.Token') (field @"cfgGitHubPatches")
         ^^^ metaActionHelp "PATCH" "file" ".patch files to apply to the generated GitHub Actions YAML file"
-    <*> booleanFieldDef "insert-version"                                                    (field @"cfgInsertVersion") defaultConfig
+    <*> booleanFieldDef    "insert-version"                                                    (field @"cfgInsertVersion") defaultConfig
         ^^^ help "Don't insert the haskell-ci version into the generated Travis YAML file"
-    <*> optionalFieldDef "error-missing-methods"                                            (field @"cfgErrorMissingMethods") defaultConfig
+    <*> optionalFieldDef   "error-missing-methods"                                            (field @"cfgErrorMissingMethods") defaultConfig
         ^^^ metahelp "PKGSCOPE" "Insert -Werror=missing-methods for package scope (none, local, all)"
+    <*> rangeField         "error-unused-packages"                                         (field @"cfgErrorUnusedPkgs") defaultConfig
+        ^^^ metahelp "RANGE" "Insert -Werror=unused-packages"
     <*> blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar defaultConfig
     <*> blurFieldGrammar (field @"cfgDocspec") docspecConfigGrammar defaultConfig
     <*> pure [] -- constraint sets

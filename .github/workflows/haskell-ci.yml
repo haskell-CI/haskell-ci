@@ -225,6 +225,10 @@ jobs:
           package *
             ghc-options: -Werror=missing-methods -Werror=missing-fields
           EOF
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "package haskell-ci" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "    ghc-options: -Werror=unused-packages" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "package cabal-install-parsers" >> cabal.project ; fi
+          if [ $((HCNUMVER >= 90400)) -ne 0 ] ; then echo "    ghc-options: -Werror=unused-packages" >> cabal.project ; fi
           cat >> cabal.project <<EOF
           allow-newer: ShellCheck:filepath
 

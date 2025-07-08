@@ -20,7 +20,6 @@ dependencies = Map.fromList
     , ("Cabal-syntax",           VERSION_Cabal_syntax)
     , ("cabal-install-parsers",  VERSION_cabal_install_parsers)
     , ("containers",             VERSION_containers)
-    , ("deepseq",                VERSION_deepseq)
     , ("directory",              VERSION_directory)
     , ("exceptions",             VERSION_exceptions)
     , ("filepath",               VERSION_filepath)
@@ -39,5 +38,4 @@ dependencies = Map.fromList
     , ("temporary",              VERSION_temporary)
     , ("text",                   VERSION_text)
     , ("transformers",           VERSION_transformers)
-    , ("unordered-containers",   VERSION_unordered_containers)
     ]
