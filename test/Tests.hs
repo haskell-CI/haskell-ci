@@ -1,6 +1,9 @@
 {-# LANGUAGE ViewPatterns #-}
 module Main (main) where
 
+-- to add explicit dependency on base for -Wunused-packages purpose
+import Prelude ()
+
 import HaskellCI         hiding (main)
 import HaskellCI.Prelude
 

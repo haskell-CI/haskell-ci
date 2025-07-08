@@ -83,6 +83,8 @@ configHistory =
     , ver 0 19 20250606 := \cfg -> cfg
         & field @"cfgDocspec" . field @"cfgDocspecUrl"  .~ "https://github.com/phadej/cabal-extras/releases/download/cabal-docspec-0.0.0.20250606/cabal-docspec-0.0.0.20250606-x86_64-linux.xz"
         & field @"cfgDocspec" . field @"cfgDocspecHash" .~ "cc20bb5c19501b42bde77556bc419c7c0a5c8d1eb65663024d8a4e4c868bef25"
+    , ver 0 19 20250708 := \cfg -> cfg
+        & field @"cfgErrorUnusedPkgs" .~ C.orLaterVersion (C.mkVersion [9,4])
     ]
   where
     ver x y z = [x, y, z]
