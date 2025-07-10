@@ -303,6 +303,14 @@ jobs:
           if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "    ghc-options: -Werror=unused-packages" >> cabal.project ; fi
           if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "package servant-server" >> cabal.project ; fi
           if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "    ghc-options: -Werror=unused-packages" >> cabal.project ; fi
+          if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "package servant" >> cabal.project ; fi
+          if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project ; fi
+          if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "package servant-client" >> cabal.project ; fi
+          if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project ; fi
+          if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "package servant-docs" >> cabal.project ; fi
+          if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project ; fi
+          if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "package servant-server" >> cabal.project ; fi
+          if [ $((HCNUMVER > 81007)) -ne 0 ] ; then echo "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project ; fi
           cat >> cabal.project <<EOF
           EOF
           if $HEADHACKAGE; then

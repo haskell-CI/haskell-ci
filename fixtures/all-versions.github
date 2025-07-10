@@ -445,6 +445,8 @@ jobs:
           if [ $((GHCJSARITH || ! GHCJSARITH && HCNUMVER >= 80200)) -ne 0 ] ; then echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields" >> cabal.project ; fi
           if [ $((! GHCJSARITH && HCNUMVER >= 90400)) -ne 0 ] ; then echo "package splitmix" >> cabal.project ; fi
           if [ $((! GHCJSARITH && HCNUMVER >= 90400)) -ne 0 ] ; then echo "    ghc-options: -Werror=unused-packages" >> cabal.project ; fi
+          if [ $((! GHCJSARITH && HCNUMVER >= 90000)) -ne 0 ] ; then echo "package splitmix" >> cabal.project ; fi
+          if [ $((! GHCJSARITH && HCNUMVER >= 90000)) -ne 0 ] ; then echo "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project ; fi
           cat >> cabal.project <<EOF
           EOF
           $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(splitmix)$/; }' >> cabal.project.local

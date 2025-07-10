@@ -75,6 +75,7 @@ data Config = Config
     , cfgInsertVersion       :: !Bool
     , cfgErrorMissingMethods :: !PackageScope
     , cfgErrorUnusedPkgs     :: !VersionRange
+    , cfgErrorIncompletePatterns :: !VersionRange
     , cfgDoctest             :: !DoctestConfig
     , cfgDocspec             :: !DocspecConfig
     , cfgConstraintSets      :: [ConstraintSet]

@@ -75,6 +75,7 @@ initialConfig = Config
     , cfgInsertVersion       = True
     , cfgErrorMissingMethods = PackageScopeLocal
     , cfgErrorUnusedPkgs     = noVersion
+    , cfgErrorIncompletePatterns = noVersion
     , cfgDoctest             = initialDoctestConfig
     , cfgDocspec             = initialDocspecConfig
     , cfgConstraintSets      = []

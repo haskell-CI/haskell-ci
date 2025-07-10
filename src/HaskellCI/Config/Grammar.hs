@@ -165,6 +165,8 @@ configGrammar = Config
         ^^^ metahelp "PKGSCOPE" "Insert -Werror=missing-methods for package scope (none, local, all)"
     <*> rangeField         "error-unused-packages"                                         (field @"cfgErrorUnusedPkgs") defaultConfig
         ^^^ metahelp "RANGE" "Insert -Werror=unused-packages"
+    <*> rangeField         "error-incomplete-patterns"                                     (field @"cfgErrorIncompletePatterns") defaultConfig
+        ^^^ metahelp "RANGE" "Insert -Werror=incomplete-(uni-)patterns"
     <*> blurFieldGrammar (field @"cfgDoctest") doctestConfigGrammar defaultConfig
     <*> blurFieldGrammar (field @"cfgDocspec") docspecConfigGrammar defaultConfig
     <*> pure [] -- constraint sets

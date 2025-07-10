@@ -65,3 +65,4 @@ instance ToExpr Doc where
 instance ToExpr (PrettyField ann) where
   toExpr (PrettyField _ fn d)       = App "PrettyField"   [toExpr fn, toExpr d]
   toExpr (PrettySection _ fn ds ps) = App "PrettySection" [toExpr fn, toExpr ds, toExpr ps]
+  toExpr PrettyEmpty                = App "PrettyEmpty"   []
