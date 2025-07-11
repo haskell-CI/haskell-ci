@@ -85,6 +85,8 @@ configHistory =
         & field @"cfgDocspec" . field @"cfgDocspecHash" .~ "cc20bb5c19501b42bde77556bc419c7c0a5c8d1eb65663024d8a4e4c868bef25"
     , ver 0 19 20250708 := \cfg -> cfg
         & field @"cfgErrorUnusedPkgs" .~ C.orLaterVersion (C.mkVersion [9,4])
+    , ver 0 19 20250108 := \cfg -> cfg
+        & field @"cfgErrorIncompletePatterns" .~ C.orLaterVersion (C.mkVersion [9,0])
     ]
   where
     ver x y z = [x, y, z]

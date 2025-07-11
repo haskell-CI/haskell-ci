@@ -363,6 +363,13 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 echo_if_to range "cabal.project" $ "package " ++ pkgName
                 echo_if_to range "cabal.project" $ "    ghc-options: -Werror=unused-packages"
 
+            -- -Werror-unused-pkgs
+            for_ pkgs $ \Pkg{pkgName,pkgJobs} -> do
+                -- is introduced in 8.10.
+                let range = Range cfgErrorIncompletePatterns /\ RangePoints pkgJobs
+                echo_if_to range "cabal.project" $ "package " ++ pkgName
+                echo_if_to range "cabal.project" $ "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns"
+
             -- extra cabal.project fields
             cat "cabal.project" $ C.showFields' (const C.NoComment) (const id) 2 $ extraCabalProjectFields "$GITHUB_WORKSPACE/source/"
 
