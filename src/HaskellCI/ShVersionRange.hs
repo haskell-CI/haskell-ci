@@ -217,7 +217,7 @@ freeToArith z
         $ "! (" ++ go 0 x ++ ") || " ++ go 2 y
 
     parens :: Bool -> String -> String
-    parens True  s = "{ " ++ s ++ "; }"
+    parens True  s = "(" ++ s ++ ")"
     parens False s = s
 
 -------------------------------------------------------------------------------
