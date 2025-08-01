@@ -87,6 +87,8 @@ configHistory =
         & field @"cfgErrorUnusedPkgs" .~ C.orLaterVersion (C.mkVersion [9,4])
     , ver 0 19 20250108 := \cfg -> cfg
         & field @"cfgErrorIncompletePatterns" .~ C.orLaterVersion (C.mkVersion [9,0])
+    , ver 0 19 20250801 := \cfg -> cfg
+        & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,16,0,0]
     ]
   where
     ver x y z = [x, y, z]
