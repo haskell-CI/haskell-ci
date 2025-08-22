@@ -152,7 +152,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             tell_env "CABAL" $ "$HOME/.ghcup/bin/cabal-" ++ cabalFullVer ++ " -vnormal+nowrap"
 
         when cabalPrerelease $ githubRun "Install cabal-install (prerelease)" $ do
-            sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.8.yaml;"
+            sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel prereleases;"
             sh $ "\"$HOME/.ghcup/bin/ghcup\" install cabal " ++ cabalFullVer ++ " || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
             tell_env "CABAL" $ "$HOME/.ghcup/bin/cabal-" ++ cabalFullVer ++ " -vnormal+nowrap"
 
@@ -184,11 +184,11 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             ghcupGhcEnv
 
         whenWithinGhcRange (index cfgSetupMethods GHCUPvanilla) $ githubRunIf' "Install GHC (GHCup vanilla)" "matrix.setup-method == 'ghcup-vanilla'" envEnv $ do
-            sh $ "\"$HOME/.ghcup/bin/ghcup\" -s https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-vanilla-0.0.8.yaml install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
+            sh $ "\"$HOME/.ghcup/bin/ghcup\" -s https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-vanilla-0.0.9.yaml install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
             ghcupGhcEnv
 
         whenWithinGhcRange (index cfgSetupMethods GHCUPprerelease) $ githubRunIf' "Install GHC (GHCup prerelease)" "matrix.setup-method == 'ghcup-prerelease'" envEnv $ do
-            sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-prereleases-0.0.8.yaml;"
+            sh "\"$HOME/.ghcup/bin/ghcup\" config add-release-channel prereleases"
             sh $ "\"$HOME/.ghcup/bin/ghcup\" install ghc \"$HCVER\" || (cat \"$HOME\"/.ghcup/logs/*.* && false)"
             ghcupGhcEnv
 

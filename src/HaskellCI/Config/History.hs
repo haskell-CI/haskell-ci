@@ -89,6 +89,14 @@ configHistory =
         & field @"cfgErrorIncompletePatterns" .~ C.orLaterVersion (C.mkVersion [9,0])
     , ver 0 19 20250801 := \cfg -> cfg
         & field @"cfgCabalInstallVersion" ?~ C.mkVersion [3,16,0,0]
+    , ver 0 19 20250801 := \cfg -> cfg
+        & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,14,1]) (mkVersion [9,14,0,20250819])
+        & field @"cfgSetupMethods" .~ PerSetupMethod
+            { hvrPpa          = C.noVersion
+            , ghcup           = invertVersionRange (C.withinVersion (C.mkVersion [9,8,3])) /\ C.earlierVersion (C.mkVersion [9,14])
+            , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
+            , ghcupPrerelease = C.orLaterVersion (C.mkVersion [9,14])
+            }
     ]
   where
     ver x y z = [x, y, z]
