@@ -16,6 +16,7 @@ name: Haskell-CI
 on:
   - push
   - pull_request
+  - merge_group
 jobs:
   irc:
     name: Haskell-CI (IRC notification)
