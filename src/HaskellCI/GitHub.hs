@@ -313,7 +313,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             , ("path", "~/.haskell-ci-tools")
             ]
 
-        githubUses "checkout" "actions/checkout@v4" $ buildList $ do
+        githubUses "checkout" "actions/checkout@v5" $ buildList $ do
             item ("path", "source")
             when cfgSubmodules $
                 item ("submodules", "true")
