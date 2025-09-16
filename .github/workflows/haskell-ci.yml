@@ -35,9 +35,9 @@ jobs:
             compilerVersion: 9.12.2
             setup-method: ghcup
             allow-failure: false
-          - compiler: ghc-9.10.2
+          - compiler: ghc-9.10.3
             compilerKind: ghc
-            compilerVersion: 9.10.2
+            compilerVersion: 9.10.3
             setup-method: ghcup
             allow-failure: false
           - compiler: ghc-9.8.4
@@ -193,7 +193,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.compiler }}-tools-2e5ae02c
           path: ~/.haskell-ci-tools
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: source
       - name: initial cabal.project for sdist

@@ -97,6 +97,8 @@ configHistory =
             , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
             , ghcupPrerelease = C.orLaterVersion (C.mkVersion [9,14])
             }
+    , ver 0 19 20250916 := \cfg -> cfg
+        & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,14,1]) (mkVersion [9,14,0,20250908])
     ]
   where
     ver x y z = [x, y, z]
