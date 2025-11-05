@@ -101,6 +101,8 @@ configHistory =
         & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,14,1]) (mkVersion [9,14,0,20250908])
     , ver 0 19 20251019 := \cfg -> cfg
         & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,14,1]) (mkVersion [9,14,0,20251007])
+    , ver 0 19 20251105 := \cfg -> cfg
+        & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,14,1]) (mkVersion [9,14,0,20251028])
     ]
   where
     ver x y z = [x, y, z]

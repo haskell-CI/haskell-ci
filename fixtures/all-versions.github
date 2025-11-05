@@ -29,9 +29,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - compiler: ghc-9.14.0.20251007
+          - compiler: ghc-9.14.0.20251028
             compilerKind: ghc
-            compilerVersion: 9.14.0.20251007
+            compilerVersion: 9.14.0.20251028
             setup-method: ghcup-prerelease
             allow-failure: false
           - compiler: ghc-9.12.2
