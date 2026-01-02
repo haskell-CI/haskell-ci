@@ -29,10 +29,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - compiler: ghc-9.14.0.20251128
+          - compiler: ghc-9.14.1
             compilerKind: ghc
-            compilerVersion: 9.14.0.20251128
-            setup-method: ghcup-prerelease
+            compilerVersion: 9.14.1
+            setup-method: ghcup
             allow-failure: false
           - compiler: ghc-9.12.2
             compilerKind: ghc
@@ -367,21 +367,6 @@ jobs:
           HCKIND: ${{ matrix.compilerKind }}
           HCNAME: ${{ matrix.compiler }}
           HCVER: ${{ matrix.compilerVersion }}
-      - name: Install GHC (GHCup prerelease)
-        if: matrix.setup-method == 'ghcup-prerelease'
-        run: |
-          "$HOME/.ghcup/bin/ghcup" config add-release-channel prereleases
-          "$HOME/.ghcup/bin/ghcup" install ghc "$HCVER" || (cat "$HOME"/.ghcup/logs/*.* && false)
-          HC=$("$HOME/.ghcup/bin/ghcup" whereis ghc "$HCVER")
-          HCPKG=$(echo "$HC" | sed 's#ghc$#ghc-pkg#')
-          HADDOCK=$(echo "$HC" | sed 's#ghc$#haddock#')
-          echo "HC=$HC" >> "$GITHUB_ENV"
-          echo "HCPKG=$HCPKG" >> "$GITHUB_ENV"
-          echo "HADDOCK=$HADDOCK" >> "$GITHUB_ENV"
-        env:
-          HCKIND: ${{ matrix.compilerKind }}
-          HCNAME: ${{ matrix.compiler }}
-          HCVER: ${{ matrix.compilerVersion }}
       - name: Set PATH and environment variables
         run: |
           echo "$HOME/.cabal/bin" >> $GITHUB_PATH
@@ -448,7 +433,7 @@ jobs:
       - name: cache (tools)
         uses: actions/cache/restore@v4
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-9d25091b
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-cc3c62c0
           path: ~/.haskell-ci-tools
       - name: install cabal-plan
         run: |
@@ -467,7 +452,7 @@ jobs:
         if: always()
         uses: actions/cache/save@v4
         with:
-          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-9d25091b
+          key: ${{ runner.os }}-${{ matrix.compiler }}-tools-cc3c62c0
           path: ~/.haskell-ci-tools
       - name: checkout
         uses: actions/checkout@v5

@@ -107,6 +107,14 @@ configHistory =
         & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,14,1]) (mkVersion [9,14,0,20251104])
     , ver 0 19 20251211 := \cfg -> cfg
         & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [9,14,1]) (mkVersion [9,14,0,20251128])
+    , ver 0 19 20250102 := \cfg -> cfg
+        & field @"cfgVersionMapping" .~ mempty
+        & field @"cfgSetupMethods" .~ PerSetupMethod
+            { hvrPpa          = C.noVersion
+            , ghcup           = invertVersionRange (C.withinVersion (C.mkVersion [9,8,3]))
+            , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
+            , ghcupPrerelease = C.noVersion
+            }
     ]
   where
     ver x y z = [x, y, z]
