@@ -22,7 +22,7 @@ import Cabal.Index
 main :: IO ()
 main = defaultMain $ testGroup "Cabal.Index"
     [ testGroup "SHA256"
-        [ testCase "Base16.encode . getSHA256 . unsafeMkSHA256 rountrip" $ do
+        [ testCase "Base16.encode . getSHA256 . unsafeMkSHA256 roundtrip" $ do
             let s :: IsString s => s
                 s = "a6f5eddcff9526c786a1b77bdfade54b42f67c066b379bbc4b55ffb291e6c7d6"
 
