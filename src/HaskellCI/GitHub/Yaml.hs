@@ -96,12 +96,14 @@ instance ToYaml GitHub where
 instance ToYaml GitHubOn where
     toYaml GitHubOn {..}
         | null ghBranches
-        = ylistFilt [] ["push", "pull_request", "merge_group"]
+        = ylistFilt [] ["push", "pull_request", "merge_group", "workflow_dispatch"]
         | otherwise
-        = ykeyValuesFilt []
+        -- not filtering.
+        = YKeyValues []
               [ "push"         ~> branches
               , "pull_request" ~> branches
               , "merge_group"  ~> branches
+              , "workflow_dispatch" ~> YKeyValues [] []
               ]
       where
         branches = ykeyValuesFilt []
