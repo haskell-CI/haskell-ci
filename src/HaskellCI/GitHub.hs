@@ -275,7 +275,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 Binary.put cfgDoctest
                 Binary.put cfgSetupMethods
 
-        when (doctestEnabled) $ githubUses "cache (tools)" "actions/cache/restore@v4"
+        when (doctestEnabled) $ githubUses "cache (tools)" "actions/cache/restore@v5"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
             , ("path", "~/.haskell-ci-tools")
             ]
@@ -308,12 +308,12 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh_if range $ "$CABAL --store-dir=$HOME/.haskell-ci-tools/store v2-install $ARG_COMPILER --ignore-project -j2 doctest" ++ doctestVersionConstraint
             sh_if range "doctest --version"
 
-        when (doctestEnabled) $ githubUsesIf "save cache (tools)" "actions/cache/save@v4" "always()"
+        when (doctestEnabled) $ githubUsesIf "save cache (tools)" "actions/cache/save@v5" "always()"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
             , ("path", "~/.haskell-ci-tools")
             ]
 
-        githubUses "checkout" "actions/checkout@v5" $ buildList $ do
+        githubUses "checkout" "actions/checkout@v7" $ buildList $ do
             item ("path", "source")
             when cfgSubmodules $
                 item ("submodules", "true")
@@ -418,7 +418,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
 
         -- This a hack. https://github.com/actions/cache/issues/109
         -- Hashing Java - Maven style.
-        githubUses "restore cache" "actions/cache/restore@v4"
+        githubUses "restore cache" "actions/cache/restore@v5"
             [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
             , ("restore-keys", "${{ runner.os }}-${{ matrix.compiler }}-")
             , ("path", "~/.cabal/store")
@@ -525,7 +525,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             when (csHaddock cs) $
                 sh_cs $ "$CABAL v2-haddock --disable-documentation" ++ haddockFlags ++ " $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
-        githubUsesIf "save cache" "actions/cache/save@v4" "always()"
+        githubUsesIf "save cache" "actions/cache/save@v5" "always()"
           [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
           , ("path", "~/.cabal/store")
           ]
