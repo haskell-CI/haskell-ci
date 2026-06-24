@@ -14,7 +14,7 @@ import qualified Distribution.PackageDescription.Parsec as C
 
 import Cabal.Parse
 
--- | High level convinience function to read package definitons, @.cabal@ files.
+-- | High level convenience function to read package definitions, @.cabal@ files.
 --
 -- May throw 'IOException' when file doesn't exist, and 'ParseError'
 -- on parse error.

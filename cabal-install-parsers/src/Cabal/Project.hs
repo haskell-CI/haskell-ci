@@ -88,7 +88,7 @@ data Project uri opt pkg = Project
     { prjPackages     :: [pkg]  -- ^ packages field
     , prjOptPackages  :: [opt]  -- ^ optional packages
     , prjUriPackages  :: [uri]  -- ^ URI packages, filled in by 'resolveProject'
-    , prjConstraints  :: [String] -- ^ constaints, parsed as 'String's.
+    , prjConstraints  :: [String] -- ^ constraints, parsed as 'String's.
     , prjAllowNewer   :: [String] -- ^ allow-newer, parsed as 'String's.
     , prjReorderGoals :: Bool
     , prjMaxBackjumps :: Maybe Int

@@ -79,7 +79,7 @@ configGrammar = Config
     <*> optionalFieldDef    "jobs-selection"                                                (field @"cfgTestedWith") defaultConfig
         ^^^ metahelp "uniform|any" "Jobs selection across packages"
     <*> rangeField            "enabled"                                                     (field @"cfgEnabledJobs") defaultConfig
-        ^^^ metahelp "RANGE" "Restrict jobs selection futher from per package tested-with"
+        ^^^ metahelp "RANGE" "Restrict jobs selection further from per package tested-with"
     <*> optionalFieldDef    "copy-fields"                                                   (field @"cfgCopyFields") defaultConfig
         ^^^ metahelp "none|some|all" "Copy ? fields from cabal.project fields"
     <*> monoidalFieldAla    "local-ghc-options"         (C.alaList' C.NoCommaFSep C.Token') (field @"cfgLocalGhcOptions")

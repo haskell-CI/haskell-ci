@@ -1,4 +1,4 @@
-Continous Integration with Haskell
+Continuous Integration with Haskell
 ==================================
 
 Contents:
