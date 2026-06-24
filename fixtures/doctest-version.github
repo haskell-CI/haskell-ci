@@ -425,7 +425,7 @@ jobs:
         run: |
           $CABAL v2-update -v
       - name: cache (tools)
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           key: ${{ runner.os }}-${{ matrix.compiler }}-tools-7adc43de
           path: ~/.haskell-ci-tools
@@ -444,7 +444,7 @@ jobs:
           if [ $((! GHCJSARITH)) -ne 0 ] ; then doctest --version ; fi
       - name: save cache (tools)
         if: always()
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           key: ${{ runner.os }}-${{ matrix.compiler }}-tools-7adc43de
           path: ~/.haskell-ci-tools
@@ -489,7 +489,7 @@ jobs:
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH --dry-run all
           cabal-plan
       - name: restore cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
@@ -524,7 +524,7 @@ jobs:
           $CABAL v2-build $ARG_COMPILER --disable-tests --disable-benchmarks all
       - name: save cache
         if: always()
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
