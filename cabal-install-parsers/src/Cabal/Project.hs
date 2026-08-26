@@ -80,7 +80,7 @@ infixl 1 <&>
 -- >>> import qualified Distribution.PackageDescription as C
 -- >>> import Text.Show (showListWith)
 -- >>> import Data.Functor.Classes (liftShowsPrec)
--- >>> let sB (C.CondBranch c t f) = showString "CondBranch _ " . showParen True (sT t) . showChar ' ' . liftShowsPrec (\_ -> sT) undefined 11 f; sT (C.CondNode x c xs) = showString "CondTree " . showsPrec 11 x . showString " _ " . showListWith sB xs
+-- >>> let sB (C.CondBranch c t f) = showString "CondBranch _ " . showParen True (sT t) . showChar ' ' . liftShowsPrec (\_ -> sT) undefined 11 f; sT (C.CondNode x xs) = showString "CondTree " . showsPrec 11 x . showChar ' ' . showListWith sB xs
 -- >>> pp x = putStrLn (either show (flip sT "") x)
 
 -- | @cabal.project@ file
@@ -190,7 +190,7 @@ readProject fp = do
     prj1 <- resolveProject fp prj0 >>= either throwIO return
     readPackagesOfProject prj1 >>= either throwIO return
 
-readProjectWithConditionals :: FilePath -> IO (C.CondTree C.ConfVar () (Project URI Void (FilePath, C.GenericPackageDescription)))
+readProjectWithConditionals :: FilePath -> IO (C.CondTree C.ConfVar (Project URI Void (FilePath, C.GenericPackageDescription)))
 readProjectWithConditionals fp = do
     contents <- BS.readFile fp
     prj0 <- either throwIO return (parseProjectWithConditionals fp contents)
@@ -217,7 +217,7 @@ parseProject = parseWith $ \fields0 -> do
 
     -- Special case for source-repository-package. If you add another such
     -- special case, make sure to update otherFieldName appropriately.
-    parseSec :: C.Section C.Position -> C.ParseResult (Project Void String String -> Project Void String String)
+    parseSec :: C.Section C.Position -> C.ParseResult src (Project Void String String -> Project Void String String)
     parseSec (C.MkSection (C.Name _pos name) [] fields) | name == sourceRepoSectionName = do
         let fields' = fst $ C.partitionFields fields
         repos <- C.parseFieldGrammar C.cabalSpecLatest fields' sourceRepositoryPackageGrammar
@@ -228,28 +228,28 @@ parseProject = parseWith $ \fields0 -> do
 -- | Parse project files with conditionals.
 --
 -- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" "packages: foo bar/*.cabal"
--- CondTree ["foo","bar/*.cabal"] _ []
+-- CondTree ["foo","bar/*.cabal"] []
 --
 -- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" $ fromString $ unlines [ "packages: foo bar/*.cabal", "if impl(ghc >=9)", "  packages: quu" ]
--- CondTree ["foo","bar/*.cabal"] _ [CondBranch _ (CondTree ["quu"] _ []) Nothing]
+-- CondTree ["foo","bar/*.cabal"] [CondBranch _ (CondTree ["quu"] []) Nothing]
 --
 -- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" $ fromString $ unlines [ "packages: foo bar/*.cabal", "if impl(ghc >=9)", "  packages: quu", "if impl(ghc >=10)", "  packages: zoo" ]
--- CondTree ["foo","bar/*.cabal"] _ [CondBranch _ (CondTree ["quu"] _ []) Nothing,CondBranch _ (CondTree ["zoo"] _ []) Nothing]
+-- CondTree ["foo","bar/*.cabal"] [CondBranch _ (CondTree ["quu"] []) Nothing,CondBranch _ (CondTree ["zoo"] []) Nothing]
 --
 -- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" $ fromString $ unlines [ "packages: foo bar/*.cabal", "if impl(ghc >=9)", "  packages: quu", "else", "  packages: zoo" ]
--- CondTree ["foo","bar/*.cabal"] _ [CondBranch _ (CondTree ["quu"] _ []) (Just CondTree ["zoo"] _ [])]
+-- CondTree ["foo","bar/*.cabal"] [CondBranch _ (CondTree ["quu"] []) (Just CondTree ["zoo"] [])]
 --
 -- >>> pp $ fmap (fmap prjPackages) $ parseProjectWithConditionals "cabal.project" $ fromString $ unlines [ "packages: foo bar/*.cabal", "if impl(ghc >=9)", "  packages: quu", "elif impl(ghc >=10)", "  packages: zoo", "else", "  packages: yyz" ]
--- CondTree ["foo","bar/*.cabal"] _ [CondBranch _ (CondTree ["quu"] _ []) (Just CondTree [] _ [CondBranch _ (CondTree ["zoo"] _ []) (Just CondTree ["yyz"] _ [])])]
+-- CondTree ["foo","bar/*.cabal"] [CondBranch _ (CondTree ["quu"] []) (Just CondTree [] [CondBranch _ (CondTree ["zoo"] []) (Just CondTree ["yyz"] [])])]
 --
-parseProjectWithConditionals :: FilePath -> ByteString -> Either (ParseError NonEmpty) (C.CondTree C.ConfVar () (Project Void String String))
+parseProjectWithConditionals :: FilePath -> ByteString -> Either (ParseError NonEmpty) (C.CondTree C.ConfVar (Project Void String String))
 parseProjectWithConditionals = parseWith $ \fields0 -> flip parseCondTree fields0 $ \fields1 sections -> do
     let fields2  = M.filterWithKey (\k _ -> k `elem` knownFields) fields1
     parse fields0 fields2 sections
   where
     knownFields = C.fieldGrammarKnownFieldList $ grammar []
 
-    parse :: [C.Field a] -> C.Fields C.Position -> [[C.Section C.Position]] -> C.ParseResult (Project Void String String)
+    parse :: [C.Field a] -> C.Fields C.Position -> [[C.Section C.Position]] -> C.ParseResult src (Project Void String String)
     parse otherFields fields sections = do
         let prettyOtherFields = map void $ C.fromParsecFields $ filter otherFieldName otherFields
         prj <- C.parseFieldGrammar C.cabalSpecLatest fields $ grammar prettyOtherFields
@@ -257,7 +257,7 @@ parseProjectWithConditionals = parseWith $ \fields0 -> flip parseCondTree fields
 
     -- Special case for source-repository-package. If you add another such
     -- special case, make sure to update otherFieldName appropriately.
-    parseSec :: C.Section C.Position -> C.ParseResult (Project Void String String -> Project Void String String)
+    parseSec :: C.Section C.Position -> C.ParseResult src (Project Void String String -> Project Void String String)
     parseSec (C.MkSection (C.Name _pos name) [] fields) | name == sourceRepoSectionName = do
         let fields' = fst $ C.partitionFields fields
         repos <- C.parseFieldGrammar C.cabalSpecLatest fields' sourceRepositoryPackageGrammar
@@ -441,27 +441,27 @@ readPackagesOfProject prj = runExceptT $ for prj $ \fp -> do
 -------------------------------------------------------------------------------
 
 parseCondTree
-  :: forall a. (C.Fields C.Position -> [[C.Section C.Position]] -> C.ParseResult a)  -- ^ parse
+  :: forall a src. (C.Fields C.Position -> [[C.Section C.Position]] -> C.ParseResult src a)  -- ^ parse
   -> [C.Field C.Position]
-  -> C.ParseResult (C.CondTree C.ConfVar () a)
+  -> C.ParseResult src (C.CondTree C.ConfVar a)
 parseCondTree subparse = go
   where
     go fields = do
         let (fs, ss) = C.partitionFields fields
         (ss', branches) <- second concat . unzip <$> traverse (goIfs id id) ss
         x <- subparse fs ss'
-        return $ C.CondNode x () branches
+        return $ C.CondNode x branches
 
     goIfs
         :: ([C.Section C.Position] -> [C.Section C.Position])
-        -> ([C.CondBranch C.ConfVar () a] -> [C.CondBranch C.ConfVar () a])
+        -> ([C.CondBranch C.ConfVar a] -> [C.CondBranch C.ConfVar a])
         -> [C.Section C.Position]
-        -> C.ParseResult ([C.Section C.Position], [C.CondBranch C.ConfVar () a])
+        -> C.ParseResult src ([C.Section C.Position], [C.CondBranch C.ConfVar a])
     goIfs accS accB [] = do
         return (accS [], accB [])
     goIfs accS accB (C.MkSection (C.Name pos name) args fields : sections)
         | name == "if" = do
-            test' <- C.parseConditionConfVar args
+            test' <- C.parseConditionConfVar (wrong pos) args
             fields' <- go fields
             goElse (C.CondBranch test' fields') accS accB sections
         | name == "else" = do
@@ -474,11 +474,11 @@ parseCondTree subparse = go
         goIfs (accS . (section :)) accB sections
 
     goElse
-        :: (Maybe (C.CondTree C.ConfVar () a) -> C.CondBranch C.ConfVar () a)
+        :: (Maybe (C.CondTree C.ConfVar a) -> C.CondBranch C.ConfVar a)
         -> ([C.Section C.Position] -> [C.Section C.Position])
-        -> ([C.CondBranch C.ConfVar () a] -> [C.CondBranch C.ConfVar () a])
+        -> ([C.CondBranch C.ConfVar a] -> [C.CondBranch C.ConfVar a])
         -> [C.Section C.Position]
-        -> C.ParseResult ([C.Section C.Position], [C.CondBranch C.ConfVar () a])
+        -> C.ParseResult src ([C.Section C.Position], [C.CondBranch C.ConfVar a])
     goElse make accS accB (C.MkSection (C.Name pos name) args fields : sections)
         | name == "else" = do
             unless (null args) $ C.parseFailure pos "arguments passed to else"
@@ -486,10 +486,14 @@ parseCondTree subparse = go
             let condTree = make (Just fields')
             goIfs accS (accB . (condTree :)) sections
         | name == "elif" = do
-            test' <- C.parseConditionConfVar args
+            test' <- C.parseConditionConfVar (wrong pos) args
             fields' <- go fields
             emptyA <- subparse mempty []
-            goElse (make . Just . C.CondNode emptyA () . pure .  C.CondBranch test' fields') accS accB sections
+            goElse (make . Just . C.CondNode emptyA . pure .  C.CondBranch test' fields') accS accB sections
     goElse make accS accB sections = do
         let condTree = make Nothing
         goIfs accS (accB . (condTree :)) sections
+
+-- | I don't know which location to pass to parseConditionConfVar, so I just pass some.
+wrong :: C.Position -> C.Position
+wrong = id

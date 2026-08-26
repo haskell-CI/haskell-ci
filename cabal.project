@@ -7,4 +7,6 @@ package haskell-ci
   ghc-options: -Wall
   ghc-options: -Werror
 
+allow-newer: ShellCheck:aeson
+allow-newer: ShellCheck:containers
 allow-newer: ShellCheck:filepath

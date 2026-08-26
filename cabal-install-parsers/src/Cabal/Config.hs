@@ -156,7 +156,7 @@ parseConfig = parseWith $ \fields0 -> do
         cfg <- C.parseFieldGrammar C.cabalSpecLatest fields grammar
         foldl' (&) cfg <$> traverse parseSec (concat sections)
 
-    parseSec :: C.Section C.Position -> C.ParseResult (Config f -> Config f)
+    parseSec :: C.Section C.Position -> C.ParseResult src (Config f -> Config f)
     parseSec (C.MkSection (C.Name _pos name) [C.SecArgName _pos' secName] fields) | name == "repository" = do
         let repoName = C.fromUTF8BS secName
         let fields' = fst $ C.partitionFields fields

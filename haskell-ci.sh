@@ -19,7 +19,7 @@ fi
 
 CFG_CABAL_STORE_CACHE=""
 CFG_CABAL_REPO_CACHE=""
-CFG_JOBS="9.12.4 9.10.3 9.8.4 9.6.7 9.4.8 9.2.8 9.0.2 8.10.7 8.8.4"
+CFG_JOBS="9.14.1 9.12.4 9.10.3 9.8.4 9.6.7 9.4.8"
 CFG_CABAL_UPDATE=false
 
 SCRIPT_NAME=$(basename "$0")
@@ -444,12 +444,6 @@ fi
 install_cabalplan
 run_cmd cabal-plan --version
 
-# install doctest
-put_info "install doctest"
-# install doctest
-run_cmd_if $((HCNUMVER < 90000)) $CABAL v2-install $ARG_COMPILER --ignore-project -j doctest --constraint='doctest ^>=0.22.0'
-run_cmd_if $((HCNUMVER < 90000)) doctest --version
-
 # initial cabal.project for sdist
 put_info "initial cabal.project for sdist"
 change_dir "$BUILDDIR"
@@ -482,6 +476,8 @@ package *
   ghc-options: -Werror=missing-methods
 EOF
 cat >> cabal.project <<EOF
+allow-newer: ShellCheck:aeson
+allow-newer: ShellCheck:containers
 allow-newer: ShellCheck:filepath
 
 package haskell-ci
@@ -520,14 +516,6 @@ run_cmd $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all
 # tests
 put_info "tests"
 run_cmd $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct
-
-# doctest
-put_info "doctest"
-run_cmd perl -i -e 'while (<ARGV>) { print unless /package-id\s+(base-compat-batteries|bs-cmpt-bttrs)-\d+(\.\d+)*/; }' .ghc.environment.*
-change_dir_if $((HCNUMVER < 90000)) ${PKGDIR_haskell_ci}
-run_cmd_if $((HCNUMVER < 90000)) doctest --fast -XHaskell2010 -XBangPatterns -XConstraintKinds -XDataKinds -XDeriveAnyClass -XDeriveFoldable -XDeriveFunctor -XDeriveGeneric -XDeriveTraversable -XDerivingStrategies -XFlexibleContexts -XFlexibleInstances -XFunctionalDependencies -XGADTs -XGeneralizedNewtypeDeriving -XMultiWayIf -XNoImplicitPrelude -XQuantifiedConstraints -XRankNTypes -XScopedTypeVariables -XStandaloneDeriving -XTypeApplications -XTypeOperators -XUndecidableInstances -XUndecidableSuperClasses -XViewPatterns src
-change_dir_if $((HCNUMVER < 90000)) ${PKGDIR_cabal_install_parsers}
-run_cmd_if $((HCNUMVER < 90000)) doctest --fast -XHaskell2010 src
 
 # cabal check
 put_info "cabal check"

@@ -1,3 +1,9 @@
+## 0.7
+
+- Use `Cabal-syntax-3.18`.
+  The breaking changes from `Cabal-syntax` unfortunately leak into public interface of `cabal-install-parsers` in this update, therefore the major update to `cabal-install-parsers.
+- Drop support for GHC prior 9.4.8
+
 ## 0.6.4
 
 - Add support for reading project files with conditionals.

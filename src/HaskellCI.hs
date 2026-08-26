@@ -370,11 +370,11 @@ getCabalFiles InputTypePackage path = do
     e <- liftIO $ readPackagesOfProject (emptyProject & field @"prjPackages" .~ [path])
     either (putStrLnErr . renderParseError) return e
 
-simplifyProject :: CondTree c d (Project Void String String) -> Project Void String String
-simplifyProject (CondNode a _ ifs) =
+simplifyProject :: CondTree c (Project Void String String) -> Project Void String String
+simplifyProject (CondNode a ifs) =
   foldl (<<>>) a $ map simplifyProject' ifs
 
-simplifyProject' :: CondBranch v d (Project Void String String) -> Project Void String String
+simplifyProject' :: CondBranch v (Project Void String String) -> Project Void String String
 simplifyProject' (CondBranch _ t Nothing)  = simplifyProject t
 simplifyProject' (CondBranch _ t (Just e)) = simplifyProject t <<>> simplifyProject e
 
