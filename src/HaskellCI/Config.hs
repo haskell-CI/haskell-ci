@@ -38,7 +38,7 @@ emptyConfig = case runEG configGrammar of
 readConfigFile :: MonadIO m => FilePath -> m Config
 readConfigFile = liftIO . readAndParseFile parseConfigFile
 
-parseConfigFile :: [C.Field C.Position] -> C.ParseResult Config
+parseConfigFile :: [C.Field C.Position] -> C.ParseResult src Config
 parseConfigFile fields0 = do
     config <- C.parseFieldGrammar C.cabalSpecLatest fields configGrammar
     config' <- traverse parseSection $ concat sections
@@ -46,7 +46,7 @@ parseConfigFile fields0 = do
   where
     (fields, sections) = C.partitionFields fields0
 
-    parseSection :: C.Section C.Position -> C.ParseResult (Config -> Config)
+    parseSection :: C.Section C.Position -> C.ParseResult src (Config -> Config)
     parseSection (C.MkSection (C.Name pos name) args cfields)
         | name == "constraint-set" = do
             name' <- parseName pos args
@@ -69,10 +69,10 @@ postprocessConfig cfg
 -- From Cabal
 -------------------------------------------------------------------------------
 
-parseName :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult String
+parseName :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult src String
 parseName pos args = fromUTF8BS <$> parseNameBS pos args
 
-parseNameBS :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult BS.ByteString
+parseNameBS :: C.Position -> [C.SectionArg C.Position] -> C.ParseResult src BS.ByteString
 parseNameBS pos args = case args of
     [C.SecArgName _pos secName] ->
          pure secName

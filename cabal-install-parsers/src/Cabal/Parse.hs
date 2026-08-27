@@ -32,13 +32,13 @@ import qualified Text.Parsec                    as P
 -- This variant doesn't return any warnings in the successful case.
 --
 parseWith
-    :: ([C.Field C.Position] -> C.ParseResult a)  -- ^ parse
-    -> FilePath                                   -- ^ filename
-    -> ByteString                                 -- ^ contents
+    :: ([C.Field C.Position] -> C.ParseResult src a)  -- ^ parse
+    -> FilePath                                       -- ^ filename
+    -> ByteString                                     -- ^ contents
     -> Either (ParseError NonEmpty) a
 parseWith parser fp bs = case C.runParseResult result of
     (_, Right x)       -> return x
-    (ws, Left (_, es)) -> Left $ ParseError fp bs es ws
+    (ws, Left (_, es)) -> Left $ ParseError fp bs (fmap C.perror es) (fmap C.pwarning ws)
   where
     result = case C.readFields' bs of
         Left perr -> C.parseFatalFailure pos (show perr) where

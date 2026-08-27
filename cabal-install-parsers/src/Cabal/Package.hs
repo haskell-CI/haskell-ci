@@ -26,5 +26,5 @@ readPackage fp = do
 -- | Parse @.cabal@ file.
 parsePackage :: FilePath -> ByteString -> Either (ParseError NonEmpty) C.GenericPackageDescription
 parsePackage fp contents = case C.runParseResult $ C.parseGenericPackageDescription contents of
-    (ws, Left (_mv, errs)) -> Left $ ParseError fp contents errs ws
+    (ws, Left (_mv, errs)) -> Left $ ParseError fp contents (fmap C.perror errs) (fmap C.pwarning ws)
     (_, Right gpd)         -> Right gpd

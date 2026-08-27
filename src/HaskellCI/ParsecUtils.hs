@@ -15,8 +15,8 @@ import qualified Text.Parsec                    as P
 import Cabal.Parse
 
 readAndParseFile
-    :: ([C.Field C.Position] -> C.ParseResult a)  -- ^ File fields to final value parser
-    -> FilePath                                   -- ^ File to read
+    :: ([C.Field C.Position] -> C.ParseResult src a)  -- ^ File fields to final value parser
+    -> FilePath                                       -- ^ File to read
     -> IO a
 readAndParseFile parser fpath = do
     exists <- doesFileExist fpath
@@ -32,11 +32,11 @@ readAndParseFile parser fpath = do
             ppos = P.errorPos perr
             pos  = C.Position (P.sourceLine ppos) (P.sourceColumn ppos)
   where
-    run :: BS.ByteString -> C.ParseResult a -> IO a
+    run :: BS.ByteString -> C.ParseResult src a -> IO a
     run bs r = case C.runParseResult r of
         (ws, Right x)      -> do
-            hPutStr stderr $ renderParseError (ParseError fpath bs [] ws)
+            hPutStr stderr $ renderParseError (ParseError fpath bs [] (fmap C.pwarning ws))
             return x
         (ws, Left (_, es)) -> do
-            hPutStr stderr $ renderParseError (ParseError fpath bs (toList es) ws)
+            hPutStr stderr $ renderParseError (ParseError fpath bs (fmap C.perror (toList es)) (fmap C.pwarning ws))
             exitFailure
