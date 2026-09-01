@@ -210,8 +210,7 @@ jobs:
           echo "    ghc-options: -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
           cat >> cabal.project <<EOF
           allow-newer: ShellCheck:aeson
-          allow-newer: ShellCheck:containers
-          allow-newer: ShellCheck:filepath
+          allow-newer: ShellCheck:QuickCheck
 
           package haskell-ci
             ghc-options: -Werror

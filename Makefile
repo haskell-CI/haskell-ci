@@ -27,4 +27,4 @@ doctest :
 	doctest --fast -XBangPatterns -XScopedTypeVariables -XDerivingStrategies -XGeneralizedNewtypeDeriving -XDeriveAnyClass -XNoImplicitPrelude -XDeriveFunctor -XDeriveFoldable -XDeriveTraversable -XDeriveGeneric src
 
 regenerate :
-	cabal v2-run -w $(HC) -- haskell-ci regenerate
+	cabal v2-run -w $(HC) haskell-ci -- regenerate
