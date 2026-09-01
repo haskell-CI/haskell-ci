@@ -477,8 +477,7 @@ package *
 EOF
 cat >> cabal.project <<EOF
 allow-newer: ShellCheck:aeson
-allow-newer: ShellCheck:containers
-allow-newer: ShellCheck:filepath
+allow-newer: ShellCheck:QuickCheck
 
 package haskell-ci
   ghc-options: -Werror
