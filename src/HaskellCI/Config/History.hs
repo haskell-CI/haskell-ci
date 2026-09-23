@@ -117,6 +117,9 @@ configHistory =
             }
     , ver 0 19 20250104 := \cfg -> cfg
         & field @"cfgHeadHackage" .~ C.orLaterVersion (C.mkVersion [9,15])
+    , ver 0 19 20260923 := \cfg -> cfg
+        & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [10,0,1]) (mkVersion [10,0,0,20260917])
+        & field @"cfgSetupMethods" .~ prereleasePerSetupMethod (C.mkVersion [9,14])
     ]
   where
     ver x y z = [x, y, z]
@@ -127,3 +130,11 @@ defaultConfig :: Config
 defaultConfig = foldl' f initialConfig configHistory
   where
     f !cfg (_, g) = g cfg
+
+prereleasePerSetupMethod :: Version -> PerSetupMethod VersionRange
+prereleasePerSetupMethod v = PerSetupMethod
+    { hvrPpa          = C.noVersion
+    , ghcup           = invertVersionRange (C.withinVersion (C.mkVersion [9,8,3])) /\ C.earlierVersion v
+    , ghcupVanilla    = C.withinVersion (C.mkVersion [9,8,3])
+    , ghcupPrerelease = C.orLaterVersion v
+    }
