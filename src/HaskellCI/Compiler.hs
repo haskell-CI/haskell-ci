@@ -147,6 +147,7 @@ knownGhcVersions = fmap mkVersion
     , [9,10,1], [9,10,2], [9,10,3]
     , [9,12,1], [9,12,2],          [9,12,4]
     , [9,14,1]
+    , [10,0,1]
     ]
 
 knownGhcjsVersions :: [Version]
