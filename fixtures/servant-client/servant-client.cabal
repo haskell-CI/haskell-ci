@@ -1,6 +1,6 @@
 name:                servant-client
 version:             0.11
-synopsis: automatical derivation of querying functions for servant webservices
+synopsis: automatically derivation of querying functions for servant webservices
 description:
   This library lets you derive automatically Haskell functions that
   let you query each endpoint of a <http://hackage.haskell.org/package/servant servant> webservice.

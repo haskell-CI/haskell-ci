@@ -74,7 +74,7 @@ sh = sh'
     , 2046
     , 2210
 {-
-SC1102: Shells disambiguate $(( differently or not at all. For $(command substitution), add space after $( . For $((arithmetics)), fix parsing errors.
+SC1102: Shells disambiguate $(( differently or not at all. For $(command substitution), add space after $( . For $((arithmetic)), fix parsing errors.
 SC2046: Quote this to prevent word splitting.
 SC2210: This is a file redirection. Was it supposed to be a comparison or fd operation?
 -}
