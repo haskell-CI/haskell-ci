@@ -120,6 +120,8 @@ configHistory =
     , ver 0 19 20260923 := \cfg -> cfg
         & field @"cfgVersionMapping" .~ Map.singleton (mkVersion [10,0,1]) (mkVersion [10,0,0,20260917])
         & field @"cfgSetupMethods" .~ prereleasePerSetupMethod (C.mkVersion [9,14])
+    , ver 0 19 20260926 := \cfg -> cfg
+        & field @"cfgSetupMethods" .~ prereleasePerSetupMethod (C.mkVersion [10,0])
     ]
   where
     ver x y z = [x, y, z]
