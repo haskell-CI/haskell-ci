@@ -122,6 +122,8 @@ configHistory =
         & field @"cfgSetupMethods" .~ prereleasePerSetupMethod (C.mkVersion [9,14])
     , ver 0 19 20260926 := \cfg -> cfg
         & field @"cfgSetupMethods" .~ prereleasePerSetupMethod (C.mkVersion [10,0])
+    , ver 0 19 20260927 := \cfg -> cfg
+        & field @"cfgUbuntu" .~ Noble
     ]
   where
     ver x y z = [x, y, z]

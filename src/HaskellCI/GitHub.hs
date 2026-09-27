@@ -127,7 +127,9 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                     , "curl"
                     , "git"
                     , "software-properties-common"
-                    , "libtinfo5"
+                    ] ++
+                    [ "libtinfo5"
+                    | cfgUbuntu < Noble
                     ] ++
                     -- Installing libnuma-dev is required to work around
                     -- https://gitlab.haskell.org/haskell/ghcup-hs/-/blob/b0522507be6fa991a819aaf22f9a551757380821/README.md#libnuma-required

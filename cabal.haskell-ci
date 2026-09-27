@@ -3,7 +3,7 @@
 
 -- Supported: xenial, bionic, focal.
 -- Bionic is a default.
-distribution: jammy
+distribution: noble
 
 -- list of extra apt packages to be installed
 -- apt: foo bar
