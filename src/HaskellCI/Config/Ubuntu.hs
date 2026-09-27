@@ -12,25 +12,28 @@ data Ubuntu
     | Focal
     | Jammy
     | Noble
+    | Resolute
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 instance C.Parsec Ubuntu where
     parsec = do
         t <- C.parsecToken
         case t of
-            "xenial" -> return Xenial
-            "bionic" -> return Bionic
-            "focal"  -> return Focal
-            "jammy"  -> return Jammy
-            "noble"  -> return Noble
+            "xenial"   -> return Xenial
+            "bionic"   -> return Bionic
+            "focal"    -> return Focal
+            "jammy"    -> return Jammy
+            "noble"    -> return Noble
+            "resolute" -> return Resolute
             _        -> fail $ "Unknown ubuntu release " ++ t
 
 instance C.Pretty Ubuntu where
     pretty = PP.text . showUbuntu
 
 showUbuntu :: Ubuntu -> String
-showUbuntu Xenial = "xenial"
-showUbuntu Bionic = "bionic"
-showUbuntu Focal  = "focal"
-showUbuntu Jammy  = "jammy"
-showUbuntu Noble  = "noble"
+showUbuntu Xenial   = "xenial"
+showUbuntu Bionic   = "bionic"
+showUbuntu Focal    = "focal"
+showUbuntu Jammy    = "jammy"
+showUbuntu Noble    = "noble"
+showUbuntu Resolute = "resolute"

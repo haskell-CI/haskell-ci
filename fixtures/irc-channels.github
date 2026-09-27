@@ -52,7 +52,7 @@ jobs:
     timeout-minutes:
       60
     container:
-      image: buildpack-deps:jammy
+      image: buildpack-deps:noble
     continue-on-error: ${{ matrix.allow-failure }}
     strategy:
       matrix:
@@ -182,7 +182,7 @@ jobs:
       - name: apt-get install
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libtinfo5 libnuma-dev
+          apt-get install -y --no-install-recommends gnupg ca-certificates dirmngr curl git software-properties-common libnuma-dev
       - name: Install GHCup
         run: |
           mkdir -p "$HOME/.ghcup/bin"
