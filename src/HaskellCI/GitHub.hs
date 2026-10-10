@@ -278,7 +278,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 Binary.put cfgSetupMethods
 
         when (doctestEnabled) $ githubUses "cache (tools)" "actions/cache/restore@v6"
-            [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
+            [ ("key", showUbuntu cfgUbuntu ++ "$-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
             , ("path", "~/.haskell-ci-tools")
             ]
 
@@ -311,7 +311,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
             sh_if range "doctest --version"
 
         when (doctestEnabled) $ githubUsesIf "save cache (tools)" "actions/cache/save@v6" "always()"
-            [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
+            [ ("key", showUbuntu cfgUbuntu ++ "-${{ matrix.compiler }}-tools-" ++ toolsConfigHash)
             , ("path", "~/.haskell-ci-tools")
             ]
 
@@ -421,8 +421,8 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
         -- This a hack. https://github.com/actions/cache/issues/109
         -- Hashing Java - Maven style.
         githubUses "restore cache" "actions/cache/restore@v6"
-            [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
-            , ("restore-keys", "${{ runner.os }}-${{ matrix.compiler }}-")
+            [ ("key", showUbuntu cfgUbuntu ++ "-${{ matrix.compiler }}-${{ github.sha }}")
+            , ("restore-keys", showUbuntu cfgUbuntu ++ "-${{ matrix.compiler }}-")
             , ("path", "~/.cabal/store")
             ]
 
@@ -528,7 +528,7 @@ makeGitHub _argv config@Config {..} gitconfig prj jobs@JobVersions {..} = do
                 sh_cs $ "$CABAL v2-haddock --disable-documentation" ++ haddockFlags ++ " $ARG_COMPILER " ++ withHaddock ++ " " ++ allFlags ++ " all"
 
         githubUsesIf "save cache" "actions/cache/save@v6" "always()"
-          [ ("key", "${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}")
+          [ ("key", showUbuntu cfgUbuntu ++ "-${{ matrix.compiler }}-${{ github.sha }}")
           , ("path", "~/.cabal/store")
           ]
 
